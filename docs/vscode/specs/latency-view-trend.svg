@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="760" viewBox="0 0 1280 760">
+  <rect width="1280" height="760" fill="#f6f8fb"/>
+  <rect x="28" y="24" width="1224" height="712" rx="8" fill="#ffffff" stroke="#d8dee9"/>
+
+  <text x="56" y="64" font-family="Microsoft YaHei, Arial, sans-serif" font-size="24" font-weight="700" fill="#111827">时延分析 - 趋势对比</text>
+  <text x="56" y="94" font-family="Microsoft YaHei, Arial, sans-serif" font-size="14" fill="#6b7280">适合比较多个应用在同一时间窗口内的平均值、P90 和最大值走势</text>
+
+  <rect x="56" y="124" width="360" height="42" rx="6" fill="#f9fafb" stroke="#e5e7eb"/>
+  <text x="76" y="151" font-family="Microsoft YaHei, Arial, sans-serif" font-size="14" fill="#374151">指标:</text>
+  <circle cx="132" cy="145" r="6" fill="#2563eb"/><text x="146" y="151" font-family="Microsoft YaHei, Arial, sans-serif" font-size="14" fill="#374151">平均</text>
+  <circle cx="210" cy="145" r="6" fill="#dc2626"/><text x="224" y="151" font-family="Microsoft YaHei, Arial, sans-serif" font-size="14" fill="#374151">P90</text>
+  <circle cx="280" cy="145" r="6" fill="#7c3aed"/><text x="294" y="151" font-family="Microsoft YaHei, Arial, sans-serif" font-size="14" fill="#374151">最大值</text>
+
+  <line x1="124" y1="598" x2="1010" y2="598" stroke="#9ca3af"/>
+  <line x1="124" y1="210" x2="124" y2="598" stroke="#9ca3af"/>
+
+  <g stroke="#e5e7eb">
+    <line x1="124" y1="520" x2="1010" y2="520"/>
+    <line x1="124" y1="442" x2="1010" y2="442"/>
+    <line x1="124" y1="364" x2="1010" y2="364"/>
+    <line x1="124" y1="286" x2="1010" y2="286"/>
+  </g>
+
+  <g font-family="Arial, sans-serif" font-size="12" fill="#4b5563">
+    <text x="76" y="602">0ms</text>
+    <text x="70" y="524">200ms</text>
+    <text x="70" y="446">400ms</text>
+    <text x="70" y="368">600ms</text>
+    <text x="70" y="290">800ms</text>
+  </g>
+
+  <g font-family="Microsoft YaHei, Arial, sans-serif" font-size="13" fill="#374151">
+    <text x="130" y="626">10:30</text>
+    <text x="270" y="626">10:40</text>
+    <text x="410" y="626">10:50</text>
+    <text x="550" y="626">11:00</text>
+    <text x="690" y="626">11:10</text>
+    <text x="830" y="626">11:20</text>
+    <text x="956" y="626">11:30</text>
+  </g>
+
+  <polyline points="144,556 284,548 424,530 564,458 704,486 844,534 984,552" fill="none" stroke="#2563eb" stroke-width="3"/>
+  <polyline points="144,520 284,500 424,442 564,324 704,360 844,448 984,506" fill="none" stroke="#dc2626" stroke-width="3"/>
+  <polyline points="144,494 284,452 424,390 564,260 704,304 844,404 984,462" fill="none" stroke="#7c3aed" stroke-width="3"/>
+
+  <g fill="#2563eb">
+    <circle cx="144" cy="556" r="5"/><circle cx="284" cy="548" r="5"/><circle cx="424" cy="530" r="5"/><circle cx="564" cy="458" r="5"/><circle cx="704" cy="486" r="5"/><circle cx="844" cy="534" r="5"/><circle cx="984" cy="552" r="5"/>
+  </g>
+  <g fill="#dc2626">
+    <circle cx="144" cy="520" r="5"/><circle cx="284" cy="500" r="5"/><circle cx="424" cy="442" r="5"/><circle cx="564" cy="324" r="6"/><circle cx="704" cy="360" r="5"/><circle cx="844" cy="448" r="5"/><circle cx="984" cy="506" r="5"/>
+  </g>
+  <g fill="#7c3aed">
+    <circle cx="144" cy="494" r="5"/><circle cx="284" cy="452" r="5"/><circle cx="424" cy="390" r="5"/><circle cx="564" cy="260" r="6"/><circle cx="704" cy="304" r="5"/><circle cx="844" cy="404" r="5"/><circle cx="984" cy="462" r="5"/>
+  </g>
+
+  <rect x="592" y="232" width="212" height="116" rx="8" fill="#111827" opacity="0.94"/>
+  <text x="614" y="262" font-family="Microsoft YaHei, Arial, sans-serif" font-size="14" font-weight="700" fill="#ffffff">A00038 / 11:00</text>
+  <text x="614" y="290" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13" fill="#d1d5db">平均: 420ms</text>
+  <text x="614" y="316" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13" fill="#fecaca">P90: 710ms</text>
+  <text x="614" y="342" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13" fill="#ddd6fe">最大: 910ms</text>
+
+  <rect x="1042" y="210" width="166" height="388" rx="8" fill="#f9fafb" stroke="#e5e7eb"/>
+  <text x="1064" y="244" font-family="Microsoft YaHei, Arial, sans-serif" font-size="18" font-weight="700" fill="#111827">应用筛选</text>
+  <g font-family="Microsoft YaHei, Arial, sans-serif" font-size="14" fill="#374151">
+    <rect x="1064" y="272" width="16" height="16" rx="3" fill="#2563eb"/><text x="1090" y="285">A00038</text>
+    <rect x="1064" y="308" width="16" height="16" rx="3" fill="#10b981"/><text x="1090" y="321">A00010</text>
+    <rect x="1064" y="344" width="16" height="16" rx="3" fill="#f59e0b"/><text x="1090" y="357">A00022</text>
+    <rect x="1064" y="380" width="16" height="16" rx="3" fill="#e5e7eb" stroke="#9ca3af"/><text x="1090" y="393" fill="#6b7280">A00051</text>
+  </g>
+  <rect x="1064" y="448" width="112" height="34" rx="6" fill="#2563eb"/>
+  <text x="1086" y="470" font-family="Microsoft YaHei, Arial, sans-serif" font-size="14" fill="#ffffff">查看日志</text>
+</svg>
