@@ -1,0 +1,153 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="960" viewBox="0 0 1440 960">
+  <defs>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="18" flood-color="#0f172a" flood-opacity="0.10"/>
+    </filter>
+    <style>
+      .font { font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif; }
+      .mono { font-family: "Cascadia Mono", "Consolas", monospace; }
+      .muted { fill: #64748b; }
+      .text { fill: #0f172a; }
+      .line { stroke: #dbe3ef; }
+      .panel { fill: #ffffff; stroke: #dbe3ef; }
+      .chip { fill: #f1f5f9; stroke: #dbe3ef; }
+      .blue { fill: #2563eb; }
+      .green { fill: #059669; }
+      .orange { fill: #f97316; }
+      .red { fill: #dc2626; }
+    </style>
+  </defs>
+
+  <rect width="1440" height="960" fill="#edf2f7"/>
+
+  <rect x="32" y="28" width="1376" height="904" rx="12" fill="#f8fafc" stroke="#cbd5e1" filter="url(#softShadow)"/>
+
+  <rect x="32" y="28" width="1376" height="64" rx="12" fill="#ffffff" stroke="#dbe3ef"/>
+  <text x="64" y="68" class="font text" font-size="22" font-weight="700">日志分析工作台</text>
+  <text x="238" y="68" class="font muted" font-size="13">本地模式 · 固定格式日志 · 当前无远程服务</text>
+
+  <rect x="1080" y="46" width="112" height="30" rx="6" fill="#eff6ff" stroke="#bfdbfe"/>
+  <text x="1101" y="66" class="font" font-size="13" fill="#1d4ed8">查询 84ms</text>
+  <rect x="1204" y="46" width="126" height="30" rx="6" fill="#ecfdf5" stroke="#bbf7d0"/>
+  <text x="1224" y="66" class="font" font-size="13" fill="#047857">内存 412MB</text>
+  <circle cx="1364" cy="61" r="8" fill="#10b981"/>
+  <text x="1328" y="66" class="font muted" font-size="13">就绪</text>
+
+  <rect x="32" y="92" width="224" height="840" fill="#ffffff" stroke="#dbe3ef"/>
+  <text x="60" y="134" class="font text" font-size="15" font-weight="700">保存查询</text>
+  <rect x="58" y="154" width="166" height="34" rx="6" fill="#2563eb"/>
+  <text x="96" y="176" class="font" font-size="14" fill="#ffffff">保存当前查询</text>
+
+  <text x="60" y="222" class="font muted" font-size="12">分组</text>
+  <rect x="56" y="238" width="168" height="34" rx="6" fill="#eff6ff" stroke="#bfdbfe"/>
+  <text x="76" y="260" class="font" font-size="13" fill="#1d4ed8">唤醒链路</text>
+  <rect x="56" y="280" width="168" height="34" rx="6" class="chip"/>
+  <text x="76" y="302" class="font text" font-size="13">健康检查</text>
+  <rect x="56" y="322" width="168" height="34" rx="6" class="chip"/>
+  <text x="76" y="344" class="font text" font-size="13">dfx维测</text>
+
+  <text x="60" y="394" class="font muted" font-size="12">常用查询</text>
+  <rect x="56" y="412" width="168" height="68" rx="8" fill="#f8fafc" stroke="#dbe3ef"/>
+  <text x="74" y="438" class="font text" font-size="13" font-weight="700">Wakeup 异常</text>
+  <text x="74" y="462" class="font muted" font-size="12">tag: WakeupManager</text>
+
+  <rect x="56" y="492" width="168" height="68" rx="8" fill="#f8fafc" stroke="#dbe3ef"/>
+  <text x="74" y="518" class="font text" font-size="13" font-weight="700">A00038 慢日志</text>
+  <text x="74" y="542" class="font muted" font-size="12">正则: cost|latency</text>
+
+  <rect x="56" y="572" width="168" height="68" rx="8" fill="#f8fafc" stroke="#dbe3ef"/>
+  <text x="74" y="598" class="font text" font-size="13" font-weight="700">错误级别 E/W</text>
+  <text x="74" y="622" class="font muted" font-size="12">level: E,W</text>
+
+  <rect x="280" y="116" width="1096" height="120" rx="10" class="panel"/>
+  <text x="308" y="150" class="font text" font-size="16" font-weight="700">日志加载</text>
+  <rect x="308" y="170" width="168" height="36" rx="6" fill="#2563eb"/>
+  <text x="346" y="193" class="font" font-size="14" fill="#ffffff">选择日志文件</text>
+  <text x="496" y="193" class="font muted" font-size="13">loaded_hmos_0612.log · 30MB · 206,752 行</text>
+  <rect x="308" y="214" width="650" height="8" rx="4" fill="#e2e8f0"/>
+  <rect x="308" y="214" width="650" height="8" rx="4" fill="#2563eb"/>
+  <text x="982" y="222" class="font muted" font-size="12">解析成功 206,740 · 失败 12 · 索引 0.8s</text>
+
+  <rect x="280" y="252" width="1096" height="178" rx="10" class="panel"/>
+  <text x="308" y="286" class="font text" font-size="16" font-weight="700">查询条件</text>
+  <rect x="308" y="304" width="450" height="38" rx="6" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="326" y="328" class="font muted" font-size="13">关键词 / 短语 / 正则，例如 WakeupManager|dispatch</text>
+
+  <rect x="774" y="304" width="94" height="38" rx="6" fill="#eff6ff" stroke="#bfdbfe"/>
+  <text x="802" y="328" class="font" font-size="13" fill="#1d4ed8">正则</text>
+  <rect x="884" y="304" width="92" height="38" rx="6" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="912" y="328" class="font text" font-size="13">大小写</text>
+  <rect x="992" y="304" width="126" height="38" rx="6" fill="#2563eb"/>
+  <text x="1035" y="328" class="font" font-size="14" fill="#ffffff">搜索</text>
+
+  <g class="font" font-size="13">
+    <rect x="308" y="362" width="148" height="36" rx="6" class="chip"/>
+    <text x="328" y="385" class="text">时间 10:30-11:30</text>
+    <rect x="468" y="362" width="96" height="36" rx="6" class="chip"/>
+    <text x="494" y="385" class="text">级别 W</text>
+    <rect x="576" y="362" width="116" height="36" rx="6" class="chip"/>
+    <text x="600" y="385" class="text">A00010</text>
+    <rect x="704" y="362" width="156" height="36" rx="6" class="chip"/>
+    <text x="726" y="385" class="text">WakeupManager</text>
+    <rect x="872" y="362" width="136" height="36" rx="6" class="chip"/>
+    <text x="894" y="385" class="text">包名筛选</text>
+  </g>
+
+  <rect x="280" y="446" width="1096" height="386" rx="10" class="panel"/>
+  <text x="308" y="480" class="font text" font-size="16" font-weight="700">查询结果</text>
+  <text x="392" y="480" class="font muted" font-size="13">共 318 条 · 当前第 1 页 · 命中内容高亮</text>
+  <rect x="1204" y="458" width="74" height="30" rx="6" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="1228" y="478" class="font text" font-size="13">CSV</text>
+  <rect x="1290" y="458" width="60" height="30" rx="6" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="1308" y="478" class="font text" font-size="13">JSON</text>
+
+  <rect x="306" y="506" width="1044" height="36" fill="#f1f5f9"/>
+  <text x="322" y="529" class="font muted" font-size="12">时间</text>
+  <text x="452" y="529" class="font muted" font-size="12">级别</text>
+  <text x="520" y="529" class="font muted" font-size="12">应用</text>
+  <text x="608" y="529" class="font muted" font-size="12">Tag</text>
+  <text x="766" y="529" class="font muted" font-size="12">消息</text>
+  <text x="1248" y="529" class="font muted" font-size="12">行号</text>
+
+  <g class="font" font-size="13">
+    <rect x="306" y="542" width="1044" height="54" fill="#ffffff" stroke="#edf2f7"/>
+    <text x="322" y="574" class="mono text">06-12 10:39:38.257</text>
+    <text x="458" y="574" fill="#b45309">W</text>
+    <text x="520" y="574" class="text">A00010</text>
+    <text x="608" y="574" class="text">WakeupManager</text>
+    <rect x="766" y="556" width="102" height="22" rx="4" fill="#fef3c7"/>
+    <text x="774" y="572" class="mono text">dispatch</text>
+    <text x="878" y="574" class="mono muted">wakeup request [undefined,]</text>
+    <text x="1248" y="574" class="mono muted">20675</text>
+
+    <rect x="306" y="596" width="1044" height="54" fill="#ffffff" stroke="#edf2f7"/>
+    <text x="322" y="628" class="mono text">06-12 10:39:38.947</text>
+    <text x="458" y="628" fill="#b45309">W</text>
+    <text x="520" y="628" class="text">A00038</text>
+    <text x="608" y="628" class="text">WakeupService</text>
+    <text x="766" y="628" class="mono muted">service ready, cost=520ms</text>
+    <text x="1248" y="628" class="mono muted">20742</text>
+
+    <rect x="306" y="650" width="1044" height="54" fill="#fff7ed" stroke="#fed7aa"/>
+    <text x="322" y="682" class="mono text">06-12 10:39:39.157</text>
+    <text x="458" y="682" fill="#dc2626">E</text>
+    <text x="520" y="682" class="text">A00038</text>
+    <text x="608" y="682" class="text">CallbackManager</text>
+    <text x="766" y="682" class="mono text">callback timeout after wakeup</text>
+    <text x="1248" y="682" class="mono muted">20789</text>
+
+    <rect x="306" y="704" width="1044" height="54" fill="#ffffff" stroke="#edf2f7"/>
+    <text x="322" y="736" class="mono text">06-12 10:39:39.190</text>
+    <text x="458" y="736" fill="#047857">I</text>
+    <text x="520" y="736" class="text">A00073</text>
+    <text x="608" y="736" class="text">ResourceMonitor</text>
+    <text x="766" y="736" class="mono muted">release wakeup context</text>
+    <text x="1248" y="736" class="mono muted">20801</text>
+  </g>
+
+  <rect x="280" y="848" width="1096" height="58" rx="10" fill="#ffffff" stroke="#dbe3ef"/>
+  <text x="308" y="884" class="font text" font-size="15" font-weight="700">时延分析入口</text>
+  <text x="426" y="884" class="font muted" font-size="13">选择请求后进入“单次请求 + 应用泳道”视图，展示 A日志 -> B日志 -> C日志 的阶段耗时</text>
+  <rect x="1200" y="862" width="126" height="32" rx="6" fill="#0f766e"/>
+  <text x="1228" y="883" class="font" font-size="14" fill="#ffffff">打开时延分析</text>
+</svg>
