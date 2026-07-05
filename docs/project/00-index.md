@@ -51,6 +51,18 @@ Phase 2: Domain and Responsibility Design
 | baselines/latency-analysis-export.example.csv | 时延分析 CSV 关键输出基线 | Approved |
 | ui/README.md | 时延分析页面视觉基线说明 | Approved |
 | ui/latency-analysis-approved.svg | 已确认的单次请求应用泳道页面 | Approved |
+| domain/00-domain-map.md | DDD 深度、子域和限界上下文关系 | Draft |
+| domain/01-log-workspace-context.md | 日志工作区上下文设计 | Draft |
+| domain/02-rule-configuration-context.md | 规则配置上下文设计 | Draft |
+| domain/03-latency-analysis-context.md | 时延分析核心上下文设计 | Draft |
+| domain/04-analysis-result-contract.md | 数据加工层最终时延分析结果契约 | Draft |
+| responsibilities/00-responsibility-map.md | 全部职责、依赖和需求追踪 | Draft |
+| responsibilities/01-log-search-and-context-design.md | 日志搜索与上下文复杂职责 | Draft |
+| responsibilities/02-rule-set-lifecycle-design.md | 规则集生命周期复杂职责 | Draft |
+| responsibilities/03-request-recognition-design.md | 请求识别复杂职责 | Draft |
+| responsibilities/04-latency-analysis-pipeline-design.md | 时延分析流水线复杂职责 | Draft |
+| responsibilities/05-result-projection-and-delivery-design.md | 页面与 CSV 投影交付职责 | Draft |
+| responsibilities/06-issue-handling-design.md | 统一问题分类与处理职责 | Draft |
 
 ## 依赖关系
 
@@ -66,6 +78,13 @@ Phase 2: Domain and Responsibility Design
   -> 08-request-analysis-view
   -> 09-latency-export
   -> 99-issue-table
+
+DOMAIN-MAP
+  -> CTX-LOG-WORKSPACE
+  -> CTX-RULE-CONFIG
+  -> CTX-LATENCY-ANALYSIS
+  -> RESP-MAP
+  -> complex responsibility designs
 ```
 
 ## 待后续阶段处理
