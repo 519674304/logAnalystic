@@ -14,19 +14,19 @@ Supersedes: docs/vscode/specs/requirements.md, docs/superpowers/specs/2026-06-17
 1. 基础能力：导入固定格式日志后，完成解析、搜索、上下文查看和常用查询复用。
 2. 进阶能力：基于业务规则识别一次请求，计算请求内跨应用、应用内部和应用间传递的时延，并以单次请求为主视图展示。
 
-当前阶段只重拆需求，不进入领域设计、技术架构或实施计划。
+需求与关键基线已经批准。当前进入领域与职责设计，尚不进入技术架构或实施计划。
 
 ## 当前阶段
 
-Phase 1: Requirements
+Phase 2: Domain and Responsibility Design
 
 ## 阶段批准状态
 
 | 阶段 | 内容 | 状态 | 批准人 | 批准时间 |
 | --- | --- | --- | --- | --- |
 | Phase 0 | 现有文档和上下文盘点 | Done | 用户会话确认 | 2026-06-24 |
-| Phase 1 | 需求拆解 | Draft |  |  |
-| Phase 2 | DDD 领域与职责拆分 | Pending |  |  |
+| Phase 1 | 需求拆解 | Approved | 用户 | 2026-07-05 |
+| Phase 2 | DDD 领域与职责拆分 | In Progress |  |  |
 | Phase 3 | 生命周期与扩展点设计 | Pending |  |  |
 | Phase 4 | 技术选型与架构设计 | Pending |  |  |
 | Phase 5 | 解耦实施计划 | Pending |  |  |
@@ -35,16 +35,22 @@ Phase 1: Requirements
 
 | 文档 | 说明 | 状态 |
 | --- | --- | --- |
-| requirements/00-overview.md | 目标、用户、能力地图、交付阶段、术语 | Draft |
-| requirements/01-scope-and-constraints.md | 范围、约束、性能、数据生命周期 | Draft |
-| requirements/02-log-ingestion-and-quality-requirements.md | 日志导入、固定格式解析、数据质量 | Draft |
-| requirements/03-log-search-and-context-requirements.md | 关键字、正则、结构化过滤、上下文查看 | Draft |
-| requirements/04-saved-query-requirements.md | 保存查询的创建、复用、编辑、删除 | Draft |
-| requirements/05-rule-set-management-requirements.md | 业务规则集导入、编辑、导出、备份、校验 | Draft |
-| requirements/06-request-recognition-requirements.md | 根据规则识别一次请求及请求列表筛选 | Draft |
-| requirements/07-latency-analysis-requirements.md | 阶段定义、时延计算、分支、统计 | Draft |
-| requirements/08-request-analysis-view-requirements.md | 单次请求分析视图、统计视图、日志钻取 | Draft |
-| requirements/99-issue-table.md | 暂不逐条确认的异常、校验与边界问题清单 | Draft |
+| requirements/00-overview.md | 目标、用户、能力地图、交付阶段、术语 | Approved |
+| requirements/01-scope-and-constraints.md | 范围、约束、性能、数据生命周期 | Approved |
+| requirements/02-log-ingestion-and-quality-requirements.md | 日志导入、固定格式解析、数据质量 | Approved |
+| requirements/03-log-search-and-context-requirements.md | 关键字、正则、结构化过滤、上下文查看 | Approved |
+| requirements/04-saved-query-requirements.md | 保存查询的创建、复用、编辑、删除 | Approved |
+| requirements/05-rule-set-management-requirements.md | 业务规则集导入、编辑、导出、备份、校验 | Approved |
+| requirements/06-request-recognition-requirements.md | 根据规则识别一次请求及请求列表筛选 | Approved |
+| requirements/07-latency-analysis-requirements.md | 阶段定义、时延计算、分支、统计 | Approved |
+| requirements/08-request-analysis-view-requirements.md | 单次请求分析视图、统计视图、日志钻取 | Approved |
+| requirements/09-latency-export-requirements.md | 关键日志时间戳、阶段时延和阶段统计 CSV 导出 | Approved |
+| requirements/99-issue-table.md | 暂不逐条确认的异常、校验与边界问题清单 | Approved |
+| baselines/README.md | 关键输入输出基线及映射 | Approved |
+| baselines/business-rules.example.toml | 业务规则关键输入基线 | Approved |
+| baselines/latency-analysis-export.example.csv | 时延分析 CSV 关键输出基线 | Approved |
+| ui/README.md | 时延分析页面视觉基线说明 | Approved |
+| ui/latency-analysis-approved.svg | 已确认的单次请求应用泳道页面 | Approved |
 
 ## 依赖关系
 
@@ -58,6 +64,7 @@ Phase 1: Requirements
   -> 06-request-recognition
   -> 07-latency-analysis
   -> 08-request-analysis-view
+  -> 09-latency-export
   -> 99-issue-table
 ```
 
@@ -68,4 +75,3 @@ Phase 1: Requirements
 - 插件、拦截器、监听器、工厂、策略等设计模式是否需要，以及使用位置。
 - 技术选型、中间件选择、运行形态、存储形态。
 - 实施计划和任务级拆分。
-

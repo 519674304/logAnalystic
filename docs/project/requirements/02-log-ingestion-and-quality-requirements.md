@@ -1,7 +1,7 @@
 Document ID: REQ-INGEST
-Status: Draft
-Approved by:
-Approved at:
+Status: Approved
+Approved by: 用户
+Approved at: 2026-07-05
 Depends on: REQ-SCOPE
 Supersedes: docs/vscode/specs/requirements.md
 
@@ -58,4 +58,3 @@ Supersedes: docs/vscode/specs/requirements.md
 - 解析失败行数量和样例可以被查看。
 - 解析失败行不会出现在搜索结果、请求明细和时延计算中。
 - 30MB 以内日志加载到可查询状态 P90 <= 5s。
-

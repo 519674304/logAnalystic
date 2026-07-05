@@ -1,7 +1,7 @@
 Document ID: REQ-ISSUES
-Status: Draft
-Approved by:
-Approved at:
+Status: Approved
+Approved by: 用户
+Approved at: 2026-07-05
 Depends on: REQ-OVERVIEW, REQ-SCOPE, REQ-INGEST, REQ-SEARCH, REQ-RULESET, REQ-REQUEST, REQ-LATENCY, REQ-VIEW
 Supersedes:
 
@@ -35,4 +35,3 @@ Supersedes:
 6. 选择一次请求，查看 A 应用处理、A 到 B 传递、B 应用处理时延。
 7. 点击慢阶段，查看阶段边界日志和上下文日志。
 8. 查看同类请求统计摘要，判断当前请求是否偏慢。
-

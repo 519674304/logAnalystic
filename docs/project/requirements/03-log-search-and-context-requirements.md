@@ -1,7 +1,7 @@
 Document ID: REQ-SEARCH
-Status: Draft
-Approved by:
-Approved at:
+Status: Approved
+Approved by: 用户
+Approved at: 2026-07-05
 Depends on: REQ-INGEST
 Supersedes: docs/vscode/specs/requirements.md
 
@@ -42,4 +42,3 @@ Supersedes: docs/vscode/specs/requirements.md
 
 - 首批不做搜索结果导出。
 - 首批不做模糊搜索、语义搜索或自动查询建议。
-

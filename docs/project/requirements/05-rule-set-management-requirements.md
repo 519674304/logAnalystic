@@ -1,7 +1,7 @@
 Document ID: REQ-RULESET
-Status: Draft
-Approved by:
-Approved at:
+Status: Approved
+Approved by: 用户
+Approved at: 2026-07-05
 Depends on: REQ-OVERVIEW, REQ-SCOPE
 Supersedes: docs/vscode/specs/requirements.md
 
@@ -22,6 +22,13 @@ Supersedes: docs/vscode/specs/requirements.md
 - REQ-RULESET-011: 同一层级多个阶段规则命中时，使用最高配置优先级。
 - REQ-RULESET-012: 同一层级同优先级冲突属于规则校验错误。
 - REQ-RULESET-013: 跨应用业务阶段和应用内部阶段属于不同层级，可以复用同一条日志。
+- REQ-RULESET-014: 规则集可以定义多个分析场景，每个场景包含稳定 ID、名称和场景描述。
+- REQ-RULESET-015: 每个日志匹配器和阶段分别提供 `enabled` 与 `export_enabled` 开关。
+- REQ-RULESET-016: 每个日志匹配器和阶段通过 `applicable_scenario_ids` 数组声明适用的一个或多个分析场景。
+- REQ-RULESET-017: `enabled=false` 时规则在所有场景均不参与分析；`enabled=true` 时仅在当前场景存在于 `applicable_scenario_ids` 时参与分析。
+- REQ-RULESET-018: `export_enabled=false` 不影响已启用规则参与匹配或计算，但该规则不进入时延分析 CSV。
+- REQ-RULESET-019: `applicable_scenario_ids` 为空时规则不适用于任何场景；引用不存在的场景 ID 时规则集校验失败。
+- REQ-RULESET-020: 全局请求开始和结束匹配器必须 `enabled=true` 并适用于规则集定义的全部分析场景，分析场景不得改变请求边界。
 
 ## 规则集需要表达的业务内容
 
@@ -37,6 +44,8 @@ Supersedes: docs/vscode/specs/requirements.md
 - 所属分支，适用于有分支的业务流程。
 - 分支入口日志规则。
 - 规则优先级。
+- 分析场景 ID、名称和场景描述。
+- 日志匹配器和阶段的分析开关、导出开关及适用场景数组。
 
 ## 主流程
 
@@ -53,4 +62,3 @@ Supersedes: docs/vscode/specs/requirements.md
 - 非法规则集不会覆盖当前规则集。
 - 覆盖前当前规则集被备份，且仅保留上一版本。
 - 保存查询不受规则集导入、覆盖、恢复影响。
-

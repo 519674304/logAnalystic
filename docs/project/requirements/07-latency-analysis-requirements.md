@@ -1,7 +1,7 @@
 Document ID: REQ-LATENCY
-Status: Draft
-Approved by:
-Approved at:
+Status: Approved
+Approved by: 用户
+Approved at: 2026-07-05
 Depends on: REQ-REQUEST, REQ-RULESET
 Supersedes: docs/vscode/specs/requirements.md
 
@@ -23,6 +23,9 @@ Supersedes: docs/vscode/specs/requirements.md
 - REQ-LATENCY-012: 分支入口由明确配置的分支入口日志识别，第一条命中的分支入口决定请求分支。
 - REQ-LATENCY-013: 应用内部阶段定义可以按分支不同而不同。
 - REQ-LATENCY-014: 系统提供请求总耗时、阶段耗时、同类请求统计、慢阶段和异常请求数量。
+- REQ-LATENCY-015: 用户执行时延分析前选择一个规则集定义的分析场景。
+- REQ-LATENCY-016: 系统只匹配和计算 `enabled=true` 且当前场景包含在 `applicable_scenario_ids` 中的日志匹配器与阶段。
+- REQ-LATENCY-017: 分析场景只控制普通关键日志、阶段计算和导出内容，不改变已经识别的请求数量、开始边界或结束边界。
 
 ## 阶段示例
 
@@ -45,8 +48,8 @@ b日志 -> c日志 = c阶段
 
 ## 主流程
 
-1. 用户选择某一次请求。
-2. 系统读取该请求所属业务流程和命中分支。
+1. 用户选择分析场景和某一次请求。
+2. 系统读取该请求所属业务流程、命中分支及当前场景下的有效规则。
 3. 系统按规则集中的阶段顺序匹配阶段边界日志。
 4. 系统计算每个阶段的开始时间、结束时间和耗时。
 5. 系统汇总请求总耗时和各类阶段耗时。

@@ -1,7 +1,7 @@
 Document ID: REQ-REQUEST
-Status: Draft
-Approved by:
-Approved at:
+Status: Approved
+Approved by: 用户
+Approved at: 2026-07-05
 Depends on: REQ-INGEST, REQ-RULESET
 Supersedes: docs/vscode/specs/requirements.md
 
@@ -19,6 +19,8 @@ Supersedes: docs/vscode/specs/requirements.md
 - REQ-REQUEST-008: 请求范围内的成功解析日志都归属于该请求。
 - REQ-REQUEST-009: 应用前缀只用于过滤和展示分组，不用于自动推断业务流程或阶段。
 - REQ-REQUEST-010: 一次请求可能多次进入同一个应用，系统以规则定义的阶段位置识别，不以应用前缀变化推断。
+- REQ-REQUEST-011: 系统为每次请求生成稳定的会话内请求 ID；日志不提供业务 requestId，请求展示和导出使用系统请求 ID 与全局开始日志原始时间戳组合标识。
+- REQ-REQUEST-012: 切换分析场景不重新切分请求；全局开始和结束日志在所有分析场景中固定生效。
 
 ## 主流程
 
@@ -29,7 +31,8 @@ Supersedes: docs/vscode/specs/requirements.md
 5. 结束日志存在时，记录结束时间和结束结果。
 6. 结束日志不存在时，请求范围截止到下一次开始日志之前。
 7. 系统生成请求列表。
-8. 用户筛选请求列表并选择某一次请求。
+8. 系统使用会话内请求 ID 和开始日志原始时间戳标识每次请求。
+9. 用户筛选请求列表并选择某一次请求。
 
 ## 验收标准
 
@@ -44,4 +47,3 @@ Supersedes: docs/vscode/specs/requirements.md
 - 不通过时间窗口自动切分请求。
 - 不通过应用前缀变化自动切分请求。
 - 不要求每个应用都有独立开始和结束标志。
-

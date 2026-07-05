@@ -1,0 +1,250 @@
+# Primary-flow business rule-set baseline.
+# Domain -> application -> process -> key log -> latency stage.
+
+[rule_set]
+id = "RULESET-A-TO-B"
+name = "A to B latency analysis"
+schema_version = "1.0"
+business_version = "1.0.0"
+
+[[analysis_scenarios]]
+id = "SCENARIO-FULL"
+name = "完整链路分析"
+description = "展示主流程、跨应用调用和所有应用内部阶段。"
+
+[[analysis_scenarios]]
+id = "SCENARIO-CORE"
+name = "核心链路分析"
+description = "只关注跨应用核心处理和RPC时延，不统计非关键内部步骤。"
+
+[[domains]]
+id = "DOMAIN-ORDER"
+name = "Order domain"
+description = "Handles an order request from entry through downstream processing."
+application_ids = ["APP-A", "APP-B"]
+
+[[applications]]
+id = "APP-A"
+name = "A entry application"
+domain_id = "DOMAIN-ORDER"
+log_prefix = "A00010"
+
+[[applications]]
+id = "APP-B"
+name = "B processing application"
+domain_id = "DOMAIN-ORDER"
+log_prefix = "B00020"
+
+# Processes form an arbitrarily nested tree. Each process belongs to the
+# application that executes it, while parent_process_id expresses business nesting.
+[[processes]]
+id = "PROCESS-A-MAIN"
+name = "Order processing main process"
+kind = "MAIN"
+application_id = "APP-A"
+
+[[processes]]
+id = "PROCESS-A-CALL-B"
+name = "Call B application"
+kind = "SUB"
+application_id = "APP-A"
+parent_process_id = "PROCESS-A-MAIN"
+
+[[processes]]
+id = "PROCESS-B-HANDLE"
+name = "B handles request"
+kind = "SUB"
+application_id = "APP-B"
+parent_process_id = "PROCESS-A-CALL-B"
+
+[[processes]]
+id = "PROCESS-B-PREPARE"
+name = "B prepares processing data"
+kind = "SUB"
+application_id = "APP-B"
+parent_process_id = "PROCESS-B-HANDLE"
+
+# Every key log states both how it is matched and what it means to the business.
+[[log_matchers]]
+id = "LOG-REQUEST-START"
+name = "Global request start"
+business_meaning = "A应用接收订单并启动主进程"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-FULL", "SCENARIO-CORE"]
+process_id = "PROCESS-A-MAIN"
+application_id = "APP-A"
+type = "keyword"
+pattern = "request started"
+
+[[log_matchers]]
+id = "LOG-A-RPC-SENT"
+name = "A sends RPC request"
+business_meaning = "A完成本地处理并向B发送请求"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-FULL", "SCENARIO-CORE"]
+process_id = "PROCESS-A-CALL-B"
+application_id = "APP-A"
+type = "keyword"
+pattern = "send RPC request to B service"
+
+[[log_matchers]]
+id = "LOG-B-RPC-RECEIVED"
+name = "B receives RPC request"
+business_meaning = "B收到请求并启动处理子进程"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-FULL", "SCENARIO-CORE"]
+process_id = "PROCESS-B-HANDLE"
+application_id = "APP-B"
+type = "regex"
+pattern = 'received RPC request, sequence=[0-9]+'
+
+[[log_matchers]]
+id = "LOG-B-PREPARED"
+name = "B preparation completed"
+business_meaning = "B已准备后续处理所需数据"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-FULL"]
+process_id = "PROCESS-B-PREPARE"
+application_id = "APP-B"
+type = "keyword"
+pattern = "B preparation completed"
+
+[[log_matchers]]
+id = "LOG-REQUEST-SUCCESS"
+name = "Global request success"
+business_meaning = "B完成处理且全局请求成功"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-FULL", "SCENARIO-CORE"]
+process_id = "PROCESS-B-HANDLE"
+application_id = "APP-B"
+type = "keyword"
+pattern = "request completed successfully"
+
+[[log_matchers]]
+id = "LOG-REQUEST-FAILED"
+name = "Global request failure"
+business_meaning = "B终止处理且全局请求失败"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-FULL", "SCENARIO-CORE"]
+process_id = "PROCESS-B-HANDLE"
+application_id = "APP-B"
+type = "regex"
+pattern = 'request failed, code=[A-Z0-9_]+'
+
+# Relations describe runtime calls between processes; nesting alone does not
+# imply whether the interaction is an RPC call or another invocation type.
+[[process_relations]]
+id = "REL-A-CALL-B"
+name = "A calls B"
+type = "RPC_CALL"
+source_process_id = "PROCESS-A-CALL-B"
+target_process_id = "PROCESS-B-HANDLE"
+start_matcher_id = "LOG-A-RPC-SENT"
+end_matcher_id = "LOG-B-RPC-RECEIVED"
+latency_stage_id = "DEF-A-TO-B-RPC"
+
+# Stages are independent latency definitions and reference key-log IDs.
+[[stages]]
+id = "DEF-A-PROCESS"
+name = "A processing stage"
+business_meaning = "A应用处理时延"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-FULL", "SCENARIO-CORE"]
+type = "APPLICATION_PROCESSING"
+layer = "business"
+order = 1
+process_id = "PROCESS-A-MAIN"
+application_id = "APP-A"
+start_matcher_id = "LOG-REQUEST-START"
+end_matcher_id = "LOG-A-RPC-SENT"
+
+[[stages]]
+id = "DEF-A-TO-B-RPC"
+name = "A to B RPC latency"
+business_meaning = "A发送到B接收之间的RPC时延"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-FULL", "SCENARIO-CORE"]
+type = "RPC_TRANSFER"
+layer = "business"
+order = 2
+relation_id = "REL-A-CALL-B"
+source_application_id = "APP-A"
+target_application_id = "APP-B"
+start_matcher_id = "LOG-A-RPC-SENT"
+end_matcher_id = "LOG-B-RPC-RECEIVED"
+
+[[stages]]
+id = "DEF-B-PROCESS"
+name = "B processing stage"
+business_meaning = "B应用处理时延"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-FULL", "SCENARIO-CORE"]
+type = "APPLICATION_PROCESSING"
+layer = "business"
+order = 3
+process_id = "PROCESS-B-HANDLE"
+application_id = "APP-B"
+start_matcher_id = "LOG-B-RPC-RECEIVED"
+end_matcher_id = "LOG-REQUEST-SUCCESS"
+
+[[stages]]
+id = "DEF-B-PREPARE"
+name = "B preparation stage"
+business_meaning = "B应用准备时延"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-FULL"]
+type = "APPLICATION_INTERNAL"
+layer = "internal"
+order = 1
+process_id = "PROCESS-B-PREPARE"
+application_id = "APP-B"
+start_matcher_id = "LOG-B-RPC-RECEIVED"
+end_matcher_id = "LOG-B-PREPARED"
+
+[business_flow]
+id = "FLOW-A-TO-B"
+name = "A to B business flow"
+domain_id = "DOMAIN-ORDER"
+root_process_id = "PROCESS-A-MAIN"
+request_start_matcher_id = "LOG-REQUEST-START"
+process_ids = [
+  "PROCESS-A-MAIN",
+  "PROCESS-A-CALL-B",
+  "PROCESS-B-HANDLE",
+  "PROCESS-B-PREPARE"
+]
+
+[business_flow.matching]
+strategy = "ordered_first_match"
+
+[[business_flow.end_results]]
+result = "SUCCESS"
+matcher_id = "LOG-REQUEST-SUCCESS"
+
+[[business_flow.end_results]]
+result = "FAILED"
+matcher_id = "LOG-REQUEST-FAILED"
+
+# If no end matcher is found, the request ends immediately before the next
+# LOG-REQUEST-START.
+
+[[business_flow.branches]]
+id = "BRANCH-NORMAL"
+name = "Normal branch"
+default = true
+stage_ids = [
+  "DEF-A-PROCESS",
+  "DEF-A-TO-B-RPC",
+  "DEF-B-PROCESS",
+  "DEF-B-PREPARE"
+]

@@ -1,11 +1,13 @@
 Document ID: REQ-VIEW
-Status: Draft
-Approved by:
-Approved at:
+Status: Approved
+Approved by: 用户
+Approved at: 2026-07-05
 Depends on: REQ-SEARCH, REQ-REQUEST, REQ-LATENCY
 Supersedes: docs/vscode/specs/requirements.md
 
 # 单次请求分析与统计展示需求
+
+视觉基线参见 `../ui/latency-analysis-approved.svg`，基线约束及演示数据边界参见 `../ui/README.md`。
 
 ## 需求列表
 
@@ -42,4 +44,3 @@ Supersedes: docs/vscode/specs/requirements.md
 - 用户点击阶段后可以看到阶段边界日志和上下文日志。
 - 同类请求统计可以辅助判断当前请求是否偏慢。
 - 常用请求切换和时延视图切换 P90 <= 1s。
-

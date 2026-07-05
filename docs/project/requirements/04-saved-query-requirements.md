@@ -1,7 +1,7 @@
 Document ID: REQ-SAVED-QUERY
-Status: Draft
-Approved by:
-Approved at:
+Status: Approved
+Approved by: 用户
+Approved at: 2026-07-05
 Depends on: REQ-SEARCH
 Supersedes: docs/vscode/specs/requirements.md
 
@@ -30,4 +30,3 @@ Supersedes: docs/vscode/specs/requirements.md
 - 重启软件后保存查询仍存在。
 - 调用保存查询后，搜索条件恢复完整。
 - 导入、恢复或覆盖业务规则集不会修改保存查询。
-

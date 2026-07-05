@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="760" viewBox="0 0 1280 760">
+  <rect width="1280" height="760" fill="#f6f8fb"/>
+  <rect x="28" y="24" width="1224" height="712" rx="8" fill="#ffffff" stroke="#d8dee9"/>
+
+  <text x="56" y="64" font-family="Microsoft YaHei, Arial, sans-serif" font-size="24" font-weight="700" fill="#111827">阶段时延 - 单次请求分析</text>
+  <text x="56" y="94" font-family="Microsoft YaHei, Arial, sans-serif" font-size="14" fill="#6b7280">用户选择某次请求后，按应用分开展示 A -> B -> C 阶段；其他请求作为统计摘要</text>
+
+  <rect x="56" y="120" width="760" height="56" rx="8" fill="#f9fafb" stroke="#e5e7eb"/>
+  <text x="82" y="154" font-family="Microsoft YaHei, Arial, sans-serif" font-size="16" font-weight="700" fill="#111827">当前请求: REQ-20260617-0018</text>
+  <text x="318" y="154" font-family="Microsoft YaHei, Arial, sans-serif" font-size="14" fill="#6b7280">开始: 10:39:38.257</text>
+  <text x="486" y="154" font-family="Microsoft YaHei, Arial, sans-serif" font-size="14" fill="#6b7280">结束: 10:39:39.157</text>
+  <text x="646" y="154" font-family="Microsoft YaHei, Arial, sans-serif" font-size="14" fill="#991b1b">总耗时: 900ms</text>
+
+  <rect x="844" y="120" width="364" height="188" rx="8" fill="#f9fafb" stroke="#e5e7eb"/>
+  <text x="870" y="154" font-family="Microsoft YaHei, Arial, sans-serif" font-size="18" font-weight="700" fill="#111827">其他请求统计</text>
+  <g font-family="Microsoft YaHei, Arial, sans-serif" font-size="14">
+    <text x="870" y="190" fill="#374151">请求数: 126</text>
+    <text x="1038" y="190" fill="#374151">异常请求: 9</text>
+    <text x="870" y="224" fill="#374151">平均总耗时: 340ms</text>
+    <text x="1038" y="224" fill="#374151">P90: 760ms</text>
+    <text x="870" y="258" fill="#374151">最慢阶段: B阶段</text>
+    <text x="1038" y="258" fill="#374151">最慢应用: A00038</text>
+  </g>
+  <rect x="870" y="274" width="128" height="34" rx="6" fill="#2563eb"/>
+  <text x="892" y="296" font-family="Microsoft YaHei, Arial, sans-serif" font-size="14" fill="#ffffff">切换请求</text>
+
+  <g font-family="Microsoft YaHei, Arial, sans-serif" font-size="13" fill="#374151">
+    <text x="184" y="220">10:39:38.200</text>
+    <text x="424" y="220">10:39:38.500</text>
+    <text x="664" y="220">10:39:38.800</text>
+    <text x="904" y="220">10:39:39.100</text>
+  </g>
+  <line x1="180" y1="240" x2="1016" y2="240" stroke="#9ca3af"/>
+  <g stroke="#e5e7eb">
+    <line x1="220" y1="240" x2="220" y2="600"/>
+    <line x1="460" y1="240" x2="460" y2="600"/>
+    <line x1="700" y1="240" x2="700" y2="600"/>
+    <line x1="940" y1="240" x2="940" y2="600"/>
+  </g>
+
+  <g font-family="Microsoft YaHei, Arial, sans-serif" font-size="15" font-weight="700" fill="#111827">
+    <text x="72" y="302">A00010</text>
+    <text x="72" y="398">A00038</text>
+    <text x="72" y="494">A00073</text>
+    <text x="72" y="590">A00121</text>
+  </g>
+
+  <g font-family="Microsoft YaHei, Arial, sans-serif">
+    <line x1="220" y1="292" x2="900" y2="292" stroke="#d1d5db" stroke-width="2"/>
+    <circle cx="220" cy="292" r="9" fill="#111827"/><text x="214" y="296" font-family="Arial" font-size="12" fill="#ffffff">A</text>
+    <circle cx="455" cy="292" r="9" fill="#111827"/><text x="449" y="296" font-family="Arial" font-size="12" fill="#ffffff">B</text>
+    <circle cx="620" cy="292" r="9" fill="#111827"/><text x="614" y="296" font-family="Arial" font-size="12" fill="#ffffff">C</text>
+    <circle cx="900" cy="292" r="9" fill="#111827"/><text x="894" y="296" font-family="Arial" font-size="12" fill="#ffffff">D</text>
+    <rect x="232" y="276" width="211" height="32" rx="16" fill="#60a5fa"/>
+    <text x="300" y="297" font-size="13" fill="#ffffff">B阶段 240ms</text>
+    <rect x="467" y="276" width="141" height="32" rx="16" fill="#34d399"/>
+    <text x="498" y="297" font-size="13" fill="#064e3b">C阶段 150ms</text>
+    <rect x="632" y="276" width="256" height="32" rx="16" fill="#f59e0b"/>
+    <text x="720" y="297" font-size="13" fill="#78350f">D阶段 280ms</text>
+
+    <line x1="240" y1="388" x2="770" y2="388" stroke="#d1d5db" stroke-width="2"/>
+    <circle cx="240" cy="388" r="9" fill="#111827"/><text x="234" y="392" font-family="Arial" font-size="12" fill="#ffffff">A</text>
+    <circle cx="685" cy="388" r="9" fill="#111827"/><text x="679" y="392" font-family="Arial" font-size="12" fill="#ffffff">B</text>
+    <circle cx="770" cy="388" r="9" fill="#111827"/><text x="764" y="392" font-family="Arial" font-size="12" fill="#ffffff">C</text>
+    <rect x="252" y="372" width="421" height="32" rx="16" fill="#fb923c"/>
+    <text x="420" y="393" font-size="13" fill="#ffffff">B阶段 520ms</text>
+    <rect x="697" y="372" width="61" height="32" rx="16" fill="#34d399"/>
+    <text x="704" y="393" font-size="12" fill="#064e3b">C 80ms</text>
+
+    <line x1="225" y1="484" x2="570" y2="484" stroke="#d1d5db" stroke-width="2"/>
+    <circle cx="225" cy="484" r="9" fill="#111827"/><text x="219" y="488" font-family="Arial" font-size="12" fill="#ffffff">A</text>
+    <circle cx="350" cy="484" r="9" fill="#111827"/><text x="344" y="488" font-family="Arial" font-size="12" fill="#ffffff">B</text>
+    <circle cx="570" cy="484" r="9" fill="#111827"/><text x="564" y="488" font-family="Arial" font-size="12" fill="#ffffff">C</text>
+    <rect x="237" y="468" width="101" height="32" rx="16" fill="#60a5fa"/>
+    <text x="253" y="489" font-size="13" fill="#ffffff">B 110ms</text>
+    <rect x="362" y="468" width="196" height="32" rx="16" fill="#34d399"/>
+    <text x="424" y="489" font-size="13" fill="#064e3b">C阶段 210ms</text>
+
+    <line x1="260" y1="580" x2="450" y2="580" stroke="#d1d5db" stroke-width="2"/>
+    <circle cx="260" cy="580" r="9" fill="#111827"/><text x="254" y="584" font-family="Arial" font-size="12" fill="#ffffff">A</text>
+    <circle cx="450" cy="580" r="9" fill="#111827"/><text x="444" y="584" font-family="Arial" font-size="12" fill="#ffffff">B</text>
+    <rect x="272" y="564" width="166" height="32" rx="16" fill="#60a5fa"/>
+    <text x="318" y="585" font-size="13" fill="#ffffff">B阶段 190ms</text>
+  </g>
+
+  <rect x="844" y="340" width="364" height="260" rx="8" fill="#fff7ed" stroke="#fed7aa"/>
+  <text x="870" y="374" font-family="Microsoft YaHei, Arial, sans-serif" font-size="18" font-weight="700" fill="#9a3412">选中慢阶段</text>
+  <g font-family="Microsoft YaHei, Arial, sans-serif" font-size="14" fill="#374151">
+    <text x="870" y="412">应用: A00038</text>
+    <text x="870" y="442">阶段: B阶段</text>
+    <text x="870" y="472">来源: A日志 -> B日志</text>
+    <text x="870" y="502">耗时: 520ms</text>
+    <text x="870" y="532">P90 对比: 高于其他请求 22%</text>
+  </g>
+  <rect x="870" y="558" width="126" height="34" rx="6" fill="#2563eb"/>
+  <text x="892" y="580" font-family="Microsoft YaHei, Arial, sans-serif" font-size="14" fill="#ffffff">查看原始日志</text>
+
+  <g font-family="Microsoft YaHei, Arial, sans-serif" font-size="13" fill="#4b5563">
+    <rect x="180" y="652" width="28" height="16" rx="8" fill="#60a5fa"/><text x="218" y="665">B阶段</text>
+    <rect x="300" y="652" width="28" height="16" rx="8" fill="#34d399"/><text x="338" y="665">C阶段</text>
+    <rect x="420" y="652" width="28" height="16" rx="8" fill="#f59e0b"/><text x="458" y="665">D阶段</text>
+    <rect x="540" y="652" width="28" height="16" rx="8" fill="#fb923c"/><text x="578" y="665">超阈值阶段</text>
+  </g>
+</svg>

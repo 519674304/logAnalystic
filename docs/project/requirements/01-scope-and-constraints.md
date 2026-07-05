@@ -1,7 +1,7 @@
 Document ID: REQ-SCOPE
-Status: Draft
-Approved by:
-Approved at:
+Status: Approved
+Approved by: 用户
+Approved at: 2026-07-05
 Depends on: REQ-OVERVIEW
 Supersedes: docs/vscode/specs/requirements.md, 日志分析软件需求.md
 
@@ -19,6 +19,7 @@ Supersedes: docs/vscode/specs/requirements.md, 日志分析软件需求.md
 - 根据规则识别请求。
 - 根据规则计算请求总耗时、跨应用阶段耗时、应用内部阶段耗时、应用间传递耗时。
 - 以单次请求为中心展示时延，提供统计摘要和原始日志钻取。
+- 将当前筛选请求的关键日志时间戳、阶段时延及阶段统计导出为 CSV。
 
 ## 范围外
 
@@ -26,7 +27,7 @@ Supersedes: docs/vscode/specs/requirements.md, 日志分析软件需求.md
 - 自定义任意日志格式解析器。
 - 自动生成业务规则。
 - 错误原因知识库、自动诊断结论、修复建议。
-- 查询结果、请求分析、统计数据导出。
+- 查询结果和完整请求分析明细导出；时延分析 CSV 导出除外。
 - 登录、权限、租户、审计、多用户协作。
 - 服务器化部署、远程仓库同步。
 
@@ -66,4 +67,3 @@ Supersedes: docs/vscode/specs/requirements.md, 日志分析软件需求.md
 - 不主动上传日志或规则数据。
 - 不保留会话日志数据。
 - 对导入失败、解析失败、规则校验失败、正则超时提供可理解提示。
-

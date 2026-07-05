@@ -1,7 +1,7 @@
 Document ID: REQ-OVERVIEW
-Status: Draft
-Approved by:
-Approved at:
+Status: Approved
+Approved by: 用户
+Approved at: 2026-07-05
 Depends on: IDX-000
 Supersedes: docs/vscode/specs/requirements.md, 日志分析软件需求.md
 
@@ -40,6 +40,7 @@ Supersedes: docs/vscode/specs/requirements.md, 日志分析软件需求.md
 | 业务请求识别 | 进阶能力 | 06-request-recognition-requirements.md |
 | 阶段定义与时延计算 | 进阶能力 | 07-latency-analysis-requirements.md |
 | 单次请求分析与统计展示 | 进阶能力 | 08-request-analysis-view-requirements.md |
+| 时延分析 CSV 导出 | 进阶能力 | 09-latency-export-requirements.md |
 
 ## 交付阶段
 
@@ -49,14 +50,14 @@ Supersedes: docs/vscode/specs/requirements.md, 日志分析软件需求.md
 
 ### Delivery 2: 进阶能力
 
-用户可以导入业务规则集，系统识别一次请求并计算时延。展示以“用户选择的某次请求”为中心，其它同类请求只作为统计数据展示。
+用户可以导入业务规则集，系统识别一次请求并计算时延。展示以“用户选择的某次请求”为中心，其它同类请求只作为统计数据展示；用户可以将当前筛选范围内的关键日志时间戳、阶段时延和阶段统计导出为 CSV。
 
 ### 暂不进入首批交付
 
 - 日志采集、拉取、上传、清洗、标准化、多格式适配。
 - 错误原因解释知识库。
 - 自动问题诊断结论。
-- 查询结果导出、请求分析导出、统计导出。
+- 查询结果和完整请求分析明细导出；时延分析 CSV 导出除外。
 - 多用户认证、权限、集中式协作。
 - 远程仓库同步或服务器部署。
 
@@ -83,4 +84,3 @@ Supersedes: docs/vscode/specs/requirements.md, 日志分析软件需求.md
 | 应用间传递阶段 | 一个应用完成到另一个应用开始之间的耗时阶段。 |
 | 保存查询 | 测试人员本地保存的搜索条件集合，不受业务规则集导入和恢复影响。 |
 | 规则集 | 用于识别业务流程、请求边界、阶段、分支和结束结果的本地业务配置。 |
-
