@@ -1,7 +1,7 @@
 Document ID: RESP-RULE-LIFECYCLE-DESIGN
-Status: Draft
-Approved by:
-Approved at:
+Status: Approved
+Approved by: 用户
+Approved at: 2026-07-06
 Depends on: CTX-RULE-CONFIG, REQ-RULESET, BASELINE-PRIMARY
 Supersedes:
 

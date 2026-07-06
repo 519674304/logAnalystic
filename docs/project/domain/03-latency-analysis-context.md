@@ -1,7 +1,7 @@
 Document ID: CTX-LATENCY-ANALYSIS
-Status: Draft
-Approved by:
-Approved at:
+Status: Approved
+Approved by: 用户
+Approved at: 2026-07-06
 Depends on: REQ-REQUEST, REQ-LATENCY, CTX-LOG-WORKSPACE, CTX-RULE-CONFIG
 Supersedes:
 

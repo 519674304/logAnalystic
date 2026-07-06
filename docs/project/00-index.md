@@ -18,7 +18,7 @@ Supersedes: docs/vscode/specs/requirements.md, docs/superpowers/specs/2026-06-17
 
 ## 当前阶段
 
-Phase 2: Domain and Responsibility Design
+Phase 3: Lifecycle and Extension Design
 
 ## 阶段批准状态
 
@@ -26,8 +26,8 @@ Phase 2: Domain and Responsibility Design
 | --- | --- | --- | --- | --- |
 | Phase 0 | 现有文档和上下文盘点 | Done | 用户会话确认 | 2026-06-24 |
 | Phase 1 | 需求拆解 | Approved | 用户 | 2026-07-05 |
-| Phase 2 | DDD 领域与职责拆分 | In Progress |  |  |
-| Phase 3 | 生命周期与扩展点设计 | Pending |  |  |
+| Phase 2 | DDD 领域与职责拆分 | Approved | 用户 | 2026-07-06 |
+| Phase 3 | 生命周期与扩展点设计 | In Progress |  |  |
 | Phase 4 | 技术选型与架构设计 | Pending |  |  |
 | Phase 5 | 解耦实施计划 | Pending |  |  |
 
@@ -51,18 +51,18 @@ Phase 2: Domain and Responsibility Design
 | baselines/latency-analysis-export.example.csv | 时延分析 CSV 关键输出基线 | Approved |
 | ui/README.md | 时延分析页面视觉基线说明 | Approved |
 | ui/latency-analysis-approved.svg | 已确认的单次请求应用泳道页面 | Approved |
-| domain/00-domain-map.md | DDD 深度、子域和限界上下文关系 | Draft |
-| domain/01-log-workspace-context.md | 日志工作区上下文设计 | Draft |
-| domain/02-rule-configuration-context.md | 规则配置上下文设计 | Draft |
-| domain/03-latency-analysis-context.md | 时延分析核心上下文设计 | Draft |
-| domain/04-analysis-result-contract.md | 数据加工层最终时延分析结果契约 | Draft |
-| responsibilities/00-responsibility-map.md | 全部职责、依赖和需求追踪 | Draft |
-| responsibilities/01-log-search-and-context-design.md | 日志搜索与上下文复杂职责 | Draft |
-| responsibilities/02-rule-set-lifecycle-design.md | 规则集生命周期复杂职责 | Draft |
-| responsibilities/03-request-recognition-design.md | 请求识别复杂职责 | Draft |
-| responsibilities/04-latency-analysis-pipeline-design.md | 时延分析流水线复杂职责 | Draft |
-| responsibilities/05-result-projection-and-delivery-design.md | 页面与 CSV 投影交付职责 | Draft |
-| responsibilities/06-issue-handling-design.md | 统一问题分类与处理职责 | Draft |
+| domain/00-domain-map.md | DDD 深度、子域和限界上下文关系 | Approved |
+| domain/01-log-workspace-context.md | 日志工作区上下文设计 | Approved |
+| domain/02-rule-configuration-context.md | 规则配置上下文设计 | Approved |
+| domain/03-latency-analysis-context.md | 时延分析核心上下文设计 | Approved |
+| domain/04-analysis-result-contract.md | 数据加工层最终时延分析结果契约 | Approved |
+| responsibilities/00-responsibility-map.md | 全部职责、依赖和需求追踪 | Approved |
+| responsibilities/01-log-search-and-context-design.md | 日志搜索与上下文复杂职责 | Approved |
+| responsibilities/02-rule-set-lifecycle-design.md | 规则集生命周期复杂职责 | Approved |
+| responsibilities/03-request-recognition-design.md | 请求识别复杂职责 | Approved |
+| responsibilities/04-latency-analysis-pipeline-design.md | 时延分析流水线复杂职责 | Approved |
+| responsibilities/05-result-projection-and-delivery-design.md | 页面与 CSV 投影交付职责 | Approved |
+| responsibilities/06-issue-handling-design.md | 统一问题分类与处理职责 | Approved |
 
 ## 依赖关系
 

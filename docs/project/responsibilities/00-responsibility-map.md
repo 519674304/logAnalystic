@@ -1,7 +1,7 @@
 Document ID: RESP-MAP
-Status: Draft
-Approved by:
-Approved at:
+Status: Approved
+Approved by: 用户
+Approved at: 2026-07-06
 Depends on: DOMAIN-MAP, CTX-LOG-WORKSPACE, CTX-RULE-CONFIG, CTX-LATENCY-ANALYSIS
 Supersedes:
 

@@ -1,7 +1,7 @@
 Document ID: RESP-LATENCY-PIPELINE-DESIGN
-Status: Draft
-Approved by:
-Approved at:
+Status: Approved
+Approved by: 用户
+Approved at: 2026-07-06
 Depends on: CTX-LATENCY-ANALYSIS, RESP-REQUEST-RECOGNITION-DESIGN, REQ-LATENCY
 Supersedes:
 

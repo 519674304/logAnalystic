@@ -1,7 +1,7 @@
 Document ID: RESP-RESULT-PROJECTION-DESIGN
-Status: Draft
-Approved by:
-Approved at:
+Status: Approved
+Approved by: 用户
+Approved at: 2026-07-06
 Depends on: REQ-VIEW, REQ-LATENCY-EXPORT, UI-BASELINE, BASELINE-PRIMARY
 Supersedes:
 
