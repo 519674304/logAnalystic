@@ -26,6 +26,7 @@ LatencyAnalysisRun
 │  ├─ RequestBoundary
 │  ├─ MatcherHit[]
 │  ├─ StageLatency[]
+│  ├─ SubprocessGroupResult[]
 │  └─ RequestResult
 └─ LatencyStatistics
 ```
@@ -41,6 +42,7 @@ LatencyAnalysisRun
 | 值对象 | `RequestBoundary` | 开始日志引用、结束日志引用或下一开始边界 |
 | 实体 | `MatcherHit` | 某 req 内关键 matcher 命中的日志引用 |
 | 值对象 | `StageLatency` | 阶段、起止日志引用、起止时间和耗时 |
+| 值对象 | `SubprocessGroupResult` | 触发阶段、并行子进程、汇总日志和组总等待时延 |
 | 值对象 | `LatencyStatistics` | 各阶段样本数、平均值、P90 和最大值 |
 
 ## 不变量
@@ -55,6 +57,9 @@ LatencyAnalysisRun
 - 请求边界识别不受分析场景影响。
 - 普通 matcher 和 stage 仅在启用且适用于当前场景时参与分析。
 - `export_enabled` 不影响计算结果。
+- 并行子进程在触发阶段完成后进入分析，各自独立匹配，不要求按配置顺序结束。
+- 主进程汇总 matcher 命中表示并行组整体完成；不要求为每个子进程定义返回主进程的日志。
+- 主进程后续阶段只能使用汇总 matcher 或其后的日志作为开始边界。
 - 分析结果携带投影所需的精简有效规则目录；投影层不回读 TOML 或可编辑 RuleSet。
 
 ## 主生命周期
@@ -65,7 +70,7 @@ LatencyAnalysisRun
   -> 解析有效规则
   -> 识别范围内请求
   -> 在每次请求内匹配关键日志
-  -> 计算阶段时延
+  -> 计算普通阶段与并行子进程组时延
   -> 汇总统计
   -> 生成不可变 LatencyAnalysisRun
 ```

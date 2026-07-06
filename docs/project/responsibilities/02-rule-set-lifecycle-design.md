@@ -35,6 +35,7 @@ exportCurrent() -> TomlContent
 - matcher 模式和字段限制。
 - stage 起止引用、层级和顺序。
 - 流程、分支和跨进程关系。
+- 并行子进程组的父进程、触发阶段、子进程、汇总 matcher 和总时延阶段。
 
 ## 工作流
 

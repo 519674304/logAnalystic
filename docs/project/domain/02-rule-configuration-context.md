@@ -21,6 +21,7 @@ RuleSet 统一拥有：
 - `BusinessProcess`
 - `LogMatcher`
 - `ProcessRelation`
+- `SubprocessGroup`
 - `StageDefinition`
 - `BusinessFlow`
 
@@ -41,6 +42,8 @@ RuleSet 统一拥有：
 - 所有稳定 ID 在所属类型中唯一。
 - 所有引用目标存在且类型正确。
 - 进程父子关系无环，根进程存在。
+- 并行子进程组的父进程、触发阶段、子进程、汇总 matcher 和总时延阶段引用完整。
+- 同一并行组内的子进程属于该组父进程的后代，且至少包含一个子进程。
 - matcher 和 stage 的 `enabled`、`export_enabled` 明确。
 - `applicable_scenario_ids` 只引用已定义场景。
 - 全局请求开始和结束 matcher 启用并覆盖全部场景。
@@ -78,7 +81,7 @@ TOML
 
 ## 需求覆盖
 
-REQ-RULESET-001 至 REQ-RULESET-020。
+REQ-RULESET-001 至 REQ-RULESET-022。
 
 ## 明确排除
 

@@ -1,7 +1,7 @@
 Document ID: REQ-RULESET
 Status: Approved
 Approved by: 用户
-Approved at: 2026-07-05
+Approved at: 2026-07-06
 Depends on: REQ-OVERVIEW, REQ-SCOPE
 Supersedes: docs/vscode/specs/requirements.md
 
@@ -29,6 +29,8 @@ Supersedes: docs/vscode/specs/requirements.md
 - REQ-RULESET-018: `export_enabled=false` 不影响已启用规则参与匹配或计算，但该规则不进入时延分析 CSV。
 - REQ-RULESET-019: `applicable_scenario_ids` 为空时规则不适用于任何场景；引用不存在的场景 ID 时规则集校验失败。
 - REQ-RULESET-020: 全局请求开始和结束匹配器必须 `enabled=true` 并适用于规则集定义的全部分析场景，分析场景不得改变请求边界。
+- REQ-RULESET-021: 规则集可以定义并行子进程组，至少包含父进程、触发阶段、子进程列表、执行模式、汇总日志和组总时延阶段。
+- REQ-RULESET-022: 父子进程关系只表达业务嵌套；并行组的汇总日志表示全部子进程结果已经汇总，不要求逐个定义子进程返回主进程的日志关系。
 
 ## 规则集需要表达的业务内容
 
@@ -44,6 +46,7 @@ Supersedes: docs/vscode/specs/requirements.md
 - 所属分支，适用于有分支的业务流程。
 - 分支入口日志规则。
 - 规则优先级。
+- 并行子进程组、触发阶段、子进程列表、汇总日志和组总时延阶段。
 - 分析场景 ID、名称和场景描述。
 - 日志匹配器和阶段的分析开关、导出开关及适用场景数组。
 

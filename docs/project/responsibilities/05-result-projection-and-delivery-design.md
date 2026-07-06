@@ -33,6 +33,7 @@ projectLatencyView(result, selectedRequestId) -> LatencyViewData
 
 - 选中请求摘要。
 - 按应用组织的泳道和同一应用多次访问。
+- 并行子进程所属应用、并行组总等待阶段和主进程汇总后的后续阶段。
 - business 与 internal 阶段及起止日志引用。
 - 同类请求统计摘要。
 - 阶段下钻入口。

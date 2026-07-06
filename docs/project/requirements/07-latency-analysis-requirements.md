@@ -1,7 +1,7 @@
 Document ID: REQ-LATENCY
 Status: Approved
 Approved by: 用户
-Approved at: 2026-07-05
+Approved at: 2026-07-06
 Depends on: REQ-REQUEST, REQ-RULESET
 Supersedes: docs/vscode/specs/requirements.md
 
@@ -26,6 +26,8 @@ Supersedes: docs/vscode/specs/requirements.md
 - REQ-LATENCY-015: 用户执行时延分析前选择一个规则集定义的分析场景。
 - REQ-LATENCY-016: 系统只匹配和计算 `enabled=true` 且当前场景包含在 `applicable_scenario_ids` 中的日志匹配器与阶段。
 - REQ-LATENCY-017: 分析场景只控制普通关键日志、阶段计算和导出内容，不改变已经识别的请求数量、开始边界或结束边界。
+- REQ-LATENCY-018: 主进程完成并行组触发阶段后，系统在同一次 req 内分别匹配组内各子进程日志；子进程可以并行且不要求按配置顺序完成。
+- REQ-LATENCY-019: 并行组在主进程汇总日志命中时完成；组总耗时为触发阶段结束日志到汇总日志的时间差，汇总日志之后主进程可以继续后续阶段。
 
 ## 阶段示例
 
@@ -53,8 +55,9 @@ b日志 -> c日志 = c阶段
 3. 系统按规则集中的阶段顺序匹配阶段边界日志。
 4. 系统计算每个阶段的开始时间、结束时间和耗时。
 5. 系统汇总请求总耗时和各类阶段耗时。
-6. 系统生成与展示无关的时延分析结果。
-7. 展示层消费分析结果，绘制阶段视图和统计摘要。
+6. 存在并行子进程组时，系统分别计算子进程阶段，并以主进程汇总日志计算组总等待时延。
+7. 系统生成与展示无关的时延分析结果。
+8. 展示层消费分析结果，绘制阶段视图和统计摘要。
 
 ## 验收标准
 

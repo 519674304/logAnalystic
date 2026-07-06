@@ -25,6 +25,7 @@ LatencyAnalysisResult
 │  ├─ businessFlow
 │  ├─ applications[]
 │  ├─ processes[]
+│  ├─ subprocessGroups[]
 │  ├─ logMatchers[]
 │  └─ stages[]
 ├─ requests[]
@@ -57,6 +58,8 @@ StageDescriptor
 
 应用和进程描述包含 ID、名称及父子关系，用于页面分组和嵌套展示。
 
+`SubprocessGroupDescriptor` 包含组 ID、父进程、触发阶段、子进程列表、汇总 matcher 和组总时延阶段，用于页面表达并行关系。
+
 ## RequestAnalysisResult
 
 ```text
@@ -71,7 +74,8 @@ RequestAnalysisResult
 ├─ abnormal
 ├─ durationMs
 ├─ matcherHits[]
-└─ stageLatencies[]
+├─ stageLatencies[]
+└─ subprocessGroupResults[]
 ```
 
 约束：

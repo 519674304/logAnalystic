@@ -30,6 +30,7 @@ AnalysisScope
   -> RecognizedRequest[]
   -> MatcherHit[] per request
   -> StageLatency[] per request
+  -> SubprocessGroupResult[] per request
   -> LatencyStatistics
   -> EffectiveRuleCatalog
   -> LatencyAnalysisRun
@@ -56,6 +57,9 @@ AnalysisScope
 - 时延使用可比较时间值相减，输出毫秒数；原始时间戳文本继续保留在日志引用中。
 - RPC 阶段允许起止日志属于不同应用和不同进程。
 - business 与 internal 层分别按自己的顺序处理，允许复用边界日志。
+- 并行组由触发阶段结束后进入，各子进程阶段独立计算，不按配置顺序串行等待。
+- 并行组总时延使用触发阶段结束 matcher 到主进程 join matcher；join 命中后主进程进入后续阶段。
+- 不要求为每个子进程建模返回主进程的日志。
 
 ## 统计聚合
 
@@ -87,5 +91,6 @@ AnalysisScope
 - 同一输入产生确定性结果。
 - FULL 与 CORE 场景生成不同有效规则，但请求边界相同。
 - RPC、应用处理和内部阶段计算。
+- B/C 并行子进程、组总等待阶段和主进程汇总后续阶段。
 - 缺失阶段不污染统计。
 - UI 或 CSV 变化不影响流水线测试。

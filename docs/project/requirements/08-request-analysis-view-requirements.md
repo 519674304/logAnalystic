@@ -1,7 +1,7 @@
 Document ID: REQ-VIEW
 Status: Approved
 Approved by: 用户
-Approved at: 2026-07-05
+Approved at: 2026-07-06
 Depends on: REQ-SEARCH, REQ-REQUEST, REQ-LATENCY
 Supersedes: docs/vscode/specs/requirements.md
 
@@ -19,6 +19,7 @@ Supersedes: docs/vscode/specs/requirements.md
 - REQ-VIEW-006: 用户点击某个阶段后，可以查看该阶段起止边界日志和上下文日志。
 - REQ-VIEW-007: 统计摘要包含请求数、平均耗时、P90、异常请求数、最慢应用、最慢阶段。
 - REQ-VIEW-008: 展示层只消费加工后的请求、阶段、统计和日志引用数据，不直接承担解析、识别或计算职责。
+- REQ-VIEW-009: 同一次请求存在并行子进程时，页面按所属应用展示各子进程阶段，并展示并行组总等待阶段及主进程汇总后的后续阶段。
 
 ## 主流程
 
