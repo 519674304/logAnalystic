@@ -69,6 +69,7 @@ Phase 5: Implementation Planning
 | architecture/03-technology-selection-adrs.md | 技术选型与 ADR | Approved |
 | architecture/04-technical-architecture.md | 运行组件、分层、数据流和安全边界 | Approved |
 | architecture/05-performance-testing-and-operations.md | 性能、测试与本地运维边界 | Approved |
+| architecture/06-package-structure.md | Rust 与 TypeScript 包结构、依赖方向和注释规范 | Approved |
 | plans/00-roadmap.md | 实施路线图、里程碑和集成顺序 | Approved |
 | plans/01-project-skeleton-and-contracts-plan.md | 项目骨架与契约基线计划 | Approved |
 | plans/02-rust-log-workspace-plan.md | Rust 日志工作区计划 | Approved |
