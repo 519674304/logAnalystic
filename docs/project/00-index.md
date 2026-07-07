@@ -14,11 +14,11 @@ Supersedes: docs/vscode/specs/requirements.md, docs/superpowers/specs/2026-06-17
 1. 基础能力：导入固定格式日志后，完成解析、搜索、上下文查看和常用查询复用。
 2. 进阶能力：基于业务规则识别一次请求，计算请求内跨应用、应用内部和应用间传递的时延，并以单次请求为主视图展示。
 
-需求、关键基线、领域与职责设计已经批准。当前进入生命周期与扩展点设计，尚不进入技术选型、技术架构或实施计划。
+需求、关键基线、领域与职责设计、生命周期与扩展点设计已经批准。当前进入技术选型与技术架构设计，尚不进入实施计划。
 
 ## 当前阶段
 
-Phase 3: Lifecycle and Extension Design
+Phase 4: Technology and Technical Architecture
 
 ## 阶段批准状态
 
@@ -28,7 +28,7 @@ Phase 3: Lifecycle and Extension Design
 | Phase 1 | 需求拆解 | Approved | 用户 | 2026-07-05 |
 | Phase 2 | DDD 领域与职责拆分 | Approved | 用户 | 2026-07-06 |
 | Phase 3 | 生命周期与扩展点设计 | Approved | 用户 | 2026-07-07 |
-| Phase 4 | 技术选型与架构设计 | Pending |  |  |
+| Phase 4 | 技术选型与架构设计 | Approved | 用户 | 2026-07-07 |
 | Phase 5 | 解耦实施计划 | Pending |  |  |
 
 ## 文档目录
@@ -66,6 +66,9 @@ Phase 3: Lifecycle and Extension Design
 | architecture/00-lifecycle-and-extension-overview.md | 生命周期与扩展点设计总览 | Approved |
 | architecture/01-lifecycle-state-model.md | 日志、规则、分析运行状态模型 | Approved |
 | architecture/02-extension-pattern-decisions.md | 扩展点与设计模式采用或拒绝决策 | Approved |
+| architecture/03-technology-selection-adrs.md | 技术选型与 ADR | Approved |
+| architecture/04-technical-architecture.md | 运行组件、分层、数据流和安全边界 | Approved |
+| architecture/05-performance-testing-and-operations.md | 性能、测试与本地运维边界 | Approved |
 
 ## 依赖关系
 
@@ -91,11 +94,11 @@ DOMAIN-MAP
   -> ARCH-LIFECYCLE-OVERVIEW
   -> ARCH-LIFECYCLE-STATE
   -> ARCH-EXTENSION-PATTERNS
+  -> ARCH-TECH-SELECTION
+  -> ARCH-TECHNICAL-ARCHITECTURE
+  -> ARCH-PERFORMANCE-TESTING
 ```
 
 ## 待后续阶段处理
 
-- 领域模型、限界上下文、聚合和值对象。
-- 数据、加工、展示三层解耦方式。
-- 技术选型、中间件选择、运行形态、存储形态。
 - 实施计划和任务级拆分。
