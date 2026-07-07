@@ -14,11 +14,11 @@ Supersedes: docs/vscode/specs/requirements.md, docs/superpowers/specs/2026-06-17
 1. 基础能力：导入固定格式日志后，完成解析、搜索、上下文查看和常用查询复用。
 2. 进阶能力：基于业务规则识别一次请求，计算请求内跨应用、应用内部和应用间传递的时延，并以单次请求为主视图展示。
 
-需求、关键基线、领域与职责设计、生命周期与扩展点设计已经批准。当前进入技术选型与技术架构设计，尚不进入实施计划。
+需求、关键基线、领域与职责设计、生命周期与扩展点设计、技术选型与技术架构设计已经批准。当前进入解耦实施计划。
 
 ## 当前阶段
 
-Phase 4: Technology and Technical Architecture
+Phase 5: Implementation Planning
 
 ## 阶段批准状态
 
@@ -29,7 +29,7 @@ Phase 4: Technology and Technical Architecture
 | Phase 2 | DDD 领域与职责拆分 | Approved | 用户 | 2026-07-06 |
 | Phase 3 | 生命周期与扩展点设计 | Approved | 用户 | 2026-07-07 |
 | Phase 4 | 技术选型与架构设计 | Approved | 用户 | 2026-07-07 |
-| Phase 5 | 解耦实施计划 | Pending |  |  |
+| Phase 5 | 解耦实施计划 | Approved | 用户 | 2026-07-07 |
 
 ## 文档目录
 
@@ -69,6 +69,15 @@ Phase 4: Technology and Technical Architecture
 | architecture/03-technology-selection-adrs.md | 技术选型与 ADR | Approved |
 | architecture/04-technical-architecture.md | 运行组件、分层、数据流和安全边界 | Approved |
 | architecture/05-performance-testing-and-operations.md | 性能、测试与本地运维边界 | Approved |
+| plans/00-roadmap.md | 实施路线图、里程碑和集成顺序 | Approved |
+| plans/01-project-skeleton-and-contracts-plan.md | 项目骨架与契约基线计划 | Approved |
+| plans/02-rust-log-workspace-plan.md | Rust 日志工作区计划 | Approved |
+| plans/03-rust-rule-configuration-plan.md | Rust 规则配置计划 | Approved |
+| plans/04-rust-latency-analysis-plan.md | Rust 时延分析核心计划 | Approved |
+| plans/05-application-services-and-storage-plan.md | 应用服务与本地存储计划 | Approved |
+| plans/06-frontend-ui-plan.md | 前端主流程 UI 计划 | Approved |
+| plans/07-testing-performance-packaging-plan.md | 测试、性能与打包计划 | Approved |
+| plans/99-final-audit.md | 最终安全网审计与追踪矩阵 | Approved |
 
 ## 依赖关系
 
@@ -97,6 +106,8 @@ DOMAIN-MAP
   -> ARCH-TECH-SELECTION
   -> ARCH-TECHNICAL-ARCHITECTURE
   -> ARCH-PERFORMANCE-TESTING
+  -> PLAN-ROADMAP
+  -> implementation plans
 ```
 
 ## 待后续阶段处理
