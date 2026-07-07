@@ -14,7 +14,7 @@ Supersedes: docs/vscode/specs/requirements.md, docs/superpowers/specs/2026-06-17
 1. 基础能力：导入固定格式日志后，完成解析、搜索、上下文查看和常用查询复用。
 2. 进阶能力：基于业务规则识别一次请求，计算请求内跨应用、应用内部和应用间传递的时延，并以单次请求为主视图展示。
 
-需求与关键基线已经批准。当前进入领域与职责设计，尚不进入技术架构或实施计划。
+需求、关键基线、领域与职责设计已经批准。当前进入生命周期与扩展点设计，尚不进入技术选型、技术架构或实施计划。
 
 ## 当前阶段
 
@@ -27,7 +27,7 @@ Phase 3: Lifecycle and Extension Design
 | Phase 0 | 现有文档和上下文盘点 | Done | 用户会话确认 | 2026-06-24 |
 | Phase 1 | 需求拆解 | Approved | 用户 | 2026-07-05 |
 | Phase 2 | DDD 领域与职责拆分 | Approved | 用户 | 2026-07-06 |
-| Phase 3 | 生命周期与扩展点设计 | In Progress |  |  |
+| Phase 3 | 生命周期与扩展点设计 | Approved | 用户 | 2026-07-07 |
 | Phase 4 | 技术选型与架构设计 | Pending |  |  |
 | Phase 5 | 解耦实施计划 | Pending |  |  |
 
@@ -63,6 +63,9 @@ Phase 3: Lifecycle and Extension Design
 | responsibilities/04-latency-analysis-pipeline-design.md | 时延分析流水线复杂职责 | Approved |
 | responsibilities/05-result-projection-and-delivery-design.md | 页面与 CSV 投影交付职责 | Approved |
 | responsibilities/06-issue-handling-design.md | 统一问题分类与处理职责 | Approved |
+| architecture/00-lifecycle-and-extension-overview.md | 生命周期与扩展点设计总览 | Approved |
+| architecture/01-lifecycle-state-model.md | 日志、规则、分析运行状态模型 | Approved |
+| architecture/02-extension-pattern-decisions.md | 扩展点与设计模式采用或拒绝决策 | Approved |
 
 ## 依赖关系
 
@@ -85,12 +88,14 @@ DOMAIN-MAP
   -> CTX-LATENCY-ANALYSIS
   -> RESP-MAP
   -> complex responsibility designs
+  -> ARCH-LIFECYCLE-OVERVIEW
+  -> ARCH-LIFECYCLE-STATE
+  -> ARCH-EXTENSION-PATTERNS
 ```
 
 ## 待后续阶段处理
 
 - 领域模型、限界上下文、聚合和值对象。
 - 数据、加工、展示三层解耦方式。
-- 插件、拦截器、监听器、工厂、策略等设计模式是否需要，以及使用位置。
 - 技术选型、中间件选择、运行形态、存储形态。
 - 实施计划和任务级拆分。
