@@ -4,6 +4,30 @@ export interface IssueDto {
   message: string
 }
 
+export type LogSearchMode = 'keyword' | 'regex'
+
+export interface LogSearchRequestDto {
+  query: string
+  mode: LogSearchMode
+  caseSensitive: boolean
+  contextLines: number
+}
+
+export interface LogSearchHitDto {
+  lineNumber: number
+  rawLine: string
+  timestamp: string
+  app: string
+  level: string
+  before: string[]
+  after: string[]
+}
+
+export interface LogSearchResponseDto {
+  totalMatches: number
+  hits: LogSearchHitDto[]
+}
+
 export interface LogMatcherDto {
   id: string
   name: string

@@ -1,9 +1,19 @@
 declare module 'react' {
   export type ReactNode = any
+  export type ChangeEvent<T = Element> = {
+    target: T
+  }
+  export type MouseEvent<T = Element> = {
+    clientX: number
+    clientY: number
+    preventDefault(): void
+    currentTarget: T
+  }
   export function useMemo<T>(factory: () => T, deps: readonly unknown[]): T
   export function useState<T>(
     initialState: T | (() => T)
   ): [T, (value: T | ((prev: T) => T)) => void]
+  export function useEffect(effect: () => void | (() => void), deps?: readonly unknown[]): void
   export const StrictMode: any
   const React: any
   export default React

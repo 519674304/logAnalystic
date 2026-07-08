@@ -4,3 +4,4 @@
 //! services, and map the result back to the frontend.
 
 pub mod health_commands;
+pub mod search_commands;

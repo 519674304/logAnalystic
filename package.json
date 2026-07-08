@@ -7,6 +7,7 @@
     "build": "vite build",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
+    "test:ui-contract": "node scripts/check-ui-contract.js",
     "check:baselines": "node scripts/check-baselines.js"
   },
   "dependencies": {

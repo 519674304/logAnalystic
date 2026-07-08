@@ -1,0 +1,176 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900">
+  <defs>
+    <style>
+      .t{font-family:Arial,"Microsoft YaHei",sans-serif;fill:#172033}
+      .m{font-family:Arial,"Microsoft YaHei",sans-serif;fill:#607084}
+      .h{font-family:Arial,"Microsoft YaHei",sans-serif;font-weight:700;fill:#172033}
+      .panel{fill:#fff;stroke:#cfd8e3;stroke-width:1}
+      .field{fill:#fff;stroke:#cfd8e3;stroke-width:1}
+      .soft{fill:#f8fafc;stroke:#d8e0eb;stroke-width:1}
+      .active{fill:#eff6ff;stroke:#2563eb;stroke-width:1.5}
+      .slow{fill:#fff7ed;stroke:#fb923c;stroke-width:1.5}
+      .btn{fill:#2563eb}
+    </style>
+  </defs>
+
+  <rect width="1440" height="900" fill="#edf1f6"/>
+
+  <!-- header -->
+  <rect class="panel" x="24" y="20" width="1392" height="62" rx="8"/>
+  <text class="m" x="44" y="44" font-size="12">LOCAL DESKTOP TOOL</text>
+  <text class="h" x="44" y="68" font-size="22">日志分析工作台</text>
+  <rect class="soft" x="1228" y="37" width="84" height="28" rx="14"/>
+  <text class="m" x="1246" y="56" font-size="12">M0 示例</text>
+  <rect class="soft" x="1322" y="37" width="72" height="28" rx="14"/>
+  <text class="m" x="1338" y="56" font-size="12">常用 1s</text>
+
+  <!-- tabs -->
+  <rect class="panel" x="24" y="94" width="1392" height="48" rx="8"/>
+  <text class="t" x="54" y="124" font-size="16">日志搜索</text>
+  <rect x="134" y="101" width="108" height="34" rx="6" fill="#dff0ff"/>
+  <text class="h" x="158" y="124" font-size="16">时延分析</text>
+  <text class="t" x="272" y="124" font-size="16">规则配置</text>
+  <text class="t" x="370" y="124" font-size="16">问题提示</text>
+
+  <!-- analysis conditions only -->
+  <text class="m" x="24" y="166" font-size="12">开始时间</text>
+  <rect class="field" x="24" y="174" width="176" height="34" rx="6"/>
+  <text class="t" x="36" y="196" font-size="14">2026-06-12 10:30</text>
+  <text class="m" x="212" y="166" font-size="12">结束时间</text>
+  <rect class="field" x="212" y="174" width="176" height="34" rx="6"/>
+  <text class="t" x="224" y="196" font-size="14">2026-06-12 10:45</text>
+  <text class="m" x="400" y="166" font-size="12">场景</text>
+  <rect class="field" x="400" y="174" width="150" height="34" rx="6"/>
+  <text class="t" x="414" y="196" font-size="14">核心链路</text>
+  <text class="m" x="570" y="196" font-size="13">顶部仅用于重新分析，不选择单次请求</text>
+  <rect class="btn" x="1232" y="174" width="72" height="34" rx="6"/>
+  <text x="1254" y="196" font-family="Arial,'Microsoft YaHei',sans-serif" font-size="14" font-weight="700" fill="#fff">分析</text>
+  <rect class="field" x="1314" y="174" width="102" height="34" rx="6"/>
+  <text class="h" x="1335" y="196" font-size="14">导出 CSV</text>
+
+  <!-- left request explorer -->
+  <rect class="panel" x="24" y="222" width="286" height="478" rx="8"/>
+  <text class="h" x="42" y="252" font-size="16">请求资源管理器</text>
+  <rect class="field" x="250" y="234" width="42" height="28" rx="6"/>
+  <text class="m" x="259" y="253" font-size="12">收起</text>
+
+  <text class="m" x="42" y="282" font-size="12">请求筛选</text>
+  <rect class="field" x="42" y="290" width="116" height="32" rx="6"/>
+  <text class="t" x="54" y="311" font-size="13">全部请求</text>
+  <text class="m" x="170" y="282" font-size="12">耗时排序</text>
+  <rect class="field" x="170" y="290" width="122" height="32" rx="6"/>
+  <text class="t" x="182" y="311" font-size="13">耗时从高到低</text>
+
+  <text class="h" x="42" y="350" font-size="13">慢请求 1</text>
+  <rect class="active" x="42" y="362" width="250" height="64" rx="6"/>
+  <text class="h" x="56" y="388" font-size="15">2026-06-12 10:40:02.120</text>
+  <text class="m" x="56" y="410" font-size="12">超时 · 410ms · 慢点: RPC调用B</text>
+  <text class="h" x="42" y="454" font-size="13">异常请求 1</text>
+  <rect class="soft" x="42" y="466" width="250" height="56" rx="6"/>
+  <text class="h" x="56" y="490" font-size="14">2026-06-12 10:41:18.004</text>
+  <text class="m" x="56" y="510" font-size="12">异常 · 320ms · 子进程分支</text>
+  <text class="h" x="42" y="550" font-size="13">正常请求 1</text>
+  <rect class="soft" x="42" y="562" width="250" height="56" rx="6"/>
+  <text class="h" x="56" y="586" font-size="14">2026-06-12 10:39:38.257</text>
+  <text class="m" x="56" y="606" font-size="12">完成 · 240ms · B处理</text>
+  <text class="h" x="42" y="646" font-size="13">未结束请求 1</text>
+  <rect class="soft" x="42" y="658" width="250" height="30" rx="6"/>
+
+  <!-- main swimlane -->
+  <rect class="panel" x="322" y="222" width="786" height="478" rx="8"/>
+  <text class="h" x="342" y="252" font-size="16">当前请求泳道图</text>
+  <text class="m" x="342" y="274" font-size="12">当前请求由左侧结果列表选中: 2026-06-12 10:40:02.120</text>
+
+  <rect class="soft" x="342" y="292" width="238" height="54" rx="6"/>
+  <text class="m" x="358" y="313" font-size="12">慢请求摘要</text>
+  <text class="h" x="358" y="337" font-size="17">超时 · 410ms</text>
+  <rect class="slow" x="592" y="292" width="238" height="54" rx="6"/>
+  <text x="608" y="313" font-family="Arial,'Microsoft YaHei',sans-serif" font-size="12" fill="#9a3412">主要慢点</text>
+  <text class="h" x="608" y="337" font-size="17">RPC调用B</text>
+  <rect class="soft" x="842" y="292" width="246" height="54" rx="6"/>
+  <text class="m" x="858" y="313" font-size="12">场景</text>
+  <text class="h" x="858" y="337" font-size="17">核心链路</text>
+
+  <text class="m" x="444" y="380" font-size="11">0ms</text>
+  <text class="m" x="626" y="380" font-size="11">100ms</text>
+  <text class="m" x="808" y="380" font-size="11">200ms</text>
+  <text class="m" x="990" y="380" font-size="11">300ms</text>
+
+  <g font-family="Arial,'Microsoft YaHei',sans-serif" font-size="12" font-weight="700" fill="#172033">
+    <text class="t" x="342" y="419" font-size="13" font-weight="400">A应用主流程</text>
+    <rect class="soft" x="446" y="398" width="642" height="46" rx="6"/>
+    <rect x="476" y="406" width="118" height="30" rx="6" fill="#bae6fd"/>
+    <text x="508" y="425">参数解析</text>
+    <rect x="610" y="406" width="112" height="30" rx="6" fill="#bae6fd"/>
+    <text x="634" y="425">触发子进程</text>
+    <rect x="742" y="406" width="118" height="30" rx="6" fill="#fde68a" stroke="#dc2626" stroke-width="2"/>
+    <text x="766" y="425">RPC调用B</text>
+    <rect x="820" y="396" width="42" height="18" rx="9" fill="#dc2626"/>
+    <text x="830" y="409" font-size="10" fill="#fff">慢点</text>
+    <rect x="970" y="406" width="110" height="30" rx="6" fill="#ddd6fe"/>
+    <text x="996" y="425">汇总结果</text>
+
+    <text class="t" x="342" y="478" font-size="13" font-weight="400">A应用子进程1</text>
+    <rect class="soft" x="446" y="457" width="642" height="46" rx="6"/>
+    <rect x="652" y="465" width="232" height="30" rx="6" fill="#bbf7d0"/>
+    <text x="734" y="484">子任务1 80ms</text>
+
+    <text class="t" x="342" y="537" font-size="13" font-weight="400">A应用子进程2</text>
+    <rect class="soft" x="446" y="516" width="642" height="46" rx="6"/>
+    <rect x="674" y="524" width="194" height="30" rx="6" fill="#bbf7d0"/>
+    <text x="736" y="543">子任务2 65ms</text>
+
+    <text class="t" x="342" y="596" font-size="13" font-weight="400">B应用处理</text>
+    <rect class="soft" x="446" y="575" width="642" height="46" rx="6"/>
+    <rect x="842" y="583" width="88" height="30" rx="6" fill="#fde68a"/>
+    <text x="862" y="602">B接收</text>
+    <rect x="950" y="583" width="130" height="30" rx="6" fill="#bae6fd"/>
+    <text x="990" y="602">B处理</text>
+
+    <text class="t" x="342" y="655" font-size="13" font-weight="400">C应用回调</text>
+    <rect class="soft" x="446" y="634" width="642" height="46" rx="6"/>
+    <rect x="988" y="642" width="92" height="30" rx="6" fill="#ddd6fe"/>
+    <text x="1000" y="661">结果回调</text>
+  </g>
+
+  <!-- right step tree -->
+  <rect class="panel" x="1120" y="222" width="296" height="478" rx="8"/>
+  <text class="h" x="1140" y="252" font-size="16">步骤树</text>
+  <rect class="field" x="1350" y="234" width="42" height="28" rx="6"/>
+  <text class="m" x="1359" y="253" font-size="12">收起</text>
+  <rect class="slow" x="1140" y="276" width="252" height="58" rx="6"/>
+  <text x="1156" y="300" font-family="Arial,'Microsoft YaHei',sans-serif" font-size="13" fill="#9a3412">rpc</text>
+  <text class="h" x="1156" y="323" font-size="16">RPC调用B · 42ms</text>
+
+  <rect class="soft" x="1140" y="354" width="252" height="34" rx="6"/>
+  <text class="t" x="1156" y="376" font-size="14">A阶段</text><text class="h" x="1340" y="376" font-size="14" fill="#2563eb">180ms</text>
+  <rect class="soft" x="1140" y="398" width="252" height="34" rx="6"/>
+  <text class="t" x="1178" y="420" font-size="14">参数解析</text><text class="h" x="1346" y="420" font-size="14" fill="#2563eb">24ms</text>
+  <rect class="active" x="1140" y="442" width="252" height="34" rx="6"/>
+  <rect x="1140" y="442" width="4" height="34" fill="#2563eb"/>
+  <text class="t" x="1178" y="464" font-size="14">RPC调用B</text><text class="h" x="1346" y="464" font-size="14" fill="#2563eb">42ms</text>
+  <rect class="soft" x="1140" y="486" width="252" height="34" rx="6"/>
+  <text class="t" x="1178" y="508" font-size="14">子进程分支</text><text class="h" x="1346" y="508" font-size="14" fill="#2563eb">90ms</text>
+  <rect class="soft" x="1140" y="530" width="252" height="34" rx="6"/>
+  <text class="t" x="1204" y="552" font-size="14">子进程1 / 执行任务</text><text class="h" x="1346" y="552" font-size="14" fill="#2563eb">80ms</text>
+  <rect class="soft" x="1140" y="574" width="252" height="34" rx="6"/>
+  <text class="t" x="1204" y="596" font-size="14">子进程2 / 执行任务</text><text class="h" x="1346" y="596" font-size="14" fill="#2563eb">65ms</text>
+
+  <!-- bottom interval statistics -->
+  <rect class="panel" x="24" y="714" width="1392" height="150" rx="8"/>
+  <text class="h" x="44" y="746" font-size="16">区间统计</text>
+  <text class="m" x="1160" y="746" font-size="12">任意选择两个日志步骤，统计中间耗时</text>
+  <rect class="field" x="44" y="774" width="640" height="34" rx="6"/>
+  <text class="t" x="58" y="796" font-size="14">起点步骤: A调用B日志</text>
+  <rect class="field" x="696" y="774" width="640" height="34" rx="6"/>
+  <text class="t" x="710" y="796" font-size="14">终点步骤: B收到请求日志</text>
+
+  <g font-family="Arial,'Microsoft YaHei',sans-serif" font-size="13" fill="#172033">
+    <rect class="soft" x="44" y="824" width="210" height="26" rx="6"/><text x="58" y="842">当前请求耗时 42ms</text>
+    <rect class="soft" x="266" y="824" width="210" height="26" rx="6"/><text x="280" y="842">样本数 16</text>
+    <rect class="soft" x="488" y="824" width="210" height="26" rx="6"/><text x="502" y="842">平均值 95ms</text>
+    <rect class="soft" x="710" y="824" width="210" height="26" rx="6"/><text x="724" y="842">P90 182ms</text>
+    <rect class="soft" x="932" y="824" width="210" height="26" rx="6"/><text x="946" y="842">最大值 240ms</text>
+    <rect class="soft" x="1154" y="824" width="210" height="26" rx="6"/><text x="1168" y="842">异常样本 1</text>
+  </g>
+</svg>
