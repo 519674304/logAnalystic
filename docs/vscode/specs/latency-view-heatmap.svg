@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="760" viewBox="0 0 1280 760">
+  <rect width="1280" height="760" fill="#f6f8fb"/>
+  <rect x="28" y="24" width="1224" height="712" rx="8" fill="#ffffff" stroke="#d8dee9"/>
+
+  <text x="56" y="64" font-family="Microsoft YaHei, Arial, sans-serif" font-size="24" font-weight="700" fill="#111827">时延分析 - 应用热力矩阵</text>
+  <text x="56" y="94" font-family="Microsoft YaHei, Arial, sans-serif" font-size="14" fill="#6b7280">适合快速发现哪个应用、哪个时间段出现明显变慢</text>
+
+  <rect x="56" y="122" width="150" height="34" rx="6" fill="#eef2ff" stroke="#c7d2fe"/>
+  <text x="78" y="144" font-family="Microsoft YaHei, Arial, sans-serif" font-size="14" fill="#3730a3">时间范围 10:30-11:30</text>
+  <rect x="218" y="122" width="118" height="34" rx="6" fill="#f0fdf4" stroke="#bbf7d0"/>
+  <text x="240" y="144" font-family="Microsoft YaHei, Arial, sans-serif" font-size="14" fill="#166534">粒度 5 分钟</text>
+  <rect x="348" y="122" width="124" height="34" rx="6" fill="#fff7ed" stroke="#fed7aa"/>
+  <text x="370" y="144" font-family="Microsoft YaHei, Arial, sans-serif" font-size="14" fill="#9a3412">指标 P90</text>
+
+  <line x1="150" y1="214" x2="998" y2="214" stroke="#9ca3af"/>
+  <line x1="150" y1="214" x2="150" y2="590" stroke="#9ca3af"/>
+
+  <g font-family="Microsoft YaHei, Arial, sans-serif" font-size="13" fill="#374151">
+    <text x="172" y="196">10:30</text>
+    <text x="292" y="196">10:40</text>
+    <text x="412" y="196">10:50</text>
+    <text x="532" y="196">11:00</text>
+    <text x="652" y="196">11:10</text>
+    <text x="772" y="196">11:20</text>
+    <text x="892" y="196">11:30</text>
+  </g>
+
+  <g font-family="Microsoft YaHei, Arial, sans-serif" font-size="14" fill="#111827">
+    <text x="70" y="250">A00010</text>
+    <text x="70" y="304">A00022</text>
+    <text x="70" y="358">A00038</text>
+    <text x="70" y="412">A00051</text>
+    <text x="70" y="466">A00073</text>
+    <text x="70" y="520">A00108</text>
+    <text x="70" y="574">A00121</text>
+  </g>
+
+  <g>
+    <rect x="166" y="226" width="96" height="38" rx="4" fill="#d1fae5"/><text x="197" y="251" font-family="Arial" font-size="13" fill="#065f46">82ms</text>
+    <rect x="286" y="226" width="96" height="38" rx="4" fill="#fef3c7"/><text x="317" y="251" font-family="Arial" font-size="13" fill="#92400e">210ms</text>
+    <rect x="406" y="226" width="96" height="38" rx="4" fill="#fed7aa"/><text x="437" y="251" font-family="Arial" font-size="13" fill="#9a3412">390ms</text>
+    <rect x="526" y="226" width="96" height="38" rx="4" fill="#fecaca"/><text x="557" y="251" font-family="Arial" font-size="13" fill="#991b1b">680ms</text>
+    <rect x="646" y="226" width="96" height="38" rx="4" fill="#fee2e2"/><text x="677" y="251" font-family="Arial" font-size="13" fill="#991b1b">520ms</text>
+    <rect x="766" y="226" width="96" height="38" rx="4" fill="#fef3c7"/><text x="797" y="251" font-family="Arial" font-size="13" fill="#92400e">240ms</text>
+    <rect x="886" y="226" width="96" height="38" rx="4" fill="#d1fae5"/><text x="917" y="251" font-family="Arial" font-size="13" fill="#065f46">96ms</text>
+
+    <rect x="166" y="280" width="96" height="38" rx="4" fill="#dcfce7"/><text x="198" y="305" font-family="Arial" font-size="13" fill="#166534">64ms</text>
+    <rect x="286" y="280" width="96" height="38" rx="4" fill="#dcfce7"/><text x="318" y="305" font-family="Arial" font-size="13" fill="#166534">71ms</text>
+    <rect x="406" y="280" width="96" height="38" rx="4" fill="#d1fae5"/><text x="438" y="305" font-family="Arial" font-size="13" fill="#065f46">88ms</text>
+    <rect x="526" y="280" width="96" height="38" rx="4" fill="#fef3c7"/><text x="557" y="305" font-family="Arial" font-size="13" fill="#92400e">230ms</text>
+    <rect x="646" y="280" width="96" height="38" rx="4" fill="#dcfce7"/><text x="678" y="305" font-family="Arial" font-size="13" fill="#166534">76ms</text>
+    <rect x="766" y="280" width="96" height="38" rx="4" fill="#dcfce7"/><text x="798" y="305" font-family="Arial" font-size="13" fill="#166534">69ms</text>
+    <rect x="886" y="280" width="96" height="38" rx="4" fill="#d1fae5"/><text x="918" y="305" font-family="Arial" font-size="13" fill="#065f46">91ms</text>
+
+    <rect x="166" y="334" width="96" height="38" rx="4" fill="#fef3c7"/><text x="197" y="359" font-family="Arial" font-size="13" fill="#92400e">180ms</text>
+    <rect x="286" y="334" width="96" height="38" rx="4" fill="#fef3c7"/><text x="317" y="359" font-family="Arial" font-size="13" fill="#92400e">260ms</text>
+    <rect x="406" y="334" width="96" height="38" rx="4" fill="#fed7aa"/><text x="437" y="359" font-family="Arial" font-size="13" fill="#9a3412">410ms</text>
+    <rect x="526" y="334" width="96" height="38" rx="4" fill="#fecaca"/><text x="557" y="359" font-family="Arial" font-size="13" fill="#991b1b">710ms</text>
+    <rect x="646" y="334" width="96" height="38" rx="4" fill="#fecaca"/><text x="677" y="359" font-family="Arial" font-size="13" fill="#991b1b">650ms</text>
+    <rect x="766" y="334" width="96" height="38" rx="4" fill="#fed7aa"/><text x="797" y="359" font-family="Arial" font-size="13" fill="#9a3412">420ms</text>
+    <rect x="886" y="334" width="96" height="38" rx="4" fill="#fef3c7"/><text x="917" y="359" font-family="Arial" font-size="13" fill="#92400e">230ms</text>
+
+    <rect x="166" y="388" width="96" height="38" rx="4" fill="#dcfce7"/><text x="198" y="413" font-family="Arial" font-size="13" fill="#166534">54ms</text>
+    <rect x="286" y="388" width="96" height="38" rx="4" fill="#dcfce7"/><text x="318" y="413" font-family="Arial" font-size="13" fill="#166534">62ms</text>
+    <rect x="406" y="388" width="96" height="38" rx="4" fill="#dcfce7"/><text x="438" y="413" font-family="Arial" font-size="13" fill="#166534">70ms</text>
+    <rect x="526" y="388" width="96" height="38" rx="4" fill="#d1fae5"/><text x="558" y="413" font-family="Arial" font-size="13" fill="#065f46">86ms</text>
+    <rect x="646" y="388" width="96" height="38" rx="4" fill="#dcfce7"/><text x="678" y="413" font-family="Arial" font-size="13" fill="#166534">58ms</text>
+    <rect x="766" y="388" width="96" height="38" rx="4" fill="#dcfce7"/><text x="798" y="413" font-family="Arial" font-size="13" fill="#166534">61ms</text>
+    <rect x="886" y="388" width="96" height="38" rx="4" fill="#dcfce7"/><text x="918" y="413" font-family="Arial" font-size="13" fill="#166534">67ms</text>
+  </g>
+
+  <rect x="1018" y="214" width="190" height="376" rx="8" fill="#f9fafb" stroke="#e5e7eb"/>
+  <text x="1040" y="248" font-family="Microsoft YaHei, Arial, sans-serif" font-size="18" font-weight="700" fill="#111827">选中单元格</text>
+  <text x="1040" y="286" font-family="Microsoft YaHei, Arial, sans-serif" font-size="14" fill="#374151">应用: A00038</text>
+  <text x="1040" y="314" font-family="Microsoft YaHei, Arial, sans-serif" font-size="14" fill="#374151">时间: 11:00-11:05</text>
+  <text x="1040" y="342" font-family="Microsoft YaHei, Arial, sans-serif" font-size="14" fill="#374151">P90: 710ms</text>
+  <text x="1040" y="370" font-family="Microsoft YaHei, Arial, sans-serif" font-size="14" fill="#374151">平均: 420ms</text>
+  <text x="1040" y="398" font-family="Microsoft YaHei, Arial, sans-serif" font-size="14" fill="#374151">日志数: 128</text>
+  <rect x="1040" y="430" width="126" height="36" rx="6" fill="#2563eb"/>
+  <text x="1062" y="453" font-family="Microsoft YaHei, Arial, sans-serif" font-size="14" fill="#ffffff">查看相关日志</text>
+
+  <g font-family="Microsoft YaHei, Arial, sans-serif" font-size="13" fill="#4b5563">
+    <rect x="170" y="636" width="24" height="14" fill="#dcfce7"/><text x="202" y="648">正常 &lt; 100ms</text>
+    <rect x="324" y="636" width="24" height="14" fill="#fef3c7"/><text x="356" y="648">轻微 100-300ms</text>
+    <rect x="510" y="636" width="24" height="14" fill="#fed7aa"/><text x="542" y="648">偏慢 300-500ms</text>
+    <rect x="690" y="636" width="24" height="14" fill="#fecaca"/><text x="722" y="648">严重 &gt; 500ms</text>
+  </g>
+</svg>

@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="760" viewBox="0 0 1280 760">
+  <rect width="1280" height="760" fill="#f6f8fb"/>
+  <rect x="28" y="24" width="1224" height="712" rx="8" fill="#ffffff" stroke="#d8dee9"/>
+
+  <text x="56" y="64" font-family="Microsoft YaHei, Arial, sans-serif" font-size="24" font-weight="700" fill="#111827">阶段时延 - 应用/阶段矩阵</text>
+  <text x="56" y="94" font-family="Microsoft YaHei, Arial, sans-serif" font-size="14" fill="#6b7280">按应用聚合各阶段耗时，颜色表示阶段，深浅表示 P90 是否偏高</text>
+
+  <line x1="180" y1="190" x2="180" y2="610" stroke="#9ca3af"/>
+  <line x1="180" y1="190" x2="1000" y2="190" stroke="#9ca3af"/>
+
+  <g font-family="Microsoft YaHei, Arial, sans-serif" font-size="15" font-weight="700" fill="#111827">
+    <text x="260" y="164">B阶段</text>
+    <text x="482" y="164">C阶段</text>
+    <text x="704" y="164">D阶段</text>
+    <text x="892" y="164">总耗时</text>
+  </g>
+
+  <g font-family="Microsoft YaHei, Arial, sans-serif" font-size="14" fill="#111827">
+    <text x="80" y="236">A00010</text>
+    <text x="80" y="310">A00022</text>
+    <text x="80" y="384">A00038</text>
+    <text x="80" y="458">A00073</text>
+    <text x="80" y="532">A00121</text>
+  </g>
+
+  <g font-family="Microsoft YaHei, Arial, sans-serif">
+    <rect x="220" y="210" width="150" height="44" rx="6" fill="#bfdbfe"/><text x="269" y="237" font-size="14" fill="#1e3a8a">180ms</text>
+    <rect x="442" y="210" width="150" height="44" rx="6" fill="#bbf7d0"/><text x="491" y="237" font-size="14" fill="#14532d">240ms</text>
+    <rect x="664" y="210" width="150" height="44" rx="6" fill="#fde68a"/><text x="713" y="237" font-size="14" fill="#78350f">310ms</text>
+    <rect x="864" y="210" width="110" height="44" rx="6" fill="#f3f4f6"/><text x="896" y="237" font-size="14" fill="#374151">730ms</text>
+
+    <rect x="220" y="284" width="150" height="44" rx="6" fill="#dbeafe"/><text x="269" y="311" font-size="14" fill="#1e3a8a">120ms</text>
+    <rect x="442" y="284" width="150" height="44" rx="6" fill="#86efac"/><text x="491" y="311" font-size="14" fill="#14532d">360ms</text>
+    <rect x="664" y="284" width="150" height="44" rx="6" fill="#fde68a"/><text x="713" y="311" font-size="14" fill="#78350f">270ms</text>
+    <rect x="864" y="284" width="110" height="44" rx="6" fill="#f3f4f6"/><text x="896" y="311" font-size="14" fill="#374151">750ms</text>
+
+    <rect x="220" y="358" width="150" height="44" rx="6" fill="#fb923c"/><text x="269" y="385" font-size="14" fill="#ffffff">690ms</text>
+    <rect x="442" y="358" width="150" height="44" rx="6" fill="#bbf7d0"/><text x="491" y="385" font-size="14" fill="#14532d">210ms</text>
+    <rect x="664" y="358" width="150" height="44" rx="6" fill="#fef3c7"/><text x="713" y="385" font-size="14" fill="#78350f">180ms</text>
+    <rect x="864" y="358" width="110" height="44" rx="6" fill="#fee2e2"/><text x="896" y="385" font-size="14" fill="#991b1b">1080ms</text>
+
+    <rect x="220" y="432" width="150" height="44" rx="6" fill="#bfdbfe"/><text x="269" y="459" font-size="14" fill="#1e3a8a">220ms</text>
+    <rect x="442" y="432" width="150" height="44" rx="6" fill="#16a34a"/><text x="491" y="459" font-size="14" fill="#ffffff">620ms</text>
+    <rect x="664" y="432" width="150" height="44" rx="6" fill="#fde68a"/><text x="713" y="459" font-size="14" fill="#78350f">340ms</text>
+    <rect x="864" y="432" width="110" height="44" rx="6" fill="#fee2e2"/><text x="896" y="459" font-size="14" fill="#991b1b">1180ms</text>
+
+    <rect x="220" y="506" width="150" height="44" rx="6" fill="#dbeafe"/><text x="269" y="533" font-size="14" fill="#1e3a8a">95ms</text>
+    <rect x="442" y="506" width="150" height="44" rx="6" fill="#dcfce7"/><text x="491" y="533" font-size="14" fill="#14532d">130ms</text>
+    <rect x="664" y="506" width="150" height="44" rx="6" fill="#fde68a"/><text x="713" y="533" font-size="14" fill="#78350f">280ms</text>
+    <rect x="864" y="506" width="110" height="44" rx="6" fill="#f3f4f6"/><text x="896" y="533" font-size="14" fill="#374151">505ms</text>
+  </g>
+
+  <rect x="1028" y="190" width="178" height="300" rx="8" fill="#f9fafb" stroke="#e5e7eb"/>
+  <text x="1050" y="224" font-family="Microsoft YaHei, Arial, sans-serif" font-size="18" font-weight="700" fill="#111827">阶段规则</text>
+  <g font-family="Microsoft YaHei, Arial, sans-serif" font-size="14" fill="#374151">
+    <rect x="1050" y="252" width="26" height="14" rx="7" fill="#60a5fa"/><text x="1088" y="266">A -> B = B阶段</text>
+    <rect x="1050" y="288" width="26" height="14" rx="7" fill="#34d399"/><text x="1088" y="302">B -> C = C阶段</text>
+    <rect x="1050" y="324" width="26" height="14" rx="7" fill="#f59e0b"/><text x="1088" y="338">C -> D = D阶段</text>
+  </g>
+  <text x="1050" y="392" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13" fill="#6b7280">点击单元格:</text>
+  <text x="1050" y="414" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13" fill="#6b7280">查看该应用该阶段</text>
+  <text x="1050" y="436" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13" fill="#6b7280">对应 A/B/C 原始日志</text>
+</svg>
