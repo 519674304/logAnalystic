@@ -1,4 +1,4 @@
-//! Health check command used by the desktop shell.
+//! 桌面壳层使用的健康检查命令。
 
 #[tauri::command]
 pub fn health() -> String {

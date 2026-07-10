@@ -1,0 +1,9 @@
+20675,2026-07-05 10:00:00.100 32033 32033 I A00010/com.demo.app/Order: request started
+20676,2026-07-05 10:00:00.500 32033 32033 I A00010/com.demo.app/Order: start parallel subprocesses
+20677,2026-07-05 10:00:00.680 33001 33001 I B00020/com.demo.app/BWorker: B subprocess received, sequence=1
+20678,2026-07-05 10:00:00.800 33001 33001 I B00020/com.demo.app/BWorker: B preparation completed
+20679,2026-07-05 10:00:01.100 33001 33001 I B00020/com.demo.app/BWorker: B subprocess completed
+20680,2026-07-05 10:00:00.700 34001 34001 I C00030/com.demo.app/CWorker: C subprocess received, sequence=1
+20681,2026-07-05 10:00:01.250 34001 34001 I C00030/com.demo.app/CWorker: C subprocess completed
+20682,2026-07-05 10:00:01.350 32033 32033 I A00010/com.demo.app/Order: all subprocesses completed
+20683,2026-07-05 10:00:01.450 32033 32033 I A00010/com.demo.app/Order: request completed successfully

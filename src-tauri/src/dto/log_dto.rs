@@ -1,4 +1,4 @@
-//! Log search DTOs shared across the command boundary.
+//! 命令边界共享的日志搜索 DTO。
 
 use serde::{Deserialize, Serialize};
 
@@ -10,6 +10,7 @@ pub enum LogSearchModeDto {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LogSearchRequestDto {
     pub query: String,
     pub mode: LogSearchModeDto,
@@ -18,6 +19,7 @@ pub struct LogSearchRequestDto {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LogSearchHitDto {
     pub line_number: usize,
     pub raw_line: String,
@@ -29,6 +31,7 @@ pub struct LogSearchHitDto {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LogSearchResponseDto {
     pub total_matches: usize,
     pub hits: Vec<LogSearchHitDto>,

@@ -1,0 +1,21 @@
+{
+  "id": "smoke-request-1",
+  "request_id": "REQ-0001",
+  "hits": [
+    {
+      "id": "hit-1",
+      "application_id": "APP-A",
+      "process_id": "PROCESS-A-MAIN",
+      "stages": [
+        { "id": "DEF-A-PREPARE", "name": "A preparation stage" },
+        { "id": "DEF-A-TO-B-RPC", "name": "A to B RPC latency" },
+        { "id": "DEF-B-PROCESS", "name": "B processing stage" }
+      ]
+    }
+  ],
+  "stats": {
+    "request_count": 1,
+    "slow_count": 0,
+    "selected_request": "REQ-0001"
+  }
+}

@@ -18,10 +18,10 @@ function clamp(value: number, min: number, max: number) {
 
 function formatLaneBlockTooltip(block: RequestViewModel['laneBlocks'][number]) {
   return `${block.label}
-起始: ${block.startTimestamp}
+开始: ${block.startTimestamp}
 结束: ${block.endTimestamp}
-相对耗时: ${block.relativeDuration}
-阶段耗时: ${block.duration}`
+相对时延: ${block.relativeDuration}
+阶段时延: ${block.duration}`
 }
 
 function formatRelativeStart(relativeDuration: string) {
@@ -43,7 +43,7 @@ export default function LatencyAnalysisPanel({
   const [leftWidth, setLeftWidth] = useState(270)
   const [rightWidth, setRightWidth] = useState(320)
   const [activeRequestId, setActiveRequestId] = useState(
-    viewModel.requests.find((request) => request.group === 'slow')?.id ?? viewModel.requests[0]?.id ?? viewModel.requestId
+    viewModel.requests.find((request) => request.group === 'slow')?.id ?? viewModel.requests[0]?.id ?? viewModel.requestId,
   )
   const [activeBlockId, setActiveBlockId] = useState('rpc-b')
   const [requestFilter, setRequestFilter] = useState<RequestGroup | 'all'>('all')
@@ -53,23 +53,21 @@ export default function LatencyAnalysisPanel({
 
   const activeRequest = useMemo(
     () => viewModel.requests.find((request) => request.id === activeRequestId) ?? viewModel.requests[0],
-    [activeRequestId, viewModel.requests]
+    [activeRequestId, viewModel.requests],
   )
 
   const laneBlockById = useMemo(
     () => new Map(viewModel.laneBlocks.map((block) => [block.id, block])),
-    [viewModel.laneBlocks]
+    [viewModel.laneBlocks],
   )
 
   const activeBlock = useMemo(
     () => laneBlockById.get(activeBlockId) ?? viewModel.laneBlocks[0],
-    [activeBlockId, laneBlockById, viewModel.laneBlocks]
+    [activeBlockId, laneBlockById, viewModel.laneBlocks],
   )
 
   const visibleRequests = useMemo(() => {
-    const filtered = requestFilter === 'all'
-      ? viewModel.requests
-      : viewModel.requests.filter((request) => request.group === requestFilter)
+    const filtered = requestFilter === 'all' ? viewModel.requests : viewModel.requests.filter((request) => request.group === requestFilter)
 
     return [...filtered].sort((left, right) => {
       if (requestSort === 'duration-desc') {
@@ -201,7 +199,9 @@ export default function LatencyAnalysisPanel({
                       onClick={() => selectRequest(request.id)}
                     >
                       <strong>{request.id}</strong>
-                      <span>{request.result} · {request.duration} · 慢点: {request.slowPoint}</span>
+                      <span>
+                        {request.result} · {request.duration} · 慢点: {request.slowPoint}
+                      </span>
                     </button>
                   ))}
                 </section>
@@ -246,7 +246,9 @@ export default function LatencyAnalysisPanel({
             <div className="slow-request-summary">
               <div>
                 <span>慢请求摘要</span>
-                <strong>{activeRequest.result} · {activeRequest.duration}</strong>
+                <strong>
+                  {activeRequest.result} · {activeRequest.duration}
+                </strong>
               </div>
               <div>
                 <span>主要慢点</span>
@@ -277,7 +279,9 @@ export default function LatencyAnalysisPanel({
                       <button
                         key={block.id}
                         type="button"
-                        className={`lane-block ${block.kind} ${block.id === activeBlock?.id ? 'active' : ''} ${block.id === activeRequest?.slowPointBlockId ? 'bottleneck' : ''}`}
+                        className={`lane-block ${block.kind} ${block.id === activeBlock?.id ? 'active' : ''} ${
+                          block.id === activeRequest?.slowPointBlockId ? 'bottleneck' : ''
+                        }`}
                         title={formatLaneBlockTooltip(block)}
                         aria-label={formatLaneBlockTooltip(block)}
                         style={{
@@ -315,13 +319,13 @@ export default function LatencyAnalysisPanel({
           <div className="selected-step-card">
             <span className={`level ${activeBlock?.kind ?? 'info'}`}>{activeBlock?.kind ?? 'stage'}</span>
             <strong>{activeBlock?.label ?? '未选择阶段'}</strong>
-            <p>{activeBlock ? `${activeBlock.lane} · ${activeBlock.duration}` : '左侧选择请求后查看阶段'}</p>
+            <p>{activeBlock ? `${activeBlock.lane} · ${activeBlock.duration}` : '先在中间泳道图中选择一个阶段'}</p>
             {activeBlock ? (
               <div className="selected-step-meta">
-                <span>起始: {activeBlock.startTimestamp}</span>
+                <span>开始: {activeBlock.startTimestamp}</span>
                 <span>结束: {activeBlock.endTimestamp}</span>
-                <span>相对耗时: {activeBlock.relativeDuration}</span>
-                <span>阶段耗时: {activeBlock.duration}</span>
+                <span>相对时延: {activeBlock.relativeDuration}</span>
+                <span>阶段时延: {activeBlock.duration}</span>
               </div>
             ) : null}
           </div>
@@ -337,7 +341,7 @@ export default function LatencyAnalysisPanel({
                   className={`tree-row ${step.blockId === activeBlockId ? 'active' : ''}`}
                   style={{ paddingLeft: `${12 + step.level * 18}px` }}
                   onClick={() => setActiveBlockId(step.blockId)}
-                  >
+                >
                   <span className="tree-row-main">
                     <span className="tree-row-title">{step.name}</span>
                     <span className="tree-row-metrics">

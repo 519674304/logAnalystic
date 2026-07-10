@@ -1,8 +1,7 @@
-//! Application service for log searching.
+//! 日志搜索应用服务。
 //!
-//! The service keeps the search algorithm in Rust so the desktop shell can
-//! evolve from demo filtering to real local log analysis without changing the
-//! frontend contract.
+//! 这个服务把搜索算法放在 Rust 里，方便桌面壳层从演示过滤平滑演进到
+//! 真正的本地日志分析，同时不改前端契约。
 
 use crate::dto::log_dto::{
     LogSearchHitDto, LogSearchModeDto, LogSearchRequestDto, LogSearchResponseDto,
@@ -88,16 +87,18 @@ pub fn search_logs(request: &LogSearchRequestDto) -> LogSearchResponseDto {
 }
 
 fn build_matcher(request: &LogSearchRequestDto) -> Box<dyn Fn(&str) -> bool + Send + Sync + 'static> {
+    let case_sensitive = request.case_sensitive;
+
     match request.mode {
         LogSearchModeDto::Keyword => {
-            let needle = if request.case_sensitive {
+            let needle = if case_sensitive {
                 request.query.clone()
             } else {
                 request.query.to_lowercase()
             };
 
             Box::new(move |value: &str| {
-                if request.case_sensitive {
+                if case_sensitive {
                     value.contains(&needle)
                 } else {
                     value.to_lowercase().contains(&needle)
@@ -107,14 +108,14 @@ fn build_matcher(request: &LogSearchRequestDto) -> Box<dyn Fn(&str) -> bool + Se
         LogSearchModeDto::Regex => {
             let pattern = request.query.clone();
             let regex = Regex::new(&pattern).ok();
-            let regex_insensitive = if request.case_sensitive {
+            let regex_insensitive = if case_sensitive {
                 None
             } else {
                 Regex::new(&format!("(?i:{pattern})")).ok()
             };
 
             Box::new(move |value: &str| {
-                if request.case_sensitive {
+                if case_sensitive {
                     regex.as_ref().map(|compiled| compiled.is_match(value)).unwrap_or(false)
                 } else {
                     regex_insensitive

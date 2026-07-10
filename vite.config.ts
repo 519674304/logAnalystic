@@ -3,6 +3,11 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
+  server: {
+    watch: {
+      ignored: ['**/target/**', '**/src-tauri/target/**'],
+    },
+  },
   resolve: {
     dedupe: ['react', 'react-dom'],
   },

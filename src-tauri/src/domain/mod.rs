@@ -1,6 +1,6 @@
-//! Domain model root.
+//! 领域模型根模块。
 //!
-//! This layer holds analysis rules, request recognition, and latency
-//! calculation concepts without depending on Tauri or the filesystem.
+//! 这一层保存分析规则、请求识别和时延计算等概念，不依赖 Tauri
+//! 和文件系统。
 
 pub mod issue;

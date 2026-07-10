@@ -1,0 +1,19 @@
+业务含义,REQ-0001(start=2026-07-05 10:00:00.100)
+request started,2026-07-05 10:00:00.100
+"start parallel subprocesses",2026-07-05 10:00:00.500
+"B subprocess received, sequence=1",2026-07-05 10:00:00.680
+"C subprocess received, sequence=1",2026-07-05 10:00:00.700
+B preparation completed,2026-07-05 10:00:00.800
+B subprocess completed,2026-07-05 10:00:01.100
+C subprocess completed,2026-07-05 10:00:01.250
+all subprocesses completed,2026-07-05 10:00:01.350
+request completed successfully,2026-07-05 10:00:01.450
+
+业务含义,样本数,平均值(ms),P90(ms),最大值(ms)
+Request start,1,0,0,0
+A to B RPC latency,1,180,180,180
+A to C RPC latency,1,200,200,200
+B processing stage,1,420,420,420
+C processing stage,1,550,550,550
+Parallel subprocess group,1,850,850,850
+A finalization stage,1,100,100,100

@@ -1,8 +1,7 @@
-//! Tauri backend library.
+//! Tauri 后端库。
 //!
-//! This crate keeps the command boundary, application services, domain rules,
-//! and infrastructure adapters in separate modules so the backend can grow
-//! without collapsing into one file.
+//! 这个 crate 将命令边界、应用服务、领域规则和基础设施适配器分开，
+//! 方便后端后续扩展，不会挤成一个文件。
 
 pub mod application;
 pub mod commands;

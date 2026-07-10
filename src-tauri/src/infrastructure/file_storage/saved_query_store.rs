@@ -1,7 +1,7 @@
-//! Saved query persistence for the local desktop app.
+//! 本地桌面应用的保存查询持久化。
 //!
-//! The store intentionally stays small and file-based so the desktop shell can
-//! preserve local-only query presets without introducing a server.
+//! 这里刻意保持成小型文件存储，方便桌面壳层保留本地查询预设，
+//! 又不会引入服务端。
 
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -18,6 +18,8 @@ pub struct SavedQueryRecord {
     pub group: String,
     pub tags: Vec<String>,
     pub query: String,
+    pub mode: String,
+    pub case_sensitive: bool,
     pub time_range: String,
 }
 
@@ -51,6 +53,8 @@ mod tests {
             group: "latency".to_string(),
             tags: vec!["core".to_string(), "test".to_string()],
             query: "RPC 调用B".to_string(),
+            mode: "keyword".to_string(),
+            case_sensitive: false,
             time_range: "2026-06-12 10:30:00 ~ 2026-06-12 10:45:00".to_string(),
         }];
 
@@ -89,15 +93,24 @@ pub fn save_saved_queries(
     base_dir: impl AsRef<Path>,
     queries: &[SavedQueryRecord],
 ) -> io::Result<()> {
-    let base_dir = base_dir.as_ref();
+    write_json(base_dir.as_ref(), SAVED_QUERY_STORE_FILE_NAME, queries)
+}
+
+pub fn saved_query_store_path(base_dir: impl AsRef<Path>) -> PathBuf {
+    store_file_path(base_dir.as_ref())
+}
+
+fn write_json<T: Serialize + ?Sized>(base_dir: &Path, file_name: &str, payload: &T) -> io::Result<()> {
     fs::create_dir_all(base_dir)?;
 
-    let serialized = serde_json::to_string_pretty(queries)
+    let serialized = serde_json::to_string_pretty(payload)
         .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
-    let path = store_file_path(base_dir);
-    let temp_path = path.with_extension("json.tmp");
+    let path = base_dir.join(file_name);
+    let temp_path = path.with_extension("tmp");
 
+    let _ = fs::remove_file(&temp_path);
     fs::write(&temp_path, serialized)?;
+    let _ = fs::remove_file(&path);
     match fs::rename(&temp_path, &path) {
         Ok(()) => Ok(()),
         Err(rename_error) => {

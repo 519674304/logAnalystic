@@ -2,6 +2,7 @@
   "build": {
     "beforeBuildCommand": "",
     "beforeDevCommand": "pnpm dev",
+    "withGlobalTauri": true,
     "devPath": "http://localhost:5173",
     "distDir": "../dist"
   },
@@ -10,6 +11,11 @@
     "version": "0.1.0"
   },
   "tauri": {
+    "allowlist": {
+      "dialog": {
+        "open": true
+      }
+    },
     "bundle": {
       "active": false,
       "identifier": "com.example.loganalystic"

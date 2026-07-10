@@ -40,7 +40,7 @@ Phase 5: Implementation Planning
 | requirements/02-log-ingestion-and-quality-requirements.md | 日志导入、固定格式解析、数据质量 | Approved |
 | requirements/03-log-search-and-context-requirements.md | 关键字、正则、结构化过滤、上下文查看 | Approved |
 | requirements/04-saved-query-requirements.md | 保存查询的创建、复用、编辑、删除 | Approved |
-| requirements/05-rule-set-management-requirements.md | 业务规则集导入、编辑、导出、备份、校验 | Approved |
+| requirements/05-rule-set-management-requirements.md | 业务规则集导入、列表、详情编辑、删除 | Approved |
 | requirements/06-request-recognition-requirements.md | 根据规则识别一次请求及请求列表筛选 | Approved |
 | requirements/07-latency-analysis-requirements.md | 阶段定义、时延计算、分支、统计 | Approved |
 | requirements/08-request-analysis-view-requirements.md | 单次请求分析视图、统计视图、日志钻取 | Approved |
@@ -51,6 +51,13 @@ Phase 5: Implementation Planning
 | baselines/latency-analysis-export.example.csv | 时延分析 CSV 关键输出基线 | Approved |
 | ui/README.md | 时延分析页面视觉基线说明 | Approved |
 | ui/latency-analysis-approved.svg | 已确认的单次请求应用泳道页面 | Approved |
+| ui/log-search-workbench-wireframe.png | 日志搜索与查询管理页原型图 | Approved |
+| smoke/README.md | 冒烟测试执行说明 | Draft |
+| smoke/sample-log-small.txt | 冒烟日志样例 | Draft |
+| smoke/sample-business-rules.toml | 冒烟规则样例 | Draft |
+| smoke/sample-saved-queries.json | 冒烟保存查询样例 | Draft |
+| smoke/sample-latency-export.csv | 冒烟导出样例 | Draft |
+| smoke/sample-latency-result.json | 冒烟时延结果样例 | Draft |
 | domain/00-domain-map.md | DDD 深度、子域和限界上下文关系 | Approved |
 | domain/01-log-workspace-context.md | 日志工作区上下文设计 | Approved |
 | domain/02-rule-configuration-context.md | 规则配置上下文设计 | Approved |

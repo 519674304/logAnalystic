@@ -1,0 +1,22 @@
+[
+  {
+    "id": "saved-query-smoke-1",
+    "name": "Smoke request search",
+    "description": "Find the sample request and verify the query list behavior.",
+    "group": "Smoke",
+    "tags": ["smoke", "search"],
+    "keyword": "request started",
+    "searchMode": "keyword",
+    "timeRange": {
+      "start": "2026-07-05 10:00:00.000",
+      "end": "2026-07-05 10:00:02.000"
+    },
+    "level": "I",
+    "appPrefix": "A00010",
+    "packageName": "com.demo.app",
+    "tag": "Order",
+    "caseSensitive": false,
+    "createdAt": "2026-07-09 10:00:00.000",
+    "updatedAt": "2026-07-09 10:00:00.000"
+  }
+]

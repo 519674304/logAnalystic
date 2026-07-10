@@ -1,5 +1,5 @@
-//! Infrastructure adapters.
+//! 基础设施适配器。
 //!
-//! File storage, CSV export, tracing, and other local concerns belong here.
+//! 文件存储、CSV 导出、日志追踪和其他本地能力都放在这里。
 
 pub mod file_storage;

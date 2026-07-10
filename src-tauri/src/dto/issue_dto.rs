@@ -1,4 +1,4 @@
-//! Issue DTOs mirrored to TypeScript.
+//! 与 TypeScript 侧保持一致的 Issue DTO。
 
 #[derive(Debug, Clone)]
 pub struct IssueDto {

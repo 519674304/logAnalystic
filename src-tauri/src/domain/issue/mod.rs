@@ -1,7 +1,6 @@
-//! Issue domain.
+//! 问题领域模块。
 //!
-//! The issue subsystem classifies warnings, exceptions, and informational
-//! prompts so the frontend can render them consistently.
+//! 这个子系统负责把告警、异常和提示分类，方便前端统一展示。
 
 pub mod issue_category;
 pub mod issue_level;

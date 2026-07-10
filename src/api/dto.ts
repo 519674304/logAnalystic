@@ -28,6 +28,33 @@ export interface LogSearchResponseDto {
   hits: LogSearchHitDto[]
 }
 
+export interface SavedQueryDto {
+  id: string
+  name: string
+  description: string
+  group: string
+  tags: string[]
+  query: string
+  mode: LogSearchMode
+  caseSensitive: boolean
+  timeRange: string
+}
+
+export interface RuleRecordDto {
+  id: string
+  name: string
+  description: string
+  pattern: string
+  enabled: boolean
+  exportEnabled: boolean
+  scenarios: string[]
+}
+
+export interface RuleCatalogImportDto {
+  sourceName: string
+  content: string
+}
+
 export interface LogMatcherDto {
   id: string
   name: string

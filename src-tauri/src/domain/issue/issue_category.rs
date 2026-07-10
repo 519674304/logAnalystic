@@ -1,4 +1,4 @@
-//! Issue category values for rule and analysis feedback.
+//! 规则与分析反馈使用的问题分类值。
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IssueCategory {
