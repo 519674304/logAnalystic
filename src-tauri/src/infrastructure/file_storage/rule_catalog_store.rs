@@ -1,6 +1,7 @@
 //! 规则目录条目的本地持久化。
 //!
-//! 在第一版桌面应用里，规则量足够小，可以先放进一个 JSON 文件。
+//! 第一版使用一个 JSON 文件保存导入后的规则快照。条目既可以表示关键日志 matcher，
+//! 也可以表示时延 stage；UI 和后续分析流程根据 `record_type` 区分用途。
 
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -18,6 +19,24 @@ pub struct RuleCatalogRecord {
     pub enabled: bool,
     pub export_enabled: bool,
     pub scenarios: Vec<String>,
+    #[serde(default)]
+    pub record_type: Option<String>,
+    #[serde(default)]
+    pub stage_type: Option<String>,
+    #[serde(default)]
+    pub order: Option<i64>,
+    #[serde(default)]
+    pub application_id: Option<String>,
+    #[serde(default)]
+    pub process_id: Option<String>,
+    #[serde(default)]
+    pub source_application_id: Option<String>,
+    #[serde(default)]
+    pub target_application_id: Option<String>,
+    #[serde(default)]
+    pub start_matcher_id: Option<String>,
+    #[serde(default)]
+    pub end_matcher_id: Option<String>,
 }
 
 #[cfg(test)]
@@ -44,13 +63,22 @@ mod tests {
     fn save_then_load_round_trips_rule_catalog() {
         let temp_dir = unique_temp_dir();
         let expected = vec![RuleCatalogRecord {
-            id: "rule-1".to_string(),
-            name: "慢请求标记".to_string(),
-            description: "匹配 RPC 调用B".to_string(),
-            pattern: "RPC 调用B".to_string(),
+            id: "stage-1".to_string(),
+            name: "B processing".to_string(),
+            description: "B application processing latency".to_string(),
+            pattern: "LOG-B-RECEIVED -> LOG-B-COMPLETED".to_string(),
             enabled: true,
             export_enabled: true,
             scenarios: vec!["core".to_string(), "latency".to_string()],
+            record_type: Some("stage".to_string()),
+            stage_type: Some("APPLICATION_PROCESSING".to_string()),
+            order: Some(1),
+            application_id: Some("APP-B".to_string()),
+            process_id: Some("PROCESS-B".to_string()),
+            source_application_id: None,
+            target_application_id: None,
+            start_matcher_id: Some("LOG-B-RECEIVED".to_string()),
+            end_matcher_id: Some("LOG-B-COMPLETED".to_string()),
         }];
 
         save_rule_catalog(&temp_dir, &expected).expect("save should succeed");

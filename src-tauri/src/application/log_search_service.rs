@@ -66,6 +66,7 @@ pub fn search_logs(request: &LogSearchRequestDto) -> LogSearchResponseDto {
         hits.push(LogSearchHitDto {
             line_number: index + 1,
             raw_line: line.raw_line.clone(),
+            file_path: None,
             timestamp: line.timestamp.clone(),
             app: line.app.clone(),
             level: line.level.clone(),

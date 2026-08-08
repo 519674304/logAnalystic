@@ -1,7 +1,6 @@
 //! Tauri 命令 DTO。
 //!
 //! 这些类型跨越前后端边界，用于本地查询和规则管理。
-//! 保持它们适合 serde 序列化，并尽量精简。
 
 use serde::{Deserialize, Serialize};
 
@@ -35,6 +34,24 @@ pub struct RuleRecordDto {
     pub enabled: bool,
     pub export_enabled: bool,
     pub scenarios: Vec<String>,
+    #[serde(default)]
+    pub record_type: Option<String>,
+    #[serde(default)]
+    pub stage_type: Option<String>,
+    #[serde(default)]
+    pub order: Option<i64>,
+    #[serde(default)]
+    pub application_id: Option<String>,
+    #[serde(default)]
+    pub process_id: Option<String>,
+    #[serde(default)]
+    pub source_application_id: Option<String>,
+    #[serde(default)]
+    pub target_application_id: Option<String>,
+    #[serde(default)]
+    pub start_matcher_id: Option<String>,
+    #[serde(default)]
+    pub end_matcher_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

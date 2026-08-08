@@ -20,6 +20,39 @@ const sampleLogLines = [
 const savedQueryStorageKey = 'log-analystic.saved-queries'
 const ruleCatalogStorageKey = 'log-analystic.rule-catalog'
 
+type ImportedMatcher = {
+  id: string
+  name?: string
+  description?: string
+  business_meaning?: string
+  pattern?: string
+  enabled?: boolean
+  export_enabled?: boolean
+  scenarios?: string[]
+  applicable_scenario_ids?: string[]
+  process_id?: string
+  application_id?: string
+}
+
+type ImportedStage = {
+  id: string
+  name?: string
+  description?: string
+  business_meaning?: string
+  enabled?: boolean
+  export_enabled?: boolean
+  scenarios?: string[]
+  applicable_scenario_ids?: string[]
+  type?: string
+  order?: number
+  process_id?: string
+  application_id?: string
+  source_application_id?: string
+  target_application_id?: string
+  start_matcher_id?: string
+  end_matcher_id?: string
+}
+
 function parseLine(rawLine: string, lineNumber: number) {
   const match = rawLine.match(/^(\S+\s+\S+)\s+\[(\w+)\]\s+(\S+)\s+(.*)$/)
 
@@ -69,6 +102,7 @@ function localSearch(request: LogSearchRequestDto): LogSearchResponseDto {
       return {
         lineNumber: entry.lineNumber,
         rawLine: entry.rawLine,
+        filePath: undefined,
         timestamp: entry.timestamp,
         app: entry.app,
         level: entry.level,
@@ -113,17 +147,7 @@ async function invokeCommand<T>(command: string, payload?: unknown): Promise<T |
   return (await invoke(command, payload)) as T
 }
 
-function toRuleRecord(input: {
-  id: string
-  name?: string
-  description?: string
-  business_meaning?: string
-  pattern?: string
-  enabled?: boolean
-  export_enabled?: boolean
-  scenarios?: string[]
-  applicable_scenario_ids?: string[]
-}): RuleRecordDto {
+function matcherToRuleRecord(input: ImportedMatcher): RuleRecordDto {
   return {
     id: input.id,
     name: input.name ?? input.business_meaning ?? '未命名规则',
@@ -132,6 +156,32 @@ function toRuleRecord(input: {
     enabled: input.enabled ?? true,
     exportEnabled: input.export_enabled ?? true,
     scenarios: input.scenarios ?? input.applicable_scenario_ids ?? [],
+    recordType: 'matcher',
+    processId: input.process_id,
+    applicationId: input.application_id,
+  }
+}
+
+function stageToRuleRecord(input: ImportedStage): RuleRecordDto {
+  const pattern = input.start_matcher_id && input.end_matcher_id ? `${input.start_matcher_id} -> ${input.end_matcher_id}` : ''
+
+  return {
+    id: input.id,
+    name: input.name ?? input.business_meaning ?? '未命名阶段',
+    description: input.description ?? input.business_meaning ?? '',
+    pattern,
+    enabled: input.enabled ?? true,
+    exportEnabled: input.export_enabled ?? true,
+    scenarios: input.scenarios ?? input.applicable_scenario_ids ?? [],
+    recordType: 'stage',
+    stageType: input.type,
+    order: input.order,
+    processId: input.process_id,
+    applicationId: input.application_id,
+    sourceApplicationId: input.source_application_id,
+    targetApplicationId: input.target_application_id,
+    startMatcherId: input.start_matcher_id,
+    endMatcherId: input.end_matcher_id,
   }
 }
 
@@ -143,45 +193,21 @@ async function parseLocalRuleCatalogImport(sourceName: string, content: string):
 
   if (sourceName.toLowerCase().endsWith('.json')) {
     const parsed = JSON.parse(trimmed) as unknown
-    if (Array.isArray(parsed)) {
-      return parsed as RuleRecordDto[]
-    }
+    return Array.isArray(parsed) ? (parsed as RuleRecordDto[]) : []
   }
 
   if (sourceName.toLowerCase().endsWith('.toml') || sourceName.toLowerCase().endsWith('.txt')) {
     const tomlModule = await import('toml')
     const parsed = tomlModule.parse(trimmed) as {
-      log_matchers?: Array<{
-        id: string
-        name?: string
-        description?: string
-        business_meaning?: string
-        pattern?: string
-        enabled?: boolean
-        export_enabled?: boolean
-        scenarios?: string[]
-        applicable_scenario_ids?: string[]
-      }>
-      rules?: Array<{
-        id: string
-        name?: string
-        description?: string
-        business_meaning?: string
-        pattern?: string
-        enabled?: boolean
-        export_enabled?: boolean
-        scenarios?: string[]
-        applicable_scenario_ids?: string[]
-      }>
+      log_matchers?: ImportedMatcher[]
+      rules?: ImportedMatcher[]
+      stages?: ImportedStage[]
     }
 
-    const logMatchers = Array.isArray(parsed.log_matchers) ? parsed.log_matchers.map(toRuleRecord) : []
-    const rules = Array.isArray(parsed.rules) ? parsed.rules.map(toRuleRecord) : []
-    const merged = [...logMatchers, ...rules]
-
-    if (merged.length > 0) {
-      return merged
-    }
+    const logMatchers = Array.isArray(parsed.log_matchers) ? parsed.log_matchers.map(matcherToRuleRecord) : []
+    const rules = Array.isArray(parsed.rules) ? parsed.rules.map(matcherToRuleRecord) : []
+    const stages = Array.isArray(parsed.stages) ? parsed.stages.map(stageToRuleRecord) : []
+    return [...logMatchers, ...rules, ...stages]
   }
 
   return []

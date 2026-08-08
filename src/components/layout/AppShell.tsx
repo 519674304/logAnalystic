@@ -10,6 +10,7 @@ type AppShellProps = {
   activeTabId: string
   tabs: WorkbenchTab[]
   onTabChange: (tabId: string) => void
+  workspaceControls?: ReactNode
   children: ReactNode
 }
 
@@ -17,6 +18,7 @@ export default function AppShell({
   activeTabId,
   tabs,
   onTabChange,
+  workspaceControls,
   children,
 }: AppShellProps) {
   return (
@@ -26,6 +28,8 @@ export default function AppShell({
           <p className="eyebrow">Local Desktop Tool</p>
           <h1>日志分析工作台</h1>
         </div>
+
+        {workspaceControls ? <div className="workbench-scope-bar">{workspaceControls}</div> : null}
 
         <div className="header-actions">
           <span className="status-chip">规则集: M0 示例</span>

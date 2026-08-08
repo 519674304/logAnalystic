@@ -1,34 +1,22 @@
+import { useState, type ReactNode } from 'react'
 import type * as React from 'react'
 import type { LogSearchMode, SavedQueryDto } from '../../api/dto'
-import type { LogSearchViewModel } from '../../view-model/log-search-view-model'
+import type { LogSearchHitViewModel, LogSearchViewModel } from '../../view-model/log-search-view-model'
 
 type LogSearchPanelProps = {
   savedQueries: SavedQueryDto[]
-  queryGroups: string[]
   activeQueryId: string
-  logFolderPath: string
-  selectedGroup: string
   queryDraft: SavedQueryDto
   isSearching: boolean
   result: LogSearchViewModel | null
   errorMessage: string | null
-  queryListHidden: boolean
-  searchPanelHidden: boolean
-  detailQuery: SavedQueryDto | null
   queryEditorOpen: boolean
   queryEditorDraft: SavedQueryDto
-  onToggleQueryList: () => void
-  onToggleSearchPanel: () => void
-  onLogFolderPathChange: (path: string) => void
-  onPickLogFolder: () => void
-  onSelectGroup: (group: string) => void
   onSelectQuery: (queryId: string) => void
-  onOpenQueryDetail: (queryId: string) => void
   onOpenQueryEditor: (queryId: string) => void
-  onOpenNewQuery: () => void
   onQueryDraftChange: (next: SavedQueryDto) => void
+  onSaveCurrentQuery: () => void
   onSearch: () => void
-  onCloseDetail: () => void
   onCloseQueryEditor: () => void
   onQueryEditorChange: (next: SavedQueryDto) => void
   onSaveQueryEditor: () => void
@@ -42,331 +30,211 @@ function splitTags(value: string) {
     .filter(Boolean)
 }
 
-function summarizeQuery(query: SavedQueryDto | null) {
-  if (!query) {
-    return '未选择查询'
-  }
+function summarizeQuery(query: SavedQueryDto) {
+  return `${query.mode === 'regex' ? '正则' : '关键字'} · ${query.caseSensitive ? '区分大小写' : '忽略大小写'}`
+}
 
-  return `${query.group || 'core'} · ${query.mode === 'regex' ? '正则' : '关键字'} · ${
-    query.caseSensitive ? '区分大小写' : '忽略大小写'
-  }`
+function queryLabel(query: SavedQueryDto) {
+  return query.name || query.query || '未命名查询'
+}
+
+function ContextLine({ children, matched }: { children: ReactNode; matched?: boolean }) {
+  return <pre className={matched ? 'context-log-line matched' : 'context-log-line'}>{children}</pre>
 }
 
 export default function LogSearchPanel({
   savedQueries,
-  queryGroups,
   activeQueryId,
-  logFolderPath,
-  selectedGroup,
   queryDraft,
   isSearching,
   result,
   errorMessage,
-  queryListHidden,
-  searchPanelHidden,
-  detailQuery,
   queryEditorOpen,
   queryEditorDraft,
-  onToggleQueryList,
-  onToggleSearchPanel,
-  onLogFolderPathChange,
-  onPickLogFolder,
-  onSelectGroup,
   onSelectQuery,
-  onOpenQueryDetail,
   onOpenQueryEditor,
-  onOpenNewQuery,
   onQueryDraftChange,
+  onSaveCurrentQuery,
   onSearch,
-  onCloseDetail,
   onCloseQueryEditor,
   onQueryEditorChange,
   onSaveQueryEditor,
   onDeleteQuery,
 }: LogSearchPanelProps) {
+  const [searchPanelCollapsed, setSearchPanelCollapsed] = useState(false)
+  const [contextHit, setContextHit] = useState<LogSearchHitViewModel | null>(null)
   const hasQueries = savedQueries.length > 0
+  const selectValue = activeQueryId || '__draft__'
+
+  const runSearchAndReturn = () => {
+    setContextHit(null)
+    onSearch()
+  }
 
   return (
     <section className="panel log-search-page">
       <div className="panel-title-row">
         <h2>日志搜索</h2>
-        <div className="panel-actions">
-          <button type="button" className="ghost-button" onClick={onToggleQueryList}>
-            {queryListHidden ? '显示查询列表' : '隐藏查询列表'}
-          </button>
-          <button type="button" className="ghost-button" onClick={onToggleSearchPanel}>
-            {searchPanelHidden ? '显示搜索条件' : '隐藏搜索条件'}
-          </button>
-        </div>
+        <span>{savedQueries.length} 条已保存查询</span>
       </div>
 
-      <div className="search-page-toolbar">
-        <label className="field search-page-folder">
-          <span>日志文件夹</span>
-          <div className="folder-picker">
-            <input
-              value={logFolderPath}
-              onChange={(event: React.ChangeEvent<HTMLInputElement>) => onLogFolderPathChange(event.target.value)}
-              placeholder="选择或粘贴日志目录"
-            />
-            <button type="button" className="ghost-button" onClick={onPickLogFolder}>
-              选择目录
+      <section className={searchPanelCollapsed ? 'search-panel search-panel-collapsed' : 'search-panel'}>
+        <div className="panel-title-row compact-title">
+          <div>
+            <h3>搜索条件</h3>
+            <span>{summarizeQuery(queryDraft)}</span>
+          </div>
+          <div className="panel-actions">
+            <button type="button" className="ghost-button" onClick={() => setSearchPanelCollapsed((value) => !value)}>
+              {searchPanelCollapsed ? '展开' : '收起'}
+            </button>
+            <button type="button" className="ghost-button" onClick={onSaveCurrentQuery}>
+              保存
+            </button>
+            <button type="button" className="primary-button" onClick={runSearchAndReturn} disabled={isSearching}>
+              {isSearching ? '搜索中...' : '搜索'}
             </button>
           </div>
-        </label>
-      </div>
+        </div>
 
-      <div className={`log-search-workbench ${queryListHidden ? 'query-list-hidden' : ''}`}>
-        <aside className={`query-sidebar ${queryListHidden ? 'query-list-hidden' : ''}`}>
-          <div className="panel-title-row compact-title">
-            <div>
-              <h3>查询列表</h3>
-              <span>{savedQueries.length} 条已保存查询</span>
-            </div>
-            <div className="panel-actions">
-              <button type="button" className="ghost-button" onClick={onOpenNewQuery}>
-                新建
-              </button>
-              <button type="button" className="ghost-button" onClick={onToggleQueryList}>
-                {queryListHidden ? '展开' : '收起'}
-              </button>
-            </div>
-          </div>
-
-          {!queryListHidden ? (
-            <>
+        {!searchPanelCollapsed ? (
+          <>
+            <div className="search-toolbar">
               <label className="field">
-                <span>查询分组筛选</span>
-                <select value={selectedGroup} onChange={(event) => onSelectGroup(event.target.value)}>
-                  <option value="全部分组">全部分组</option>
-                  {queryGroups.map((group) => (
-                    <option key={group} value={group}>
-                      {group}
+                <span>当前查询</span>
+                <select
+                  value={selectValue}
+                  onChange={(event) => {
+                    if (event.target.value !== '__draft__') {
+                      setContextHit(null)
+                      onSelectQuery(event.target.value)
+                    }
+                  }}
+                >
+                  <option value="__draft__">当前草稿</option>
+                  {savedQueries.map((query) => (
+                    <option key={query.id} value={query.id}>
+                      {queryLabel(query)}
                     </option>
                   ))}
                 </select>
               </label>
 
-              <div className="query-list">
+              <label className="field search-query-field">
+                <span>关键字 / 正则</span>
+                <input
+                  value={queryDraft.query}
+                  onChange={(event) => onQueryDraftChange({ ...queryDraft, query: event.target.value })}
+                  placeholder="输入关键字或正则"
+                />
+              </label>
+
+              <label className="field">
+                <span>匹配模式</span>
+                <select
+                  value={queryDraft.mode}
+                  onChange={(event) => onQueryDraftChange({ ...queryDraft, mode: event.target.value as LogSearchMode })}
+                >
+                  <option value="keyword">关键字</option>
+                  <option value="regex">正则</option>
+                </select>
+              </label>
+
+              <label className="check-field">
+                <input
+                  type="checkbox"
+                  checked={queryDraft.caseSensitive}
+                  onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+                    onQueryDraftChange({ ...queryDraft, caseSensitive: event.target.checked })
+                  }
+                />
+                <span>区分大小写</span>
+              </label>
+            </div>
+
+            {errorMessage ? <p className="error-text">{errorMessage}</p> : null}
+
+            <div className="saved-query-strip">
+              <div className="saved-query-strip-head">
+                <strong>查询列表</strong>
+                <span>单击切换，双击编辑</span>
+              </div>
+
+              <div className="query-list compact-query-list">
                 {hasQueries ? (
                   savedQueries.map((query) => (
                     <button
                       key={query.id}
                       type="button"
-                      className={`query-item ${query.id === activeQueryId ? 'active' : ''}`}
-                      onClick={() => onSelectQuery(query.id)}
-                      onDoubleClick={() => onOpenQueryDetail(query.id)}
+                      className={`query-item compact-query-item ${query.id === activeQueryId ? 'active' : ''}`}
+                      onClick={() => {
+                        setContextHit(null)
+                        onSelectQuery(query.id)
+                      }}
+                      onDoubleClick={() => onOpenQueryEditor(query.id)}
                     >
-                      <strong>{query.name}</strong>
-                      <span>{query.description}</span>
+                      <strong>{queryLabel(query)}</strong>
+                      <span>{query.description || summarizeQuery(query)}</span>
                       <span className="query-item-meta">
-                        <em>{query.group}</em>
-                        <em>{query.mode}</em>
-                        <em>{query.caseSensitive ? '区分大小写' : '忽略大小写'}</em>
+                        <em>{query.tags.length > 0 ? query.tags.join('、') : '无标签'}</em>
                       </span>
                     </button>
                   ))
                 ) : (
                   <div className="empty-state">
                     <strong>还没有保存查询</strong>
-                    <span>先新建几条查询，方便后面快速复用。</span>
+                    <span>先输入搜索条件，再点击保存。</span>
                   </div>
                 )}
               </div>
-            </>
-          ) : (
-            <div className="collapsed-hint">
-              <strong>查询列表已隐藏</strong>
-              <span>展开后可以单击选中，双击查看详情。</span>
             </div>
-          )}
-        </aside>
+          </>
+        ) : null}
+      </section>
 
-        <div className="search-column">
-          <section className={`search-panel ${searchPanelHidden ? 'search-panel-hidden' : ''}`}>
-            <div className="panel-title-row compact-title">
-              <div>
-                <h3>搜索条件</h3>
-                <span>{summarizeQuery(queryDraft)}</span>
-              </div>
-              <div className="panel-actions">
-                <button type="button" className="ghost-button" onClick={onToggleSearchPanel}>
-                  {searchPanelHidden ? '展开' : '收起'}
-                </button>
-                <button type="button" className="primary-button" onClick={onSearch} disabled={isSearching}>
-                  {isSearching ? '搜索中' : '搜索'}
-                </button>
-              </div>
-            </div>
+      <section className="results-panel">
+        <div className="panel-title-row compact-title">
+          <div>
+            <h3>{contextHit ? '日志上下文' : '搜索结果'}</h3>
+            <span>{contextHit ? `命中行 ${contextHit.lineNumber}` : `${result?.totalMatches ?? 0} 条命中`}</span>
+          </div>
+          {contextHit ? (
+            <button type="button" className="ghost-button compact-button" onClick={() => setContextHit(null)}>
+              返回
+            </button>
+          ) : null}
+        </div>
 
-            {!searchPanelHidden ? (
-              <>
-                <div className="request-tools request-tools-split search-tools">
-                  <label className="field">
-                    <span>当前查询</span>
-                    <input value={queryDraft.name || queryDraft.query || '未命名查询'} readOnly />
-                  </label>
-
-                  <label className="field editor-wide">
-                    <span>关键字 / 正则</span>
-                    <input
-                      value={queryDraft.query}
-                      onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-                        onQueryDraftChange({ ...queryDraft, query: event.target.value })
-                      }
-                      placeholder="输入关键字或正则"
-                    />
-                  </label>
-
-                  <label className="field">
-                    <span>匹配模式</span>
-                    <select
-                      value={queryDraft.mode}
-                      onChange={(event: React.ChangeEvent<HTMLSelectElement>) =>
-                        onQueryDraftChange({ ...queryDraft, mode: event.target.value as LogSearchMode })
-                      }
-                    >
-                      <option value="keyword">关键字</option>
-                      <option value="regex">正则</option>
-                    </select>
-                  </label>
-
-                  <label className="field">
-                    <span>时间范围</span>
-                    <input
-                      value={queryDraft.timeRange}
-                      onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-                        onQueryDraftChange({ ...queryDraft, timeRange: event.target.value })
-                      }
-                      placeholder="2026-06-12 10:30:00 ~ 2026-06-12 10:45:00"
-                    />
-                  </label>
-
-                  <label className="check-field">
-                    <input
-                      type="checkbox"
-                      checked={queryDraft.caseSensitive}
-                      onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-                        onQueryDraftChange({ ...queryDraft, caseSensitive: event.target.checked })
-                      }
-                    />
-                    <span>区分大小写</span>
-                  </label>
-                </div>
-
-                {errorMessage ? <p className="error-text">{errorMessage}</p> : null}
-              </>
-            ) : (
-              <div className="collapsed-hint">
-                <strong>搜索条件已隐藏</strong>
-                <span>只保留摘要和搜索按钮，方便快速查看日志。</span>
-              </div>
-            )}
-          </section>
-
-          <section className="results-panel">
-            <div className="panel-title-row compact-title">
-              <div>
-                <h3>搜索结果</h3>
-                <span>{result?.totalMatches ?? 0} 条命中</span>
-              </div>
-            </div>
-
-            <div className="log-list">
-              {result?.hits.map((hit) => (
-                <article key={hit.lineNumber} className="log-item">
-                  <div className="log-meta">
-                    <span className={`level ${hit.level.toLowerCase()}`}>{hit.level}</span>
-                    <span>Line {hit.lineNumber}</span>
-                    <span>{hit.timestamp}</span>
-                    <span>{hit.app}</span>
-                  </div>
-                  <p>{hit.headline}</p>
-                  {hit.contextBefore.length > 0 ? (
-                    <div className="context-block">
-                      {hit.contextBefore.map((line, index) => (
-                        <p key={`before-${hit.lineNumber}-${index}`} className="context-line muted">
-                          {line}
-                        </p>
-                      ))}
-                    </div>
-                  ) : null}
-                  {hit.contextAfter.length > 0 ? (
-                    <div className="context-block">
-                      {hit.contextAfter.map((line, index) => (
-                        <p key={`after-${hit.lineNumber}-${index}`} className="context-line muted">
-                          {line}
-                        </p>
-                      ))}
-                    </div>
-                  ) : null}
-                </article>
+        <div className="log-list">
+          {contextHit ? (
+            <div className="context-log-list">
+              {contextHit.contextBefore.map((line, index) => (
+                <ContextLine key={`before-${contextHit.lineNumber}-${index}`}>{line}</ContextLine>
+              ))}
+              <ContextLine matched>{contextHit.headline}</ContextLine>
+              {contextHit.contextAfter.map((line, index) => (
+                <ContextLine key={`after-${contextHit.lineNumber}-${index}`}>{line}</ContextLine>
               ))}
             </div>
-          </section>
+          ) : result?.hits.length ? (
+            result.hits.map((hit) => (
+              <article key={`${hit.lineNumber}-${hit.timestamp}`} className="log-item">
+                <div className="raw-log-result">
+                  <pre>{hit.headline}</pre>
+                  <button type="button" className="log-context-link" onClick={() => setContextHit(hit)}>
+                    查看上下文
+                  </button>
+                </div>
+              </article>
+            ))
+          ) : (
+            <div className="empty-state">
+              <strong>暂无搜索结果</strong>
+              <span>输入关键字后点击搜索，结果会按时间顺序展示。</span>
+            </div>
+          )}
         </div>
-      </div>
-
-      {detailQuery ? (
-        <div className="modal-backdrop" role="presentation" onClick={onCloseDetail}>
-          <div
-            className="modal-card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="query-detail-title"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="panel-title-row">
-              <div>
-                <h3 id="query-detail-title">查询详情</h3>
-                <span>双击列表项打开</span>
-              </div>
-              <div className="panel-actions">
-                <button type="button" className="ghost-button" onClick={onCloseDetail}>
-                  关闭
-                </button>
-              </div>
-            </div>
-
-            <div className="modal-grid">
-              <div>
-                <span>名称</span>
-                <strong>{detailQuery.name || '未命名查询'}</strong>
-              </div>
-              <div>
-                <span>分组</span>
-                <strong>{detailQuery.group}</strong>
-              </div>
-              <div className="modal-wide">
-                <span>关键字 / 正则</span>
-                <strong>{detailQuery.query}</strong>
-              </div>
-              <div>
-                <span>匹配模式</span>
-                <strong>{detailQuery.mode === 'regex' ? '正则' : '关键字'}</strong>
-              </div>
-              <div>
-                <span>时间范围</span>
-                <strong>{detailQuery.timeRange}</strong>
-              </div>
-              <div className="modal-wide">
-                <span>标签</span>
-                <strong>{detailQuery.tags.length > 0 ? detailQuery.tags.join('，') : '无'}</strong>
-              </div>
-              <div className="modal-wide">
-                <span>描述</span>
-                <strong>{detailQuery.description || '无'}</strong>
-              </div>
-            </div>
-
-            <div className="panel-actions modal-actions">
-              <button type="button" className="ghost-button" onClick={onCloseDetail}>
-                关闭
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      </section>
 
       {queryEditorOpen ? (
         <div className="modal-backdrop" role="presentation" onClick={onCloseQueryEditor}>
@@ -379,8 +247,8 @@ export default function LogSearchPanel({
           >
             <div className="panel-title-row">
               <div>
-                <h3 id="query-editor-title">新建查询</h3>
-                <span>保存到本地查询列表</span>
+                <h3 id="query-editor-title">编辑查询</h3>
+                <span>双击列表项后修改并保存</span>
               </div>
               <button type="button" className="ghost-button" onClick={onCloseQueryEditor}>
                 关闭
@@ -399,29 +267,18 @@ export default function LogSearchPanel({
                 />
               </label>
 
-              <label className="field">
-                <span>分组</span>
-                <input
-                  value={queryEditorDraft.group}
-                  onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-                    onQueryEditorChange({ ...queryEditorDraft, group: event.target.value })
-                  }
-                  placeholder="core / latency / ops"
-                />
-              </label>
-
-              <label className="field editor-wide">
+              <label className="field search-editor-wide">
                 <span>描述</span>
                 <input
                   value={queryEditorDraft.description}
                   onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
                     onQueryEditorChange({ ...queryEditorDraft, description: event.target.value })
                   }
-                  placeholder="这条查询是用来做什么的"
+                  placeholder="这条查询是做什么的"
                 />
               </label>
 
-              <label className="field editor-wide">
+              <label className="field search-editor-wide">
                 <span>标签</span>
                 <input
                   value={queryEditorDraft.tags.join(', ')}
@@ -432,7 +289,7 @@ export default function LogSearchPanel({
                 />
               </label>
 
-              <label className="field editor-wide">
+              <label className="field search-editor-wide">
                 <span>关键字 / 正则</span>
                 <input
                   value={queryEditorDraft.query}
@@ -456,17 +313,6 @@ export default function LogSearchPanel({
                 </select>
               </label>
 
-              <label className="field">
-                <span>时间范围</span>
-                <input
-                  value={queryEditorDraft.timeRange}
-                  onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-                    onQueryEditorChange({ ...queryEditorDraft, timeRange: event.target.value })
-                  }
-                  placeholder="2026-06-12 10:30:00 ~ 2026-06-12 10:45:00"
-                />
-              </label>
-
               <label className="check-field">
                 <input
                   type="checkbox"
@@ -485,6 +331,9 @@ export default function LogSearchPanel({
               </button>
               <button type="button" className="primary-button" onClick={onSaveQueryEditor}>
                 保存
+              </button>
+              <button type="button" className="ghost-button" onClick={() => onDeleteQuery(queryEditorDraft.id)}>
+                删除
               </button>
             </div>
           </div>

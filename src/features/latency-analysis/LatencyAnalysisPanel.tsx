@@ -1,13 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type * as React from 'react'
 import type { RequestGroup, RequestViewModel } from '../../view-model/latency-view-model'
 
 type LatencyAnalysisPanelProps = {
   viewModel: RequestViewModel
-  timeStart: string
-  timeEnd: string
-  onTimeStartChange: (value: string) => void
-  onTimeEndChange: (value: string) => void
+  analysisMessage: string
   onAnalyze: () => void
   onExport: () => void
 }
@@ -30,10 +27,7 @@ function formatRelativeStart(relativeDuration: string) {
 
 export default function LatencyAnalysisPanel({
   viewModel,
-  timeStart,
-  timeEnd,
-  onTimeStartChange,
-  onTimeEndChange,
+  analysisMessage,
   onAnalyze,
   onExport,
 }: LatencyAnalysisPanelProps) {
@@ -45,11 +39,11 @@ export default function LatencyAnalysisPanel({
   const [activeRequestId, setActiveRequestId] = useState(
     viewModel.requests.find((request) => request.group === 'slow')?.id ?? viewModel.requests[0]?.id ?? viewModel.requestId,
   )
-  const [activeBlockId, setActiveBlockId] = useState('rpc-b')
+  const [activeBlockId, setActiveBlockId] = useState(viewModel.requests[0]?.slowPointBlockId ?? viewModel.laneBlocks[0]?.id ?? '')
   const [requestFilter, setRequestFilter] = useState<RequestGroup | 'all'>('all')
   const [requestSort, setRequestSort] = useState<'duration-desc' | 'time-desc'>('duration-desc')
-  const [intervalStart, setIntervalStart] = useState(viewModel.intervalStepOptions[2] ?? '')
-  const [intervalEnd, setIntervalEnd] = useState(viewModel.intervalStepOptions[3] ?? '')
+  const [intervalStart, setIntervalStart] = useState(viewModel.intervalStepOptions[0] ?? '')
+  const [intervalEnd, setIntervalEnd] = useState(viewModel.intervalStepOptions[1] ?? viewModel.intervalStepOptions[0] ?? '')
 
   const activeRequest = useMemo(
     () => viewModel.requests.find((request) => request.id === activeRequestId) ?? viewModel.requests[0],
@@ -77,6 +71,14 @@ export default function LatencyAnalysisPanel({
       return right.id.localeCompare(left.id)
     })
   }, [requestFilter, requestSort, viewModel.requests])
+
+  useEffect(() => {
+    const nextRequest = viewModel.requests.find((request) => request.group === 'slow') ?? viewModel.requests[0]
+    setActiveRequestId(nextRequest?.id ?? viewModel.requestId)
+    setActiveBlockId(nextRequest?.slowPointBlockId ?? viewModel.laneBlocks[0]?.id ?? '')
+    setIntervalStart(viewModel.intervalStepOptions[0] ?? '')
+    setIntervalEnd(viewModel.intervalStepOptions[1] ?? viewModel.intervalStepOptions[0] ?? '')
+  }, [viewModel])
 
   const selectRequest = (requestId: string) => {
     const nextRequest = viewModel.requests.find((request) => request.id === requestId)
@@ -112,24 +114,6 @@ export default function LatencyAnalysisPanel({
     <section className="tab-page latency-page">
       <div className="analysis-toolbar">
         <label className="field compact-field">
-          <span>开始时间</span>
-          <input
-            value={timeStart}
-            onChange={(event: React.ChangeEvent<HTMLInputElement>) => onTimeStartChange(event.target.value)}
-            placeholder="2026-06-12 10:30:00"
-          />
-        </label>
-
-        <label className="field compact-field">
-          <span>结束时间</span>
-          <input
-            value={timeEnd}
-            onChange={(event: React.ChangeEvent<HTMLInputElement>) => onTimeEndChange(event.target.value)}
-            placeholder="2026-06-12 10:45:00"
-          />
-        </label>
-
-        <label className="field compact-field">
           <span>场景</span>
           <select defaultValue="core">
             <option value="core">核心链路</option>
@@ -143,6 +127,7 @@ export default function LatencyAnalysisPanel({
         <button type="button" className="ghost-button strong" onClick={onExport}>
           导出 CSV
         </button>
+        <span className="analysis-status">{analysisMessage}</span>
       </div>
 
       <div
@@ -344,10 +329,11 @@ export default function LatencyAnalysisPanel({
                 >
                   <span className="tree-row-main">
                     <span className="tree-row-title">{step.name}</span>
-                    <span className="tree-row-metrics">
-                      <strong className="tree-row-relative">{stepBlock?.relativeDuration ?? '-'}</strong>
-                      <strong className="tree-row-duration">{stepBlock?.duration ?? step.duration}</strong>
-                    </span>
+                    <strong className="tree-row-duration">{stepBlock?.duration ?? step.duration}</strong>
+                  </span>
+                  <span className="tree-row-sub">
+                    <span>{stepBlock?.relativeDuration ?? '-'}</span>
+                    <span>{stepBlock?.lane ?? ''}</span>
                   </span>
                 </button>
               )
@@ -361,7 +347,29 @@ export default function LatencyAnalysisPanel({
           <div className="panel-title-row">
             <h2>区间统计</h2>
             <div className="panel-actions">
-              <span>任意选择两个日志步骤，统计中间耗时</span>
+              <div className="interval-controls">
+                <label className="field compact-field">
+                  <span>起点</span>
+                  <select value={intervalStart} onChange={(event: React.ChangeEvent<HTMLSelectElement>) => setIntervalStart(event.target.value)}>
+                    {viewModel.intervalStepOptions.map((step) => (
+                      <option key={step} value={step}>
+                        {step}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="field compact-field">
+                  <span>终点</span>
+                  <select value={intervalEnd} onChange={(event: React.ChangeEvent<HTMLSelectElement>) => setIntervalEnd(event.target.value)}>
+                    {viewModel.intervalStepOptions.map((step) => (
+                      <option key={step} value={step}>
+                        {step}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
               <button type="button" className="icon-button" onClick={() => setBottomHidden(true)}>
                 收起
               </button>
@@ -369,30 +377,6 @@ export default function LatencyAnalysisPanel({
           </div>
 
           <div className="interval-panel-body">
-            <div className="interval-controls">
-              <label className="field">
-                <span>起点步骤</span>
-                <select value={intervalStart} onChange={(event: React.ChangeEvent<HTMLSelectElement>) => setIntervalStart(event.target.value)}>
-                  {viewModel.intervalStepOptions.map((step) => (
-                    <option key={step} value={step}>
-                      {step}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="field">
-                <span>终点步骤</span>
-                <select value={intervalEnd} onChange={(event: React.ChangeEvent<HTMLSelectElement>) => setIntervalEnd(event.target.value)}>
-                  {viewModel.intervalStepOptions.map((step) => (
-                    <option key={step} value={step}>
-                      {step}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-
             <div className="interval-stats">
               <div>
                 <span>当前请求耗时</span>

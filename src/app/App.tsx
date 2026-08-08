@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import AppShell, { type WorkbenchTab } from '../components/layout/AppShell'
 import LogSearchPanel from '../features/log-search/LogSearchPanel'
 import RuleCatalogPanel from '../features/rule-config/RuleCatalogPanel'
@@ -17,9 +17,9 @@ import {
 import type { LogSearchRequestDto, RuleRecordDto, SavedQueryDto } from '../api/dto'
 import { mapLogSearchToViewModel } from '../view-model/log-search-view-model'
 import type { LogSearchViewModel } from '../view-model/log-search-view-model'
-import { mapToViewModel } from '../view-model/latency-view-model'
+import { buildLatencyViewModelFromRules, mapToViewModel, type RequestViewModel } from '../view-model/latency-view-model'
 
-const latencyViewModel = mapToViewModel(latencyResult)
+const sampleLatencyViewModel = mapToViewModel(latencyResult)
 const defaultTimeRange = '2026-06-12 10:30:00 ~ 2026-06-12 10:45:00'
 
 const tabs: WorkbenchTab[] = [
@@ -59,12 +59,6 @@ function normalizeSavedQuery(draft: SavedQueryDto): SavedQueryDto {
   }
 }
 
-function getQueryGroups(queries: SavedQueryDto[]) {
-  return Array.from(new Set(queries.map((query) => query.group.trim()).filter(Boolean))).sort((left, right) =>
-    left.localeCompare(right, 'zh-Hans-CN'),
-  )
-}
-
 function createEmptyRule(): RuleRecordDto {
   return {
     id: createDraftId('rule'),
@@ -87,11 +81,55 @@ function normalizeRule(draft: RuleRecordDto): RuleRecordDto {
   }
 }
 
+function csvCell(value: string | number | undefined) {
+  const text = String(value ?? '')
+  return `"${text.replace(/"/g, '""')}"`
+}
+
+function csvRow(values: Array<string | number | undefined>) {
+  return values.map(csvCell).join(',')
+}
+
+function buildLatencyExportCsv(viewModel: RequestViewModel) {
+  const rows: string[] = []
+
+  rows.push('时延明细')
+  rows.push(csvRow(['业务含义', '泳道/应用', '起始时间戳', '结束时间戳', '相对时延', '耗时']))
+  viewModel.laneBlocks.forEach((block) => {
+    rows.push(csvRow([block.label, block.lane, block.startTimestamp, block.endTimestamp, block.relativeDuration, block.duration]))
+  })
+
+  rows.push('')
+  rows.push('步骤树')
+  rows.push(csvRow(['业务含义', '层级', '耗时']))
+  viewModel.stepTree.forEach((step) => {
+    rows.push(csvRow([step.name, step.level, step.duration]))
+  })
+
+  rows.push('')
+  rows.push('时延统计')
+  rows.push(csvRow(['样本数', '平均值(ms)', 'P90(ms)', '最大值(ms)']))
+  rows.push(csvRow([viewModel.stats.sampleCount, viewModel.stats.averageMs, viewModel.stats.p90Ms, viewModel.stats.maxMs]))
+
+  return `\uFEFF${rows.join('\r\n')}`
+}
+
+function downloadCsv(fileName: string, content: string) {
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileName
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
+
 export default function App() {
   const [activeTabId, setActiveTabId] = useState('latency-analysis')
   const [savedQueries, setSavedQueries] = useState<SavedQueryDto[]>([])
   const [logFolderPath, setLogFolderPath] = useState('')
-  const [selectedQueryGroup, setSelectedQueryGroup] = useState('全部分组')
   const [activeQueryId, setActiveQueryId] = useState('')
   const [queryDraft, setQueryDraft] = useState<SavedQueryDto>(createEmptySavedQuery())
   const [queryEditorOpen, setQueryEditorOpen] = useState(false)
@@ -103,19 +141,12 @@ export default function App() {
   const [result, setResult] = useState<LogSearchViewModel | null>(null)
   const [isSearching, setIsSearching] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [timeStart, setTimeStart] = useState('2026-06-12 10:30:00')
-  const [timeEnd, setTimeEnd] = useState('2026-06-12 10:45:00')
-  const [queryListHidden, setQueryListHidden] = useState(() => window.localStorage.getItem('log-analystic.query-list-hidden') === '1')
-  const [searchPanelHidden, setSearchPanelHidden] = useState(
-    () => window.localStorage.getItem('log-analystic.search-panel-hidden') === '1',
+  const [latencyAnalysisRunId, setLatencyAnalysisRunId] = useState(0)
+  const [latencyAnalysisMessage, setLatencyAnalysisMessage] = useState('等待分析')
+  const latencyViewModel = useMemo(
+    () => buildLatencyViewModelFromRules(rules, sampleLatencyViewModel),
+    [rules, latencyAnalysisRunId],
   )
-  const [detailQuery, setDetailQuery] = useState<SavedQueryDto | null>(null)
-
-  const queryGroups = getQueryGroups(savedQueries)
-  const visibleSavedQueries =
-    selectedQueryGroup === '全部分组'
-      ? savedQueries
-      : savedQueries.filter((query) => query.group === selectedQueryGroup)
 
   const runSearch = async (record?: SavedQueryDto) => {
     const source = record ?? queryDraft
@@ -172,14 +203,6 @@ export default function App() {
   }
 
   useEffect(() => {
-    window.localStorage.setItem('log-analystic.query-list-hidden', queryListHidden ? '1' : '0')
-  }, [queryListHidden])
-
-  useEffect(() => {
-    window.localStorage.setItem('log-analystic.search-panel-hidden', searchPanelHidden ? '1' : '0')
-  }, [searchPanelHidden])
-
-  useEffect(() => {
     window.localStorage.setItem('log-analystic.log-folder-path', logFolderPath)
   }, [logFolderPath])
 
@@ -198,7 +221,6 @@ export default function App() {
         const firstQuery = loadedQueries[0] ?? createEmptySavedQuery()
         setActiveQueryId(firstQuery.id)
         setQueryDraft(firstQuery)
-        setSelectedQueryGroup('全部分组')
         setLogFolderPath(window.localStorage.getItem('log-analystic.log-folder-path') ?? '')
 
         setRules(loadedRules)
@@ -223,18 +245,24 @@ export default function App() {
     }
   }, [])
 
-  const openNewQueryEditor = () => {
-    const next = {
-      ...createEmptySavedQuery(),
-      group: selectedQueryGroup === '全部分组' ? (queryDraft.group || 'core') : selectedQueryGroup,
-      query: queryDraft.query,
-      mode: queryDraft.mode,
-      caseSensitive: queryDraft.caseSensitive,
-      timeRange: queryDraft.timeRange,
+  const selectQuery = (queryId: string) => {
+    const next = savedQueries.find((item) => item.id === queryId)
+    if (!next) {
+      return
     }
 
-    setQueryEditorDraft(next)
-    setQueryEditorOpen(true)
+    setActiveQueryId(queryId)
+    setQueryDraft(next)
+    void runSearch(next)
+  }
+
+  const saveCurrentQuery = async () => {
+    const next = normalizeSavedQuery(queryDraft)
+    const updated = await upsertSavedQuery(next)
+    setSavedQueries(updated)
+    setActiveQueryId(next.id)
+    setQueryDraft(next)
+    setErrorMessage(null)
   }
 
   const openExistingQueryEditor = (queryId: string) => {
@@ -248,14 +276,15 @@ export default function App() {
   }
 
   const saveQueryFromEditor = async () => {
-    const next = normalizeSavedQuery(queryEditorDraft)
+    const next = normalizeSavedQuery({ ...queryEditorDraft, timeRange: queryDraft.timeRange })
     const updated = await upsertSavedQuery(next)
+    const nextDraft = { ...next, timeRange: queryDraft.timeRange }
     setSavedQueries(updated)
     setActiveQueryId(next.id)
-    setQueryDraft(next)
+    setQueryDraft(nextDraft)
     setQueryEditorDraft(next)
     setQueryEditorOpen(false)
-    void runSearch(next)
+    void runSearch(nextDraft)
   }
 
   const removeQuery = async (queryId: string) => {
@@ -265,43 +294,11 @@ export default function App() {
     const next = updated[0] ?? createEmptySavedQuery()
     setActiveQueryId(next.id)
     setQueryDraft(next)
+
     if (updated.length > 0) {
       void runSearch(next)
     } else {
       setResult(null)
-    }
-  }
-
-  const selectQuery = (queryId: string) => {
-    const next = savedQueries.find((item) => item.id === queryId)
-    if (!next) {
-      return
-    }
-
-    setActiveQueryId(queryId)
-    setQueryDraft(next)
-    void runSearch(next)
-  }
-
-  const selectQueryGroup = (group: string) => {
-    setSelectedQueryGroup(group)
-
-    if (group === '全部分组') {
-      return
-    }
-
-    const next = savedQueries.find((item) => item.group === group)
-    if (next) {
-      setActiveQueryId(next.id)
-      setQueryDraft(next)
-      void runSearch(next)
-    }
-  }
-
-  const openQueryDetail = (queryId: string) => {
-    const next = savedQueries.find((item) => item.id === queryId)
-    if (next) {
-      setDetailQuery(next)
     }
   }
 
@@ -363,35 +360,69 @@ export default function App() {
     }
   }
 
+  const runLatencyAnalysis = () => {
+    const enabledStages = rules.filter((rule) => rule.enabled && rule.recordType === 'stage')
+
+    setLatencyAnalysisRunId((value) => value + 1)
+    setLatencyAnalysisMessage(
+      enabledStages.length > 0
+        ? `已按导入规则生成 ${enabledStages.length} 个阶段`
+        : '未导入 stage 规则，当前展示样例数据',
+    )
+  }
+
+  const exportLatencyCsv = () => {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+    downloadCsv(`latency-analysis-${timestamp}.csv`, buildLatencyExportCsv(latencyViewModel))
+    setLatencyAnalysisMessage('已导出时延 CSV')
+  }
+
   return (
-    <AppShell activeTabId={activeTabId} tabs={tabs} onTabChange={setActiveTabId}>
+    <AppShell
+      activeTabId={activeTabId}
+      tabs={tabs}
+      onTabChange={setActiveTabId}
+      workspaceControls={
+        <>
+          <label className="field global-folder-field">
+            <span>日志文件夹</span>
+            <div className="folder-picker compact-folder-picker">
+              <input
+                value={logFolderPath}
+                onChange={(event) => setLogFolderPath(event.target.value)}
+                placeholder="选择或粘贴日志目录"
+              />
+              <button type="button" className="ghost-button" onClick={() => void pickLogFolder()}>
+                选择
+              </button>
+            </div>
+          </label>
+
+          <label className="field global-time-field">
+            <span>时间范围</span>
+            <input
+              value={queryDraft.timeRange}
+              onChange={(event) => setQueryDraft({ ...queryDraft, timeRange: event.target.value })}
+              placeholder="2026-06-12 10:30:00 ~ 2026-06-12 10:45:00"
+            />
+          </label>
+        </>
+      }
+    >
       {activeTabId === 'log-search' ? (
         <LogSearchPanel
-          savedQueries={visibleSavedQueries}
-          queryGroups={queryGroups}
+          savedQueries={savedQueries}
           activeQueryId={activeQueryId}
-          logFolderPath={logFolderPath}
-          selectedGroup={selectedQueryGroup}
           queryDraft={queryDraft}
           isSearching={isSearching}
           result={result}
           errorMessage={errorMessage}
-          queryListHidden={queryListHidden}
-          searchPanelHidden={searchPanelHidden}
-          detailQuery={detailQuery}
           queryEditorOpen={queryEditorOpen}
           queryEditorDraft={queryEditorDraft}
-          onToggleQueryList={() => setQueryListHidden((value) => !value)}
-          onToggleSearchPanel={() => setSearchPanelHidden((value) => !value)}
-          onLogFolderPathChange={setLogFolderPath}
-          onPickLogFolder={() => void pickLogFolder()}
-          onSelectGroup={selectQueryGroup}
           onSelectQuery={selectQuery}
-          onOpenQueryDetail={openQueryDetail}
           onOpenQueryEditor={openExistingQueryEditor}
-          onOpenNewQuery={openNewQueryEditor}
-          onCloseDetail={() => setDetailQuery(null)}
           onQueryDraftChange={setQueryDraft}
+          onSaveCurrentQuery={saveCurrentQuery}
           onSearch={() => void runSearch()}
           onCloseQueryEditor={() => setQueryEditorOpen(false)}
           onQueryEditorChange={setQueryEditorDraft}
@@ -403,12 +434,9 @@ export default function App() {
       {activeTabId === 'latency-analysis' ? (
         <LatencyAnalysisPanel
           viewModel={latencyViewModel}
-          timeStart={timeStart}
-          timeEnd={timeEnd}
-          onTimeStartChange={setTimeStart}
-          onTimeEndChange={setTimeEnd}
-          onAnalyze={() => undefined}
-          onExport={() => undefined}
+          analysisMessage={latencyAnalysisMessage}
+          onAnalyze={runLatencyAnalysis}
+          onExport={exportLatencyCsv}
         />
       ) : null}
 

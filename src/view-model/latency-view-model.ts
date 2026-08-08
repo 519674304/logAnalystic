@@ -1,4 +1,8 @@
-import type { LatencyAnalysisResult } from '../api/dto'
+import type { LatencyAnalysisResult, RuleRecordDto } from '../api/dto'
+
+function uniqueDefinedValues(values: Array<string | undefined>) {
+  return Array.from(new Set(values.filter(Boolean))) as string[]
+}
 
 export type RequestGroup = 'slow' | 'abnormal' | 'normal' | 'unfinished'
 export type LaneBlockKind = 'main' | 'rpc' | 'subprocess' | 'join'
@@ -57,9 +61,9 @@ const requestGroups: RequestGroupViewModel[] = [
   { id: 'unfinished', title: '未结束请求' },
 ]
 
-const lanes = ['A应用主流程', 'A应用子进程1', 'A应用子进程2', 'B应用处理', 'C应用回调']
+const sampleLanes = ['A应用主流程', 'A应用子进程1', 'A应用子进程2', 'B应用处理', 'C应用回调']
 
-const laneBlocks: LaneBlockViewModel[] = [
+const sampleLaneBlocks: LaneBlockViewModel[] = [
   {
     id: 'parse',
     lane: 'A应用主流程',
@@ -170,7 +174,7 @@ const laneBlocks: LaneBlockViewModel[] = [
   },
 ]
 
-const stepTree: StepTreeRowViewModel[] = [
+const sampleStepTree: StepTreeRowViewModel[] = [
   { level: 0, name: 'A阶段', duration: '180ms', blockId: 'parse' },
   { level: 1, name: '参数解析', duration: '24ms', blockId: 'parse' },
   { level: 1, name: '触发子进程', duration: '18ms', blockId: 'dispatch' },
@@ -181,7 +185,7 @@ const stepTree: StepTreeRowViewModel[] = [
   { level: 1, name: '汇总结果', duration: '20ms', blockId: 'join' },
 ]
 
-const intervalStepOptions = [
+const sampleIntervalStepOptions = [
   'A参数解析开始',
   'A触发子进程',
   'A调用B日志',
@@ -236,15 +240,109 @@ function buildSampleRequests(dto: LatencyAnalysisResult): LatencyRequestViewMode
   ]
 }
 
+function getStageKind(stage: RuleRecordDto): LaneBlockKind {
+  if (stage.stageType === 'RPC_TRANSFER') {
+    return 'rpc'
+  }
+  if (stage.stageType === 'PARALLEL_GROUP') {
+    return 'join'
+  }
+  if (stage.processId?.includes('SUB')) {
+    return 'subprocess'
+  }
+  return 'main'
+}
+
+function getStageLane(stage: RuleRecordDto) {
+  if (stage.sourceApplicationId && stage.targetApplicationId) {
+    return `${stage.sourceApplicationId} -> ${stage.targetApplicationId}`
+  }
+  if (stage.applicationId) {
+    return stage.applicationId
+  }
+  if (stage.processId) {
+    return stage.processId
+  }
+  return '未指定应用'
+}
+
+export function buildLatencyViewModelFromRules(rules: RuleRecordDto[], fallback: RequestViewModel): RequestViewModel {
+  const stages = rules
+    .filter((rule) => rule.enabled && rule.recordType === 'stage')
+    .sort((left, right) => (left.order ?? Number.MAX_SAFE_INTEGER) - (right.order ?? Number.MAX_SAFE_INTEGER))
+
+  if (stages.length === 0) {
+    return fallback
+  }
+
+  const lanes = Array.from(new Set(stages.map(getStageLane)))
+  const laneBlocks = stages.map((stage, index) => {
+    const durationMs = 40 + index * 15
+    const startMs = index * 55
+    const endMs = startMs + durationMs
+
+    return {
+      id: stage.id,
+      lane: getStageLane(stage),
+      label: stage.description || stage.name,
+      startPercent: Math.min(84, 4 + index * 11),
+      widthPercent: Math.max(8, Math.min(22, durationMs / 4)),
+      kind: getStageKind(stage),
+      duration: `${durationMs}ms`,
+      startTimestamp: stage.startMatcherId ?? '等待日志命中',
+      endTimestamp: stage.endMatcherId ?? '等待日志命中',
+      relativeDuration: `+${startMs}ms ~ +${endMs}ms`,
+    }
+  })
+
+  const slowest = laneBlocks.reduce((current, next) => {
+    const currentMs = Number.parseInt(current.duration, 10)
+    const nextMs = Number.parseInt(next.duration, 10)
+    return nextMs > currentMs ? next : current
+  }, laneBlocks[0])
+
+  return {
+    requestId: '规则预览请求',
+    requestGroups,
+    requests: [
+      {
+        id: '规则预览请求',
+        group: 'normal',
+        result: '规则已导入',
+        duration: `${laneBlocks.length} 个阶段`,
+        durationMs: laneBlocks.length,
+        scene: stages[0]?.scenarios[0] ?? '默认场景',
+        slowPoint: slowest.label,
+        slowPointBlockId: slowest.id,
+      },
+    ],
+    lanes,
+    laneBlocks,
+    stepTree: stages.map((stage) => ({
+      level: getStageKind(stage) === 'subprocess' ? 1 : 0,
+      name: stage.description || stage.name,
+      duration: laneBlocks.find((block) => block.id === stage.id)?.duration ?? '-',
+      blockId: stage.id,
+    })),
+    intervalStepOptions: uniqueDefinedValues(stages.flatMap((stage) => [stage.startMatcherId, stage.endMatcherId])),
+    stats: {
+      sampleCount: stages.length,
+      averageMs: 0,
+      p90Ms: 0,
+      maxMs: 0,
+    },
+  }
+}
+
 export function mapToViewModel(dto: LatencyAnalysisResult): RequestViewModel {
   return {
     requestId: dto.request_id,
     requests: buildSampleRequests(dto),
     requestGroups,
-    lanes,
-    laneBlocks,
-    stepTree,
-    intervalStepOptions,
+    lanes: sampleLanes,
+    laneBlocks: sampleLaneBlocks,
+    stepTree: sampleStepTree,
+    intervalStepOptions: sampleIntervalStepOptions,
     stats: dto.stats,
   }
 }

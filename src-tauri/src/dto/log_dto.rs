@@ -23,6 +23,7 @@ pub struct LogSearchRequestDto {
 pub struct LogSearchHitDto {
     pub line_number: usize,
     pub raw_line: String,
+    pub file_path: Option<String>,
     pub timestamp: String,
     pub app: String,
     pub level: String,

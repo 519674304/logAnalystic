@@ -16,6 +16,7 @@ export interface LogSearchRequestDto {
 export interface LogSearchHitDto {
   lineNumber: number
   rawLine: string
+  filePath?: string
   timestamp: string
   app: string
   level: string
@@ -48,6 +49,15 @@ export interface RuleRecordDto {
   enabled: boolean
   exportEnabled: boolean
   scenarios: string[]
+  recordType?: 'matcher' | 'stage' | string
+  stageType?: string
+  order?: number
+  applicationId?: string
+  processId?: string
+  sourceApplicationId?: string
+  targetApplicationId?: string
+  startMatcherId?: string
+  endMatcherId?: string
 }
 
 export interface RuleCatalogImportDto {

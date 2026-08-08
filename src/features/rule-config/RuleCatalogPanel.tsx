@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import type * as React from 'react'
 import type { RuleRecordDto } from '../../api/dto'
 
@@ -37,10 +37,22 @@ export default function RuleCatalogPanel({
   onSaveRuleDetail,
 }: RuleCatalogPanelProps) {
   const importInputRef = useRef<HTMLInputElement>(null)
+  const [selectedScenario, setSelectedScenario] = useState('全部场景')
 
   const activeRule = useMemo(
     () => rules.find((rule) => rule.id === activeRuleId) ?? null,
     [activeRuleId, rules],
+  )
+  const scenarioOptions = useMemo(
+    () => Array.from(new Set(rules.flatMap((rule) => rule.scenarios).filter(Boolean))).sort((left, right) => left.localeCompare(right, 'zh-Hans-CN')),
+    [rules],
+  )
+  const visibleRules = useMemo(
+    () =>
+      selectedScenario === '全部场景'
+        ? rules
+        : rules.filter((rule) => rule.scenarios.includes(selectedScenario)),
+    [rules, selectedScenario],
   )
 
   const handleImportClick = () => {
@@ -75,7 +87,18 @@ export default function RuleCatalogPanel({
       <div className="panel-title-row">
         <h2>规则配置</h2>
         <div className="panel-actions">
-          <span>{rules.length} 条已导入规则</span>
+          <span>{visibleRules.length} / {rules.length} 条规则</span>
+          <label className="field inline-filter-field">
+            <span>场景</span>
+            <select value={selectedScenario} onChange={(event) => setSelectedScenario(event.target.value)}>
+              <option value="全部场景">全部场景</option>
+              {scenarioOptions.map((scenario) => (
+                <option key={scenario} value={scenario}>
+                  {scenario}
+                </option>
+              ))}
+            </select>
+          </label>
           <button type="button" className="primary-button" onClick={handleImportClick}>
             导入
           </button>
@@ -101,7 +124,7 @@ export default function RuleCatalogPanel({
           </div>
 
           <div className="rule-list">
-            {rules.map((rule) => (
+            {visibleRules.map((rule) => (
               <button
                 key={rule.id}
                 type="button"
@@ -111,17 +134,22 @@ export default function RuleCatalogPanel({
               >
                 <div className="rule-head">
                   <strong>{rule.name || '未命名规则'}</strong>
-                  <span className={`severity ${rule.enabled ? 'tip' : 'warning'}`}>
-                    {rule.enabled ? '启用' : '停用'}
-                  </span>
+                  <span className={`severity ${rule.enabled ? 'tip' : 'warning'}`}>{rule.enabled ? '启用' : '停用'}</span>
                 </div>
-                <p>{rule.description || '暂无描述'}</p>
+                <p className="compact-rule-desc">{rule.description || rule.pattern || '暂无描述'}</p>
                 <div className="query-item-meta">
-                  <em>{rule.pattern || '未配置表达式'}</em>
+                  <em>{rule.recordType === 'stage' ? 'stage' : 'matcher'}</em>
+                  <em>{rule.scenarios.length > 0 ? rule.scenarios.join(' / ') : '未配置场景'}</em>
                   <em>{rule.exportEnabled ? '允许导出' : '仅分析'}</em>
                 </div>
               </button>
             ))}
+            {visibleRules.length === 0 ? (
+              <div className="empty-state">
+                <strong>当前场景没有规则</strong>
+                <span>切换场景或重新导入规则集。</span>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
