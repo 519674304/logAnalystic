@@ -1,0 +1,32 @@
+# 业务流程层：把拓扑、请求边界、结束结果和阶段顺序组合成一次完整分析。
+# 所有 *_id 与 *_ids 都必须引用前面五层中已经定义的唯一 ID。
+
+[business_flow]
+# 必填：流程唯一 ID。
+id = "FLOW-ORDER-PAYMENT"
+name = "订单支付流程"
+# 所属领域，引用 topology.toml 的 domains.id。
+domain_id = "DOMAIN-ORDER"
+# 流程根进程，引用 topology.toml 的 processes.id。
+root_process_id = "PROCESS-ORDER-MAIN"
+# 请求开始匹配器，引用 matchers.toml 的 log_matchers.id。
+request_start_matcher_id = "LOG-ORDER-START"
+# 本流程涉及的进程，引用 topology.toml 的 processes.id。
+process_ids = ["PROCESS-ORDER-MAIN", "PROCESS-PAYMENT"]
+
+[business_flow.matching]
+# 匹配策略说明：按阶段顺序查找最先命中的日志。
+strategy = "ordered_first_match"
+
+[[business_flow.end_results]]
+# 结束结果的匹配器，引用 matchers.toml 的 log_matchers.id。
+result = "SUCCESS"
+matcher_id = "LOG-ORDER-SUCCESS"
+
+[[business_flow.branches]]
+# 分支唯一 ID；default = true 表示默认展示的主路径。
+id = "BRANCH-ORDER-SUCCESS"
+name = "订单支付成功"
+default = true
+# 阶段顺序，引用 stages.toml 的 stages.id。
+stage_ids = ["STAGE-ORDER-TO-PAYMENT", "STAGE-PAYMENT-PROCESS"]

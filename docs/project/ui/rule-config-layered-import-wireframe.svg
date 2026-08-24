@@ -1,0 +1,155 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900">
+  <defs>
+    <style>
+      .bg{fill:#eef2f7}
+      .panel{fill:#fff;stroke:#d8dee8;stroke-width:1}
+      .soft{fill:#f8fafc;stroke:#d8dee8;stroke-width:1}
+      .active{fill:#eff6ff;stroke:#2563eb;stroke-width:1.5}
+      .warn{fill:#fff7ed;stroke:#fb923c;stroke-width:1}
+      .ok{fill:#ecfdf5;stroke:#86efac;stroke-width:1}
+      .ink{font-family:Arial,"Microsoft YaHei",sans-serif;fill:#172033}
+      .muted{font-family:Arial,"Microsoft YaHei",sans-serif;fill:#64748b}
+      .head{font-family:Arial,"Microsoft YaHei",sans-serif;fill:#172033;font-weight:700}
+      .blue{fill:#2563eb}
+    </style>
+  </defs>
+
+  <rect class="bg" width="1440" height="900"/>
+
+  <rect class="panel" x="24" y="20" width="1392" height="62" rx="8"/>
+  <text class="muted" x="44" y="44" font-size="12">RULE CONFIGURATION</text>
+  <text class="head" x="44" y="68" font-size="22">规则配置</text>
+  <rect class="soft" x="1184" y="36" width="96" height="30" rx="15"/>
+  <text class="muted" x="1204" y="56" font-size="12">6 个层级</text>
+  <rect class="ok" x="1292" y="36" width="102" height="30" rx="15"/>
+  <text class="muted" x="1313" y="56" font-size="12">可组装检查</text>
+
+  <rect class="panel" x="24" y="96" width="1392" height="64" rx="8"/>
+  <text class="muted" x="44" y="120" font-size="12">规则包导入</text>
+  <rect class="soft" x="44" y="128" width="180" height="32" rx="6"/>
+  <text class="ink" x="58" y="149" font-size="14">完整 ZIP 规则包</text>
+  <text class="muted" x="246" y="120" font-size="12">manifest 版本</text>
+  <rect class="soft" x="246" y="128" width="134" height="32" rx="6"/>
+  <text class="ink" x="260" y="149" font-size="14">1.1.0</text>
+  <rect class="blue" x="402" y="128" width="92" height="32" rx="6"/>
+  <text x="414" y="149" font-family="Arial,'Microsoft YaHei',sans-serif" font-size="14" font-weight="700" fill="#fff">导入规则包</text>
+  <rect class="warn" x="760" y="112" width="632" height="36" rx="6"/>
+  <text class="muted" x="778" y="135" font-size="13">用户可在导入前自行使用外部 AI 检查；应用只做本地校验，并按版本新增或整包覆盖。</text>
+
+  <rect class="panel" x="24" y="174" width="300" height="676" rx="8"/>
+  <text class="head" x="44" y="206" font-size="16">规则层级树</text>
+  <text class="muted" x="44" y="228" font-size="12">版本 -> 层级 -> 节点；单击查看，双击编辑</text>
+  <text class="head" x="44" y="247" font-size="13">RULESET-A-PARALLEL / 1.1.0</text>
+
+  <rect class="active" x="44" y="254" width="260" height="36" rx="6"/>
+  <text class="head" x="58" y="277" font-size="14">关键日志</text>
+  <text class="muted" x="264" y="277" font-size="12">10</text>
+  <rect class="soft" x="62" y="300" width="242" height="30" rx="6"/>
+  <text class="ink" x="78" y="320" font-size="12">LOG-REQUEST-START</text>
+  <rect class="active" x="62" y="336" width="242" height="30" rx="6"/>
+  <text class="ink" x="78" y="356" font-size="12">LOG-A-PARALLEL-START</text>
+  <rect class="soft" x="62" y="372" width="242" height="30" rx="6"/>
+  <text class="ink" x="78" y="392" font-size="12">LOG-B-RECEIVED</text>
+
+  <rect class="soft" x="44" y="424" width="260" height="36" rx="6"/>
+  <text class="head" x="58" y="447" font-size="14">场景</text>
+  <text class="muted" x="270" y="447" font-size="12">2</text>
+  <rect class="soft" x="44" y="472" width="260" height="36" rx="6"/>
+  <text class="head" x="58" y="495" font-size="14">业务拓扑</text>
+  <text class="muted" x="264" y="495" font-size="12">8</text>
+  <rect class="soft" x="44" y="520" width="260" height="36" rx="6"/>
+  <text class="head" x="58" y="543" font-size="14">进程关系</text>
+  <text class="muted" x="264" y="543" font-size="12">3</text>
+  <rect class="soft" x="44" y="568" width="260" height="36" rx="6"/>
+  <text class="head" x="58" y="591" font-size="14">时延阶段</text>
+  <text class="muted" x="264" y="591" font-size="12">8</text>
+  <rect class="soft" x="44" y="616" width="260" height="36" rx="6"/>
+  <text class="head" x="58" y="639" font-size="14">业务流程</text>
+  <text class="muted" x="270" y="639" font-size="12">1</text>
+  <rect class="warn" x="44" y="676" width="260" height="56" rx="6"/>
+  <text class="head" x="58" y="700" font-size="13">完整性检查</text>
+  <text class="muted" x="58" y="721" font-size="12">引用完整，可供分析选择</text>
+
+  <rect class="panel" x="338" y="174" width="640" height="676" rx="8"/>
+  <text class="head" x="360" y="206" font-size="16">关键日志</text>
+  <text class="muted" x="360" y="228" font-size="12">右侧内容按当前层级展示，单元更紧凑；matcher / stage 支持双击编辑。</text>
+  <rect class="soft" x="360" y="250" width="596" height="32" rx="6"/>
+  <text class="muted" x="376" y="271" font-size="12">名称</text>
+  <text class="muted" x="568" y="271" font-size="12">类型</text>
+  <text class="muted" x="684" y="271" font-size="12">归属</text>
+  <text class="muted" x="840" y="271" font-size="12">场景</text>
+
+  <rect class="active" x="360" y="292" width="596" height="40" rx="6"/>
+  <text class="head" x="376" y="317" font-size="13">A starts parallel subprocesses</text>
+  <text class="ink" x="568" y="317" font-size="12">keyword</text>
+  <text class="ink" x="684" y="317" font-size="12">APP-A / PROCESS-A-MAIN</text>
+  <text class="ink" x="840" y="317" font-size="12">FULL / CORE</text>
+  <rect class="soft" x="360" y="342" width="596" height="40" rx="6"/>
+  <text class="head" x="376" y="367" font-size="13">B subprocess starts</text>
+  <text class="ink" x="568" y="367" font-size="12">regex</text>
+  <text class="ink" x="684" y="367" font-size="12">APP-B / PROCESS-B-HANDLE</text>
+  <text class="ink" x="840" y="367" font-size="12">FULL / CORE</text>
+  <rect class="soft" x="360" y="392" width="596" height="40" rx="6"/>
+  <text class="head" x="376" y="417" font-size="13">B preparation completed</text>
+  <text class="ink" x="568" y="417" font-size="12">keyword</text>
+  <text class="ink" x="684" y="417" font-size="12">APP-B / PROCESS-B-PREPARE</text>
+  <text class="ink" x="840" y="417" font-size="12">FULL</text>
+
+  <rect class="soft" x="360" y="458" width="596" height="134" rx="6"/>
+  <text class="head" x="378" y="486" font-size="15">规则包导入反馈</text>
+  <text class="muted" x="378" y="512" font-size="13">文件: ruleset-a-parallel-1.1.0.zip</text>
+  <text class="muted" x="378" y="538" font-size="13">manifest: 1.1.0，六层文件已组装并完成本地校验。</text>
+  <text class="muted" x="378" y="564" font-size="13">结果: 新增版本；同版本再次导入时将整体覆盖。</text>
+
+  <rect class="panel" x="992" y="174" width="424" height="676" rx="8"/>
+  <text class="head" x="1014" y="206" font-size="16">检查与导入反馈</text>
+  <text class="muted" x="1014" y="228" font-size="12">节点内容不常驻，点击或双击节点后用弹窗查看。</text>
+
+  <rect class="soft" x="1014" y="250" width="380" height="126" rx="6"/>
+  <text class="head" x="1030" y="278" font-size="15">当前层级状态</text>
+  <text class="muted" x="1030" y="306" font-size="13">关键日志: 10 条</text>
+  <text class="muted" x="1030" y="332" font-size="13">最近导入: 1.1.0 完整 ZIP</text>
+  <text class="muted" x="1030" y="358" font-size="13">动作: 新增版本 / 同版本整包覆盖</text>
+
+  <rect class="warn" x="1014" y="400" width="380" height="148" rx="6"/>
+  <text class="head" x="1030" y="428" font-size="15">本地校验</text>
+  <text class="muted" x="1030" y="454" font-size="13">ZIP、manifest 与六层映射已通过。</text>
+  <text class="muted" x="1030" y="480" font-size="13">关键引用完整，未改动其他版本。</text>
+  <text class="muted" x="1030" y="506" font-size="13">导入完成后可直接用于分析。</text>
+
+  <rect class="soft" x="1014" y="572" width="380" height="104" rx="6"/>
+  <text class="head" x="1030" y="600" font-size="15">操作提示</text>
+  <text class="muted" x="1030" y="626" font-size="13">单击树节点或列表行: 打开节点内容弹窗</text>
+  <text class="muted" x="1030" y="652" font-size="13">双击 matcher / stage 行: 进入编辑弹窗</text>
+
+  <rect class="ok" x="1014" y="722" width="184" height="40" rx="6"/>
+  <text class="head" x="1042" y="747" font-size="14">重新本地校验</text>
+
+  <rect x="0" y="0" width="1440" height="900" fill="rgba(15,23,42,0.22)"/>
+  <rect class="panel" x="430" y="214" width="580" height="396" rx="8"/>
+  <text class="head" x="458" y="252" font-size="18">节点内容</text>
+  <text class="muted" x="458" y="276" font-size="12">LOG-A-PARALLEL-START · keyword</text>
+  <rect class="soft" x="926" y="232" width="56" height="30" rx="6"/>
+  <text class="head" x="944" y="252" font-size="13">关闭</text>
+
+  <rect class="active" x="458" y="300" width="524" height="56" rx="6"/>
+  <text class="muted" x="476" y="324" font-size="12">name</text>
+  <text class="head" x="560" y="324" font-size="13">A starts parallel subprocesses</text>
+  <text class="muted" x="476" y="346" font-size="12">business_meaning</text>
+  <text class="ink" x="606" y="346" font-size="13">A完成准备并进入并行子进程</text>
+
+  <rect class="soft" x="458" y="374" width="524" height="150" rx="6"/>
+  <text class="muted" x="476" y="402" font-size="12">pattern</text>
+  <text class="ink" x="606" y="402" font-size="13">start parallel subprocesses</text>
+  <text class="muted" x="476" y="432" font-size="12">application_id</text>
+  <text class="ink" x="606" y="432" font-size="13">APP-A</text>
+  <text class="muted" x="476" y="462" font-size="12">process_id</text>
+  <text class="ink" x="606" y="462" font-size="13">PROCESS-A-MAIN</text>
+  <text class="muted" x="476" y="492" font-size="12">applicable_scenario_ids</text>
+  <text class="ink" x="606" y="492" font-size="13">SCENARIO-FULL / SCENARIO-CORE</text>
+
+  <rect class="blue" x="804" y="548" width="84" height="34" rx="6"/>
+  <text x="832" y="570" font-family="Arial,'Microsoft YaHei',sans-serif" font-size="14" font-weight="700" fill="#fff">编辑</text>
+  <rect class="soft" x="898" y="548" width="84" height="34" rx="6"/>
+  <text class="head" x="926" y="570" font-size="14">关闭</text>
+</svg>

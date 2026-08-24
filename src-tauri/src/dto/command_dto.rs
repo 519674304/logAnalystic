@@ -2,6 +2,8 @@
 //!
 //! 这些类型跨越前后端边界，用于本地查询和规则管理。
 
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -59,4 +61,58 @@ pub struct RuleRecordDto {
 pub struct RuleCatalogImportDto {
     pub source_name: String,
     pub content: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RulePackageImportDto {
+    pub source_name: String,
+    pub bytes: Vec<u8>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct RulePackageImportResultDto {
+    pub operation: String,
+    pub rule_set_id: String,
+    pub version: String,
+    pub versions: Vec<RulePackageVersionDto>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct RulePackageVersionDto {
+    pub rule_set_id: String,
+    pub version: String,
+    pub layers: Vec<RulePackageLayerDto>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct RulePackageLayerDto {
+    pub id: String,
+    pub label: String,
+    pub file_name: String,
+    pub nodes: Vec<RulePackageNodeDto>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct RulePackageNodeDto {
+    pub id: String,
+    pub name: String,
+    pub node_type: String,
+    pub table_path: String,
+    pub fields: BTreeMap<String, serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RulePackageNodeUpdateDto {
+    pub rule_set_id: String,
+    pub version: String,
+    pub layer_id: String,
+    pub table_path: String,
+    pub node_id: String,
+    pub fields: BTreeMap<String, serde_json::Value>,
 }

@@ -2,10 +2,17 @@ import { TauriCommands } from './commands'
 import type {
   LogSearchRequestDto,
   LogSearchResponseDto,
-  RuleCatalogImportDto,
-  RuleRecordDto,
+  RulePackageImportDto,
+  RulePackageImportResultDto,
+  RulePackageNodeUpdateDto,
+  RulePackageVersionDto,
   SavedQueryDto,
 } from './dto'
+import {
+  mergeImportedRulePackage,
+  parseLocalRulePackageImport,
+  updateLocalRulePackageNodeTree,
+} from './local-rule-package'
 
 const sampleLogLines = [
   '2026-06-12 10:39:38.257 [WARN] A00010 mainProcess dispatch wakeup request',
@@ -18,40 +25,7 @@ const sampleLogLines = [
 ]
 
 const savedQueryStorageKey = 'log-analystic.saved-queries'
-const ruleCatalogStorageKey = 'log-analystic.rule-catalog'
-
-type ImportedMatcher = {
-  id: string
-  name?: string
-  description?: string
-  business_meaning?: string
-  pattern?: string
-  enabled?: boolean
-  export_enabled?: boolean
-  scenarios?: string[]
-  applicable_scenario_ids?: string[]
-  process_id?: string
-  application_id?: string
-}
-
-type ImportedStage = {
-  id: string
-  name?: string
-  description?: string
-  business_meaning?: string
-  enabled?: boolean
-  export_enabled?: boolean
-  scenarios?: string[]
-  applicable_scenario_ids?: string[]
-  type?: string
-  order?: number
-  process_id?: string
-  application_id?: string
-  source_application_id?: string
-  target_application_id?: string
-  start_matcher_id?: string
-  end_matcher_id?: string
-}
+const rulePackageStorageKey = 'log-analystic.rule-packages'
 
 function parseLine(rawLine: string, lineNumber: number) {
   const match = rawLine.match(/^(\S+\s+\S+)\s+\[(\w+)\]\s+(\S+)\s+(.*)$/)
@@ -135,10 +109,35 @@ function writeLocalList(storageKey: string, value: unknown[]) {
   globalThis.localStorage?.setItem(storageKey, JSON.stringify(value))
 }
 
+function localListRulePackages(): RulePackageVersionDto[] {
+  return readLocalList<RulePackageVersionDto>(rulePackageStorageKey)
+}
+
+function writeLocalRulePackages(value: RulePackageVersionDto[]) {
+  writeLocalList(rulePackageStorageKey, value)
+}
+
+async function localImportRulePackage(payload: RulePackageImportDto): Promise<RulePackageImportResultDto> {
+  const parsed = await parseLocalRulePackageImport(payload)
+  const merged = mergeImportedRulePackage(localListRulePackages(), parsed)
+  writeLocalRulePackages(merged.versions)
+  return merged
+}
+
+function localUpdateRulePackageNode(payload: RulePackageNodeUpdateDto): RulePackageVersionDto[] {
+  const updated = updateLocalRulePackageNodeTree(localListRulePackages(), payload)
+  writeLocalRulePackages(updated)
+  return updated
+}
+
 async function invokeCommand<T>(command: string, payload?: unknown): Promise<T | null> {
-  const invoke = (globalThis as typeof globalThis & {
-    __TAURI__?: { invoke?: (commandName: string, body?: unknown) => Promise<unknown> }
-  }).__TAURI__?.invoke
+  const tauri = (globalThis as typeof globalThis & {
+    __TAURI__?: {
+      invoke?: (commandName: string, body?: unknown) => Promise<unknown>
+      tauri?: { invoke?: (commandName: string, body?: unknown) => Promise<unknown> }
+    }
+  }).__TAURI__
+  const invoke = tauri?.tauri?.invoke ?? tauri?.invoke
 
   if (!invoke) {
     return null
@@ -147,71 +146,6 @@ async function invokeCommand<T>(command: string, payload?: unknown): Promise<T |
   return (await invoke(command, payload)) as T
 }
 
-function matcherToRuleRecord(input: ImportedMatcher): RuleRecordDto {
-  return {
-    id: input.id,
-    name: input.name ?? input.business_meaning ?? '未命名规则',
-    description: input.description ?? input.business_meaning ?? '',
-    pattern: input.pattern ?? '',
-    enabled: input.enabled ?? true,
-    exportEnabled: input.export_enabled ?? true,
-    scenarios: input.scenarios ?? input.applicable_scenario_ids ?? [],
-    recordType: 'matcher',
-    processId: input.process_id,
-    applicationId: input.application_id,
-  }
-}
-
-function stageToRuleRecord(input: ImportedStage): RuleRecordDto {
-  const pattern = input.start_matcher_id && input.end_matcher_id ? `${input.start_matcher_id} -> ${input.end_matcher_id}` : ''
-
-  return {
-    id: input.id,
-    name: input.name ?? input.business_meaning ?? '未命名阶段',
-    description: input.description ?? input.business_meaning ?? '',
-    pattern,
-    enabled: input.enabled ?? true,
-    exportEnabled: input.export_enabled ?? true,
-    scenarios: input.scenarios ?? input.applicable_scenario_ids ?? [],
-    recordType: 'stage',
-    stageType: input.type,
-    order: input.order,
-    processId: input.process_id,
-    applicationId: input.application_id,
-    sourceApplicationId: input.source_application_id,
-    targetApplicationId: input.target_application_id,
-    startMatcherId: input.start_matcher_id,
-    endMatcherId: input.end_matcher_id,
-  }
-}
-
-async function parseLocalRuleCatalogImport(sourceName: string, content: string): Promise<RuleRecordDto[]> {
-  const trimmed = content.trim()
-  if (!trimmed) {
-    return []
-  }
-
-  if (sourceName.toLowerCase().endsWith('.json')) {
-    const parsed = JSON.parse(trimmed) as unknown
-    return Array.isArray(parsed) ? (parsed as RuleRecordDto[]) : []
-  }
-
-  if (sourceName.toLowerCase().endsWith('.toml') || sourceName.toLowerCase().endsWith('.txt')) {
-    const tomlModule = await import('toml')
-    const parsed = tomlModule.parse(trimmed) as {
-      log_matchers?: ImportedMatcher[]
-      rules?: ImportedMatcher[]
-      stages?: ImportedStage[]
-    }
-
-    const logMatchers = Array.isArray(parsed.log_matchers) ? parsed.log_matchers.map(matcherToRuleRecord) : []
-    const rules = Array.isArray(parsed.rules) ? parsed.rules.map(matcherToRuleRecord) : []
-    const stages = Array.isArray(parsed.stages) ? parsed.stages.map(stageToRuleRecord) : []
-    return [...logMatchers, ...rules, ...stages]
-  }
-
-  return []
-}
 
 export async function health(): Promise<string> {
   void TauriCommands.health
@@ -253,43 +187,23 @@ export async function deleteSavedQuery(queryId: string): Promise<SavedQueryDto[]
   return next
 }
 
-export async function listRuleCatalog(): Promise<RuleRecordDto[]> {
-  const result = await invokeCommand<RuleRecordDto[]>(TauriCommands.listRuleCatalog)
-  return result ?? readLocalList<RuleRecordDto>(ruleCatalogStorageKey)
+export async function importRulePackage(payload: RulePackageImportDto): Promise<RulePackageImportResultDto> {
+  const result = await invokeCommand<RulePackageImportResultDto>(TauriCommands.importRulePackage, { payload })
+  if (!result) {
+    return localImportRulePackage(payload)
+  }
+  return result
 }
 
-export async function upsertRuleCatalog(rule: RuleRecordDto): Promise<RuleRecordDto[]> {
-  const result = await invokeCommand<RuleRecordDto[]>(TauriCommands.upsertRuleCatalog, rule)
-  if (result) {
-    return result
-  }
-
-  const current = readLocalList<RuleRecordDto>(ruleCatalogStorageKey)
-  const next = current.some((item) => item.id === rule.id)
-    ? current.map((item) => (item.id === rule.id ? rule : item))
-    : [...current, rule]
-  writeLocalList(ruleCatalogStorageKey, next)
-  return next
+export async function listRulePackages(): Promise<RulePackageVersionDto[]> {
+  const result = await invokeCommand<RulePackageVersionDto[]>(TauriCommands.listRulePackages)
+  return result ?? localListRulePackages()
 }
 
-export async function deleteRuleCatalog(ruleId: string): Promise<RuleRecordDto[]> {
-  const result = await invokeCommand<RuleRecordDto[]>(TauriCommands.deleteRuleCatalog, ruleId)
-  if (result) {
-    return result
+export async function updateRulePackageNode(payload: RulePackageNodeUpdateDto): Promise<RulePackageVersionDto[]> {
+  const result = await invokeCommand<RulePackageVersionDto[]>(TauriCommands.updateRulePackageNode, { payload })
+  if (!result) {
+    return localUpdateRulePackageNode(payload)
   }
-
-  const next = readLocalList<RuleRecordDto>(ruleCatalogStorageKey).filter((item) => item.id !== ruleId)
-  writeLocalList(ruleCatalogStorageKey, next)
-  return next
-}
-
-export async function importRuleCatalog(payload: RuleCatalogImportDto): Promise<RuleRecordDto[]> {
-  const result = await invokeCommand<RuleRecordDto[]>(TauriCommands.importRuleCatalog, payload)
-  if (result) {
-    return result
-  }
-
-  const importedRules = await parseLocalRuleCatalogImport(payload.sourceName, payload.content)
-  writeLocalList(ruleCatalogStorageKey, importedRules)
-  return importedRules
+  return result
 }

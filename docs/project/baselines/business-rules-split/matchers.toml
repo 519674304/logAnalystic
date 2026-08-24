@@ -1,0 +1,122 @@
+# Key log matchers.
+# Matchers define business events found in raw logs.
+
+[[log_matchers]]
+id = "LOG-REQUEST-START"
+name = "Global request start"
+business_meaning = "A应用接收订单并启动主进程"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-FULL", "SCENARIO-CORE"]
+process_id = "PROCESS-A-MAIN"
+application_id = "APP-A"
+type = "keyword"
+pattern = "request started"
+
+[[log_matchers]]
+id = "LOG-A-PARALLEL-START"
+name = "A starts parallel subprocesses"
+business_meaning = "A完成准备并进入并行子进程"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-FULL", "SCENARIO-CORE"]
+process_id = "PROCESS-A-MAIN"
+application_id = "APP-A"
+type = "keyword"
+pattern = "start parallel subprocesses"
+
+[[log_matchers]]
+id = "LOG-B-RECEIVED"
+name = "B subprocess starts"
+business_meaning = "B子进程收到请求并开始执行"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-FULL", "SCENARIO-CORE"]
+process_id = "PROCESS-B-HANDLE"
+application_id = "APP-B"
+type = "regex"
+pattern = 'B subprocess received, sequence=[0-9]+'
+
+[[log_matchers]]
+id = "LOG-B-PREPARED"
+name = "B preparation completed"
+business_meaning = "B已准备后续处理所需数据"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-FULL"]
+process_id = "PROCESS-B-PREPARE"
+application_id = "APP-B"
+type = "keyword"
+pattern = "B preparation completed"
+
+[[log_matchers]]
+id = "LOG-B-COMPLETED"
+name = "B subprocess completed"
+business_meaning = "B子进程完成处理"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-FULL", "SCENARIO-CORE"]
+process_id = "PROCESS-B-HANDLE"
+application_id = "APP-B"
+type = "keyword"
+pattern = "B subprocess completed"
+
+[[log_matchers]]
+id = "LOG-C-RECEIVED"
+name = "C subprocess starts"
+business_meaning = "C子进程收到请求并开始执行"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-FULL", "SCENARIO-CORE"]
+process_id = "PROCESS-C-HANDLE"
+application_id = "APP-C"
+type = "regex"
+pattern = 'C subprocess received, sequence=[0-9]+'
+
+[[log_matchers]]
+id = "LOG-C-COMPLETED"
+name = "C subprocess completed"
+business_meaning = "C子进程完成处理"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-FULL", "SCENARIO-CORE"]
+process_id = "PROCESS-C-HANDLE"
+application_id = "APP-C"
+type = "keyword"
+pattern = "C subprocess completed"
+
+[[log_matchers]]
+id = "LOG-A-ALL-SUBPROCESSES-COMPLETED"
+name = "A joins parallel subprocesses"
+business_meaning = "A确认所有并行子进程已经完成"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-FULL", "SCENARIO-CORE"]
+process_id = "PROCESS-A-MAIN"
+application_id = "APP-A"
+type = "keyword"
+pattern = "all subprocesses completed"
+
+[[log_matchers]]
+id = "LOG-REQUEST-SUCCESS"
+name = "Global request success"
+business_meaning = "A完成收尾且全局请求成功"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-FULL", "SCENARIO-CORE"]
+process_id = "PROCESS-A-MAIN"
+application_id = "APP-A"
+type = "keyword"
+pattern = "request completed successfully"
+
+[[log_matchers]]
+id = "LOG-REQUEST-FAILED"
+name = "Global request failure"
+business_meaning = "A终止处理且全局请求失败"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-FULL", "SCENARIO-CORE"]
+process_id = "PROCESS-A-MAIN"
+application_id = "APP-A"
+type = "regex"
+pattern = 'request failed, code=[A-Z0-9_]+'

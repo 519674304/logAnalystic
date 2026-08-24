@@ -6,3 +6,4 @@
 pub mod app_data_dir;
 pub mod saved_query_store;
 pub mod rule_catalog_store;
+pub mod rule_package_store;

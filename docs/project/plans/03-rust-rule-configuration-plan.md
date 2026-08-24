@@ -1,7 +1,7 @@
 Document ID: PLAN-RUST-RULE-CONFIGURATION
-Status: Approved
-Approved by: 用户
-Approved at: 2026-07-09
+Status: Draft
+Approved by:
+Approved at:
 Depends on: PLAN-SKELETON-CONTRACTS, RESP-RULE-LIFECYCLE-DESIGN, ARCH-EXTENSION-PATTERNS
 Supersedes:
 
@@ -72,4 +72,3 @@ Supersedes:
   4. 删除后刷新列表和详情状态。
 - 测试：导入后持久化、删除后消失、重启后保持。
 - 完成证据：规则集列表在本地恢复时与删除结果一致。
-

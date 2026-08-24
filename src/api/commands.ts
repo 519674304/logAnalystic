@@ -4,8 +4,7 @@ export const TauriCommands = {
   listSavedQueries: 'list_saved_queries',
   upsertSavedQuery: 'upsert_saved_query',
   deleteSavedQuery: 'delete_saved_query',
-  listRuleCatalog: 'list_rule_catalog',
-  upsertRuleCatalog: 'upsert_rule_catalog',
-  deleteRuleCatalog: 'delete_rule_catalog',
-  importRuleCatalog: 'import_rule_catalog',
+  listRulePackages: 'list_rule_packages',
+  importRulePackage: 'import_rule_package',
+  updateRulePackageNode: 'update_rule_package_node',
 } as const

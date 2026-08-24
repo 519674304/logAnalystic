@@ -1,0 +1,42 @@
+# Business flow assembly.
+# Flow binds topology, request boundaries, result matchers, and stage order.
+
+[business_flow]
+id = "FLOW-A-PARALLEL"
+name = "A parallel subprocess business flow"
+domain_id = "DOMAIN-ORDER"
+root_process_id = "PROCESS-A-MAIN"
+request_start_matcher_id = "LOG-REQUEST-START"
+process_ids = [
+  "PROCESS-A-MAIN",
+  "PROCESS-B-HANDLE",
+  "PROCESS-B-PREPARE",
+  "PROCESS-C-HANDLE"
+]
+subprocess_group_ids = ["GROUP-PARALLEL-PROCESSING"]
+
+[business_flow.matching]
+strategy = "ordered_first_match"
+
+[[business_flow.end_results]]
+result = "SUCCESS"
+matcher_id = "LOG-REQUEST-SUCCESS"
+
+[[business_flow.end_results]]
+result = "FAILED"
+matcher_id = "LOG-REQUEST-FAILED"
+
+[[business_flow.branches]]
+id = "BRANCH-NORMAL"
+name = "Normal branch"
+default = true
+stage_ids = [
+  "DEF-A-PREPARE",
+  "DEF-A-TO-B-RPC",
+  "DEF-A-TO-C-RPC",
+  "DEF-B-PROCESS",
+  "DEF-C-PROCESS",
+  "DEF-PARALLEL-GROUP",
+  "DEF-A-FINALIZE",
+  "DEF-B-PREPARE"
+]

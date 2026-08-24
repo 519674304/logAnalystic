@@ -1,109 +1,119 @@
-import { useMemo, useRef, useState } from 'react'
+import { useRef } from 'react'
 import type * as React from 'react'
-import type { RuleRecordDto } from '../../api/dto'
+import type {
+  RulePackageFieldValue,
+  RulePackageImportDto,
+  RulePackageNodeDto,
+  RulePackageVersionDto,
+} from '../../api/dto'
 
-type RuleCatalogPanelProps = {
-  rules: RuleRecordDto[]
-  activeRuleId: string
-  detailOpen: boolean
-  detailDraft: RuleRecordDto
-  onSelectRule: (ruleId: string) => void
-  onOpenRuleDetail: (ruleId: string) => void
-  onCloseRuleDetail: () => void
-  onImportRules: (payload: { sourceName: string; content: string }) => Promise<void>
-  onDeleteRule: (ruleId: string) => void
-  onDetailDraftChange: (next: RuleRecordDto) => void
-  onSaveRuleDetail: () => void
+export type RuleNodeSelection = {
+  key: string
+  ruleSetId: string
+  version: string
+  layerId: string
+  layerLabel: string
+  node: RulePackageNodeDto
 }
 
-function splitScenarios(value: string) {
-  return value
-    .split(/[,，]/)
-    .map((item) => item.trim())
-    .filter(Boolean)
+type RuleCatalogPanelProps = {
+  versions: RulePackageVersionDto[]
+  activeNodeKey: string
+  detailOpen: boolean
+  detailDraft: RuleNodeSelection | null
+  statusMessage: string
+  onSelectNode: (selection: RuleNodeSelection) => void
+  onOpenNode: (selection: RuleNodeSelection) => void
+  onCloseDetail: () => void
+  onImportPackage: (payload: RulePackageImportDto) => Promise<void>
+  onDetailDraftChange: (next: RuleNodeSelection) => void
+  onSaveNode: () => Promise<void>
+}
+
+function nodeKey(ruleSetId: string, version: string, layerId: string, node: RulePackageNodeDto) {
+  return `${ruleSetId}/${version}/${layerId}/${node.tablePath}/${node.id}`
+}
+
+function displayValue(value: RulePackageFieldValue) {
+  return Array.isArray(value) ? value.join(', ') : String(value)
+}
+
+function updateFieldValue(original: RulePackageFieldValue, rawValue: string): RulePackageFieldValue {
+  if (Array.isArray(original)) {
+    return rawValue.split(/[,，]/).map((item) => item.trim()).filter(Boolean)
+  }
+  if (typeof original === 'number') {
+    const parsed = Number(rawValue)
+    return Number.isFinite(parsed) ? parsed : original
+  }
+  return rawValue
 }
 
 export default function RuleCatalogPanel({
-  rules,
-  activeRuleId,
+  versions,
+  activeNodeKey,
   detailOpen,
   detailDraft,
-  onSelectRule,
-  onOpenRuleDetail,
-  onCloseRuleDetail,
-  onImportRules,
-  onDeleteRule,
+  statusMessage,
+  onSelectNode,
+  onOpenNode,
+  onCloseDetail,
+  onImportPackage,
   onDetailDraftChange,
-  onSaveRuleDetail,
+  onSaveNode,
 }: RuleCatalogPanelProps) {
   const importInputRef = useRef<HTMLInputElement>(null)
-  const [selectedScenario, setSelectedScenario] = useState('全部场景')
-
-  const activeRule = useMemo(
-    () => rules.find((rule) => rule.id === activeRuleId) ?? null,
-    [activeRuleId, rules],
+  const nodeCount = versions.reduce(
+    (versionTotal, version) =>
+      versionTotal + version.layers.reduce((layerTotal, layer) => layerTotal + layer.nodes.length, 0),
+    0,
   )
-  const scenarioOptions = useMemo(
-    () => Array.from(new Set(rules.flatMap((rule) => rule.scenarios).filter(Boolean))).sort((left, right) => left.localeCompare(right, 'zh-Hans-CN')),
-    [rules],
-  )
-  const visibleRules = useMemo(
-    () =>
-      selectedScenario === '全部场景'
-        ? rules
-        : rules.filter((rule) => rule.scenarios.includes(selectedScenario)),
-    [rules, selectedScenario],
-  )
-
-  const handleImportClick = () => {
-    importInputRef.current?.click()
-  }
 
   const handleImportFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     event.target.value = ''
-
-    if (!file) {
-      return
-    }
-
-    const content = await file.text()
-    await onImportRules({ sourceName: file.name, content })
+    if (!file) return
+    const bytes = Array.from(new Uint8Array(await file.arrayBuffer()))
+    await onImportPackage({ sourceName: file.name, bytes })
   }
 
-  const handleDelete = () => {
-    if (!activeRule) {
-      return
-    }
-
-    const confirmed = window.confirm(`确定删除规则 "${activeRule.name}" 吗？`)
-    if (confirmed) {
-      onDeleteRule(activeRule.id)
-    }
+  const updateDraftField = (field: string, value: RulePackageFieldValue) => {
+    if (!detailDraft) return
+    onDetailDraftChange({
+      ...detailDraft,
+      node: {
+        ...detailDraft.node,
+        name: field === 'name' && typeof value === 'string' ? value : detailDraft.node.name,
+        fields: { ...detailDraft.node.fields, [field]: value },
+      },
+    })
   }
 
   return (
-    <section className="panel rule-page">
-      <div className="panel-title-row">
-        <h2>规则配置</h2>
+    <section className="panel rule-page rule-package-page">
+      <div className="panel-title-row rule-package-toolbar">
+        <div>
+          <h2>规则配置</h2>
+          <span>{versions.length} 个版本 · {nodeCount} 个节点</span>
+        </div>
         <div className="panel-actions">
-          <span>{visibleRules.length} / {rules.length} 条规则</span>
-          <label className="field inline-filter-field">
-            <span>场景</span>
-            <select value={selectedScenario} onChange={(event) => setSelectedScenario(event.target.value)}>
-              <option value="全部场景">全部场景</option>
-              {scenarioOptions.map((scenario) => (
-                <option key={scenario} value={scenario}>
-                  {scenario}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button type="button" className="primary-button" onClick={handleImportClick}>
-            导入
-          </button>
-          <button type="button" className="ghost-button" onClick={handleDelete} disabled={!activeRule}>
-            删除
+          <span className="rule-package-status">{statusMessage}</span>
+          <a
+            className="ghost-button rule-template-download"
+            href="/templates/rule-package-import-guide.md"
+            download
+          >
+            下载导入说明
+          </a>
+          <a
+            className="ghost-button rule-template-download"
+            href="/templates/rule-package-template.zip"
+            download
+          >
+            下载导入模板
+          </a>
+          <button type="button" className="primary-button" onClick={() => importInputRef.current?.click()}>
+            导入完整规则包
           </button>
         </div>
       </div>
@@ -111,130 +121,121 @@ export default function RuleCatalogPanel({
       <input
         ref={importInputRef}
         type="file"
-        accept=".json,.toml,.txt"
+        accept=".zip"
         className="hidden-input"
-        onChange={handleImportFile}
+        onChange={(event) => void handleImportFile(event)}
       />
 
-      <div className="rule-page-layout">
-        <div className="rule-list-panel">
-          <div className="collapsed-hint section-gap">
-            <strong>已导入规则集</strong>
-            <span>单击选择，双击查看并编辑详情</span>
+      <div className="rule-package-workspace">
+        <aside className="rule-package-sidebar" aria-label="规则包版本树">
+          <div className="rule-tree-heading">
+            <strong>规则包结构</strong>
+            <span>双击具体节点编辑</span>
           </div>
-
-          <div className="rule-list">
-            {visibleRules.map((rule) => (
-              <button
-                key={rule.id}
-                type="button"
-                className={`rule-item rule-item-button ${rule.id === activeRuleId ? 'active' : ''}`}
-                onClick={() => onSelectRule(rule.id)}
-                onDoubleClick={() => onOpenRuleDetail(rule.id)}
-              >
-                <div className="rule-head">
-                  <strong>{rule.name || '未命名规则'}</strong>
-                  <span className={`severity ${rule.enabled ? 'tip' : 'warning'}`}>{rule.enabled ? '启用' : '停用'}</span>
+          <div className="rule-package-tree">
+            {versions.map((version) => (
+              <details key={`${version.ruleSetId}/${version.version}`} className="package-version-node" open>
+                <summary>
+                  <span className="tree-disclosure" aria-hidden="true">▾</span>
+                  <strong>{version.version}</strong>
+                  <em>{version.ruleSetId}</em>
+                </summary>
+                <div className="package-version-children">
+                  {version.layers.map((layer) => (
+                    <details key={layer.id} className="package-layer-node" open>
+                      <summary>
+                        <span className="tree-disclosure" aria-hidden="true">▾</span>
+                        <strong>{layer.label}</strong>
+                        <em>{layer.nodes.length}</em>
+                      </summary>
+                      <div className="package-layer-children">
+                        {layer.nodes.map((node) => {
+                          const selection: RuleNodeSelection = {
+                            key: nodeKey(version.ruleSetId, version.version, layer.id, node),
+                            ruleSetId: version.ruleSetId,
+                            version: version.version,
+                            layerId: layer.id,
+                            layerLabel: layer.label,
+                            node,
+                          }
+                          return (
+                            <button
+                              key={selection.key}
+                              type="button"
+                              className={`package-leaf-node ${selection.key === activeNodeKey ? 'active' : ''}`}
+                              onClick={() => onSelectNode(selection)}
+                              onDoubleClick={() => onOpenNode(selection)}
+                              title={`${node.nodeType} · ${node.id}`}
+                            >
+                              <span className="node-type-mark" aria-hidden="true" />
+                              <span className="node-copy">
+                                <strong>{node.name}</strong>
+                                <em>{node.id}</em>
+                              </span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </details>
+                  ))}
                 </div>
-                <p className="compact-rule-desc">{rule.description || rule.pattern || '暂无描述'}</p>
-                <div className="query-item-meta">
-                  <em>{rule.recordType === 'stage' ? 'stage' : 'matcher'}</em>
-                  <em>{rule.scenarios.length > 0 ? rule.scenarios.join(' / ') : '未配置场景'}</em>
-                  <em>{rule.exportEnabled ? '允许导出' : '仅分析'}</em>
-                </div>
-              </button>
+              </details>
             ))}
-            {visibleRules.length === 0 ? (
-              <div className="empty-state">
-                <strong>当前场景没有规则</strong>
-                <span>切换场景或重新导入规则集。</span>
+            {versions.length === 0 ? (
+              <div className="empty-state rule-package-empty">
+                <strong>还没有规则版本</strong>
+                <span>导入包含 manifest.toml 和六层 TOML 的完整 ZIP 规则包。</span>
               </div>
             ) : null}
+          </div>
+        </aside>
+
+        <div className="rule-package-canvas">
+          <div className="rule-canvas-guide">
+            <span className="guide-icon" aria-hidden="true">⌘</span>
+            <strong>{activeNodeKey ? '已选择节点' : '从左侧选择节点'}</strong>
+            <p>{activeNodeKey ? '双击选中的具体节点可查看并编辑全部字段。' : '版本、作用层和具体规则保持清晰分层。'}</p>
           </div>
         </div>
       </div>
 
-      {detailOpen ? (
-        <div className="modal-backdrop">
-          <div className="modal-card rule-detail-modal">
+      {detailOpen && detailDraft ? (
+        <div className="modal-backdrop" role="presentation" onMouseDown={onCloseDetail}>
+          <div
+            className="modal-card rule-node-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="rule-node-modal-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
             <div className="panel-title-row">
-              <h2>规则详情</h2>
+              <div>
+                <h2 id="rule-node-modal-title">编辑节点</h2>
+                <span>{detailDraft.version} / {detailDraft.layerLabel} / {detailDraft.node.nodeType}</span>
+              </div>
               <div className="panel-actions">
-                <button type="button" className="ghost-button" onClick={onCloseRuleDetail}>
-                  关闭
-                </button>
-                <button type="button" className="primary-button" onClick={onSaveRuleDetail}>
-                  保存修改
-                </button>
+                <button type="button" className="ghost-button" onClick={onCloseDetail}>取消</button>
+                <button type="button" className="primary-button" onClick={() => void onSaveNode()}>保存修改</button>
               </div>
             </div>
-
-            <div className="editor-grid">
-              <label className="field">
-                <span>名称</span>
-                <input
-                  value={detailDraft.name}
-                  onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-                    onDetailDraftChange({ ...detailDraft, name: event.target.value })
-                  }
-                  placeholder="规则名称"
-                />
-              </label>
-
-              <label className="field">
-                <span>匹配表达式</span>
-                <input
-                  value={detailDraft.pattern}
-                  onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-                    onDetailDraftChange({ ...detailDraft, pattern: event.target.value })
-                  }
-                  placeholder="关键字或正则表达式"
-                />
-              </label>
-
-              <label className="field editor-wide">
-                <span>描述</span>
-                <input
-                  value={detailDraft.description}
-                  onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-                    onDetailDraftChange({ ...detailDraft, description: event.target.value })
-                  }
-                  placeholder="这条规则用于什么场景"
-                />
-              </label>
-
-              <label className="field editor-wide">
-                <span>适用场景</span>
-                <input
-                  value={detailDraft.scenarios.join(', ')}
-                  onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-                    onDetailDraftChange({ ...detailDraft, scenarios: splitScenarios(event.target.value) })
-                  }
-                  placeholder="core, latency, abnormal"
-                />
-              </label>
-
-              <label className="check-field">
-                <input
-                  type="checkbox"
-                  checked={detailDraft.enabled}
-                  onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-                    onDetailDraftChange({ ...detailDraft, enabled: event.target.checked })
-                  }
-                />
-                <span>启用</span>
-              </label>
-
-              <label className="check-field">
-                <input
-                  type="checkbox"
-                  checked={detailDraft.exportEnabled}
-                  onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-                    onDetailDraftChange({ ...detailDraft, exportEnabled: event.target.checked })
-                  }
-                />
-                <span>允许导出</span>
-              </label>
+            <div className="rule-node-fields">
+              {Object.entries(detailDraft.node.fields).map(([field, value]) => (
+                <label key={field} className={`field ${Array.isArray(value) ? 'field-wide' : ''}`}>
+                  <span>{field}</span>
+                  {typeof value === 'boolean' ? (
+                    <select value={String(value)} onChange={(event) => updateDraftField(field, event.target.value === 'true')}>
+                      <option value="true">true</option>
+                      <option value="false">false</option>
+                    </select>
+                  ) : (
+                    <input
+                      value={displayValue(value)}
+                      disabled={field === 'id'}
+                      onChange={(event) => updateDraftField(field, updateFieldValue(value, event.target.value))}
+                    />
+                  )}
+                </label>
+              ))}
             </div>
           </div>
         </div>

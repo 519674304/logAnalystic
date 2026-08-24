@@ -1,0 +1,22 @@
+# Rule package entry. The package version identifies the import target.
+# The importer validates every declared layer and replaces the entire version atomically.
+
+[rule_set]
+id = "RULESET-A-PARALLEL"
+name = "A parallel subprocess latency analysis"
+schema_version = "1.0"
+business_version = "1.1.0"
+
+[package]
+format = "split-toml"
+container_format = "zip"
+version = "1.1.0"
+description = "A parallel subprocess latency analysis rule package."
+
+[package.layers]
+scenarios = "scenarios.toml"
+topology = "topology.toml"
+matchers = "matchers.toml"
+relations = "relations.toml"
+stages = "stages.toml"
+flow = "flow.toml"

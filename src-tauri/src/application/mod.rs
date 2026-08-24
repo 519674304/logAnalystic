@@ -5,4 +5,5 @@
 
 pub mod log_search_service;
 pub mod rule_catalog_service;
+pub mod rule_package_service;
 pub mod saved_query_service;

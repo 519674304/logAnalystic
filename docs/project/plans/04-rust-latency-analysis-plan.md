@@ -1,7 +1,7 @@
 Document ID: PLAN-RUST-LATENCY-ANALYSIS
-Status: Approved
-Approved by: 用户
-Approved at: 2026-07-07
+Status: Draft
+Approved by:
+Approved at:
 Depends on: PLAN-RUST-LOG-WORKSPACE, PLAN-RUST-RULE-CONFIGURATION, RESP-LATENCY-PIPELINE-DESIGN, CONTRACT-LATENCY-ANALYSIS-RESULT
 Supersedes:
 

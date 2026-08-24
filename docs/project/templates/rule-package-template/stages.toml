@@ -1,0 +1,38 @@
+# 时延阶段层：计算两个关键日志事件之间的耗时。
+# matcher、关系、进程和应用字段均为跨层引用；修改 ID 时必须同步更新引用位置。
+
+[[stages]]
+# 必填：阶段唯一 ID，可被 relations.toml 与 flow.toml 引用。
+id = "STAGE-ORDER-TO-PAYMENT"
+name = "订单到支付调用时延"
+business_meaning = "订单服务发起支付到支付服务收到请求的耗时。"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-TEMPLATE"]
+type = "RPC_TRANSFER"
+layer = "business"
+order = 1
+# 关联 ID，引用 relations.toml 的 process_relations.id。
+relation_id = "REL-ORDER-CALL-PAYMENT"
+# 源和目标应用 ID，引用 topology.toml 的 applications.id。
+source_application_id = "APP-ORDER"
+target_application_id = "APP-PAYMENT"
+# 起止匹配器 ID，引用 matchers.toml 的 log_matchers.id。
+start_matcher_id = "LOG-ORDER-START"
+end_matcher_id = "LOG-PAYMENT-RECEIVED"
+
+[[stages]]
+id = "STAGE-PAYMENT-PROCESS"
+name = "支付处理时延"
+business_meaning = "支付服务收到请求到支付完成的处理耗时。"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-TEMPLATE"]
+type = "APPLICATION_PROCESSING"
+layer = "business"
+order = 2
+# 所属进程和应用，引用 topology.toml 的对应 ID。
+process_id = "PROCESS-PAYMENT"
+application_id = "APP-PAYMENT"
+start_matcher_id = "LOG-PAYMENT-RECEIVED"
+end_matcher_id = "LOG-PAYMENT-COMPLETED"

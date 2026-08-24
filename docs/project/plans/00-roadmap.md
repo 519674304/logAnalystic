@@ -1,7 +1,7 @@
 Document ID: PLAN-ROADMAP
-Status: Approved
-Approved by: 用户
-Approved at: 2026-07-07
+Status: Draft
+Approved by:
+Approved at:
 Depends on: REQ-OVERVIEW, RESP-MAP, ARCH-TECH-SELECTION, ARCH-TECHNICAL-ARCHITECTURE, ARCH-PERFORMANCE-TESTING
 Supersedes:
 

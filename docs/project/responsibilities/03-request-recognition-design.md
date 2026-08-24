@@ -1,7 +1,7 @@
 Document ID: RESP-REQUEST-RECOGNITION-DESIGN
-Status: Approved
-Approved by: 用户
-Approved at: 2026-07-06
+Status: Draft
+Approved by:
+Approved at:
 Depends on: CTX-LATENCY-ANALYSIS, REQ-REQUEST
 Supersedes:
 

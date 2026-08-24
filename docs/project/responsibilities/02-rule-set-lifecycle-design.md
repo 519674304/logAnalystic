@@ -1,71 +1,44 @@
-Document ID: RESP-RULE-LIFECYCLE-DESIGN
-Status: Approved
-Approved by: 用户
-Approved at: 2026-07-06
+Document ID: RESP-RULE-PACKAGE
+Status: Draft
+Approved by:
+Approved at:
 Depends on: CTX-RULE-CONFIG, REQ-RULESET, BASELINE-PRIMARY
-Supersedes:
+Supersedes: RESP-RULE-LIFECYCLE-DESIGN
 
-# 规则集生命周期设计
+# 规则包职责设计
 
-## 包含职责
+## 职责划分
 
-RESP-RULE-IMPORT、RESP-RULE-VALIDATE、RESP-RULE-MANAGE、RESP-RULE-BACKUP、RESP-RULE-EXPORT、RESP-RULE-SNAPSHOT。
+| ID | 职责 | 输入 | 输出 |
+| --- | --- | --- | --- |
+| RESP-RULE-PACKAGE-READ | 解压 ZIP、读取 manifest 与六类层级文件 | ZIP 字节 | `RulePackageCandidate` |
+| RESP-RULE-VALIDATE | 执行最小本地结构校验 | Candidate | 通过或拒绝原因 |
+| RESP-RULE-PACKAGE-STORE | 按版本新增或整体覆盖完整规则包 | 已通过 Candidate | 已保存版本 |
+| RESP-RULE-CATALOG-PROJECT | 从完整规则包生成版本树、节点概要和详情 | 已保存版本 | UI DTO |
+| RESP-RULE-NODE-EDIT | 无损修改目标 TOML 文档的目标节点后重新校验和整体保存 | 节点修改 | 已保存版本 |
 
-## 目的与非目标
-
-保证只有完整、引用一致的规则集能够成为当前有效规则，并支持整体覆盖、上一版本恢复和不可变快照发布。不读取实际日志验证命中效果。
-
-## 公共契约
+## 依赖方向
 
 ```text
-parseToml(content) -> RuleSetCandidate
-validate(candidate) -> RuleValidationResult
-activate(validatedCandidate) -> RuleSetSnapshot
-restorePrevious() -> RuleSetSnapshot
-exportCurrent() -> TomlContent
+UI / Tauri command
+  -> RulePackageService
+       -> ZipReader + ManifestParser
+       -> RulePackageValidator + LosslessTomlEditor
+       -> RulePackageStore
+       -> RuleCatalogProjector
 ```
 
-## 校验分组
+用户可在应用外自行使用外部 AI 检查规则包；项目不接入供应商、提示词或网络协议。`RulePackageValidator` 只做 ZIP、manifest、层级映射和关键引用的本地校验。
 
-- 文档结构和 schema 版本。
-- ID 唯一性和引用完整性。
-- 领域、应用和进程树。
-- 场景、enabled、export_enabled 和适用场景数组。
-- 请求边界规则覆盖全部场景。
-- matcher 模式和字段限制。
-- stage 起止引用、层级和顺序。
-- 流程、分支和跨进程关系。
-- 并行子进程组的父进程、触发阶段、子进程、汇总 matcher 和总时延阶段。
+`LosslessTomlEditor` 使用保留格式的 TOML 文档模型。它只更新用户在弹窗中提交的目标节点，不重写其他层级文件，也不清除目标文件内的注释、空白或未编辑项目的相对顺序。
 
-## 工作流
+## 冒烟失败处理
 
-1. TOML 解析为候选模型。
-2. 完整执行全部校验并汇总结构化 Issue。
-3. 任一 EXCEPTION 存在时拒绝激活。
-4. 校验通过后备份当前规则。
-5. 原子替换当前规则。
-6. 发布新的不可变快照。
+- ZIP 不可读、manifest 缺失、层级映射错误或关键引用错误：拒绝，不写入。
+- 覆盖写入失败：返回失败，不把半包暴露给版本树。
+- 其他异常不展开恢复机制；记录可读错误即可。
 
-## 不变量
+## 明确不做
 
-- 校验失败不改变当前规则或备份。
-- 只保留一个上一版本备份。
-- 快照生成后不可修改。
-- 分析运行固定引用一个快照 ID。
-
-## 问题与恢复
-
-- TOML 或引用错误：RULE_SET / EXCEPTION，拒绝候选规则。
-- 恢复失败：RULE_SET / EXCEPTION，当前规则保持不变。
-- 无上一版本：RULE_SET / TIP，不执行恢复。
-
-## 扩展点候选
-
-有序独立校验项可能适合职责链；具体顺序、短路和汇总策略由 Phase 3 决定。
-
-## 测试边界
-
-- 合法基线 TOML 通过并生成快照。
-- 每类引用和场景不变量失败时拒绝激活。
-- 覆盖、备份、恢复保持原子性。
-- 导出后重新导入保持业务语义一致。
+- `activate`、`restorePrevious`、`RuleSetBackup`、版本状态机和统一 Issue 注册表。
+- 单节点独立导入或单节点独立持久化。

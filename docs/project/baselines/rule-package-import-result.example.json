@@ -1,0 +1,19 @@
+{
+  "package_id": "RULESET-A-PARALLEL",
+  "version": "1.1.0",
+  "source_filename": "ruleset-a-parallel-1.1.0.zip",
+  "operation": "created",
+  "state": "available",
+  "layer_counts": {
+    "scenarios": 2,
+    "topology": 8,
+    "matchers": 10,
+    "relations": 3,
+    "stages": 8,
+    "flow": 1
+  },
+  "validation": {
+    "passed": true,
+    "issues": []
+  }
+}

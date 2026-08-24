@@ -1,7 +1,7 @@
 Document ID: ARCH-TECHNICAL-ARCHITECTURE
-Status: Approved
-Approved by: 用户
-Approved at: 2026-07-07
+Status: Draft
+Approved by:
+Approved at:
 Depends on: ARCH-TECH-SELECTION, CONTRACT-LATENCY-ANALYSIS-RESULT
 Supersedes:
 

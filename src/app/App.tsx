@@ -1,20 +1,19 @@
 import { useEffect, useMemo, useState } from 'react'
 import AppShell, { type WorkbenchTab } from '../components/layout/AppShell'
 import LogSearchPanel from '../features/log-search/LogSearchPanel'
-import RuleCatalogPanel from '../features/rule-config/RuleCatalogPanel'
+import RuleCatalogPanel, { type RuleNodeSelection } from '../features/rule-config/RuleCatalogPanel'
 import LatencyAnalysisPanel from '../features/latency-analysis/LatencyAnalysisPanel'
 import { issueRules, latencyResult } from './app-state'
 import {
-  deleteRuleCatalog,
   deleteSavedQuery,
-  importRuleCatalog,
-  listRuleCatalog,
+  importRulePackage,
+  listRulePackages,
   listSavedQueries,
   searchLogs,
-  upsertRuleCatalog,
+  updateRulePackageNode,
   upsertSavedQuery,
 } from '../api/tauri-client'
-import type { LogSearchRequestDto, RuleRecordDto, SavedQueryDto } from '../api/dto'
+import type { LogSearchRequestDto, RulePackageVersionDto, RuleRecordDto, SavedQueryDto } from '../api/dto'
 import { mapLogSearchToViewModel } from '../view-model/log-search-view-model'
 import type { LogSearchViewModel } from '../view-model/log-search-view-model'
 import { buildLatencyViewModelFromRules, mapToViewModel, type RequestViewModel } from '../view-model/latency-view-model'
@@ -59,26 +58,43 @@ function normalizeSavedQuery(draft: SavedQueryDto): SavedQueryDto {
   }
 }
 
-function createEmptyRule(): RuleRecordDto {
-  return {
-    id: createDraftId('rule'),
-    name: '',
-    description: '',
-    pattern: '',
-    enabled: true,
-    exportEnabled: true,
-    scenarios: [],
-  }
-}
+function projectRuleRecords(versions: RulePackageVersionDto[]): RuleRecordDto[] {
+  const latestByRuleSet = new Map<string, RulePackageVersionDto>()
+  versions.forEach((version) => {
+    if (!latestByRuleSet.has(version.ruleSetId)) latestByRuleSet.set(version.ruleSetId, version)
+  })
 
-function normalizeRule(draft: RuleRecordDto): RuleRecordDto {
-  return {
-    ...draft,
-    name: draft.name.trim() || draft.pattern.trim() || '未命名规则',
-    description: draft.description.trim(),
-    pattern: draft.pattern.trim(),
-    scenarios: draft.scenarios.map((item) => item.trim()).filter(Boolean),
-  }
+  return Array.from(latestByRuleSet.values()).flatMap((version) =>
+    version.layers
+      .filter((layer) => layer.id === 'matchers' || layer.id === 'stages')
+      .flatMap((layer) =>
+        layer.nodes.map((node) => {
+          const fields = node.fields
+          const scenarios = Array.isArray(fields.applicable_scenario_ids)
+            ? fields.applicable_scenario_ids.filter((value): value is string => typeof value === 'string')
+            : []
+          const stringField = (name: string) => typeof fields[name] === 'string' ? fields[name] as string : undefined
+          return {
+            id: node.id,
+            name: node.name,
+            description: stringField('business_meaning') ?? stringField('description') ?? '',
+            pattern: stringField('pattern') ?? '',
+            enabled: typeof fields.enabled === 'boolean' ? fields.enabled : true,
+            exportEnabled: typeof fields.export_enabled === 'boolean' ? fields.export_enabled : true,
+            scenarios,
+            recordType: layer.id === 'stages' ? 'stage' : 'matcher',
+            stageType: stringField('type'),
+            order: typeof fields.order === 'number' ? fields.order : undefined,
+            applicationId: stringField('application_id'),
+            processId: stringField('process_id'),
+            sourceApplicationId: stringField('source_application_id'),
+            targetApplicationId: stringField('target_application_id'),
+            startMatcherId: stringField('start_matcher_id'),
+            endMatcherId: stringField('end_matcher_id'),
+          } satisfies RuleRecordDto
+        }),
+      ),
+  )
 }
 
 function csvCell(value: string | number | undefined) {
@@ -126,6 +142,12 @@ function downloadCsv(fileName: string, content: string) {
   URL.revokeObjectURL(url)
 }
 
+function rulePackageErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error) return error.message
+  if (typeof error === 'string') return error
+  return fallback
+}
+
 export default function App() {
   const [activeTabId, setActiveTabId] = useState('latency-analysis')
   const [savedQueries, setSavedQueries] = useState<SavedQueryDto[]>([])
@@ -134,15 +156,17 @@ export default function App() {
   const [queryDraft, setQueryDraft] = useState<SavedQueryDto>(createEmptySavedQuery())
   const [queryEditorOpen, setQueryEditorOpen] = useState(false)
   const [queryEditorDraft, setQueryEditorDraft] = useState<SavedQueryDto>(createEmptySavedQuery())
-  const [rules, setRules] = useState<RuleRecordDto[]>([])
-  const [activeRuleId, setActiveRuleId] = useState('')
+  const [rulePackages, setRulePackages] = useState<RulePackageVersionDto[]>([])
+  const [activeRuleNodeKey, setActiveRuleNodeKey] = useState('')
   const [ruleDetailOpen, setRuleDetailOpen] = useState(false)
-  const [ruleDetailDraft, setRuleDetailDraft] = useState<RuleRecordDto>(createEmptyRule())
+  const [ruleDetailDraft, setRuleDetailDraft] = useState<RuleNodeSelection | null>(null)
+  const [rulePackageStatus, setRulePackageStatus] = useState('等待导入')
   const [result, setResult] = useState<LogSearchViewModel | null>(null)
   const [isSearching, setIsSearching] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [latencyAnalysisRunId, setLatencyAnalysisRunId] = useState(0)
   const [latencyAnalysisMessage, setLatencyAnalysisMessage] = useState('等待分析')
+  const rules = useMemo(() => projectRuleRecords(rulePackages), [rulePackages])
   const latencyViewModel = useMemo(
     () => buildLatencyViewModelFromRules(rules, sampleLatencyViewModel),
     [rules, latencyAnalysisRunId],
@@ -211,7 +235,7 @@ export default function App() {
 
     async function loadWorkspaceLists() {
       try {
-        const [loadedQueries, loadedRules] = await Promise.all([listSavedQueries(), listRuleCatalog()])
+        const [loadedQueries, loadedRulePackages] = await Promise.all([listSavedQueries(), listRulePackages()])
 
         if (cancelled) {
           return
@@ -223,10 +247,8 @@ export default function App() {
         setQueryDraft(firstQuery)
         setLogFolderPath(window.localStorage.getItem('log-analystic.log-folder-path') ?? '')
 
-        setRules(loadedRules)
-        const firstRule = loadedRules[0] ?? createEmptyRule()
-        setActiveRuleId(firstRule.id)
-        setRuleDetailDraft(firstRule)
+        setRulePackages(loadedRulePackages)
+        setRulePackageStatus(loadedRulePackages.length > 0 ? '已加载本地规则包' : '等待导入')
 
         if (loadedQueries[0]) {
           void runSearch(loadedQueries[0])
@@ -302,61 +324,58 @@ export default function App() {
     }
   }
 
-  const selectRule = (ruleId: string) => {
-    const next = rules.find((item) => item.id === ruleId)
-    if (!next) {
-      return
-    }
-
-    setActiveRuleId(ruleId)
-    setRuleDetailDraft(next)
+  const selectRuleNode = (selection: RuleNodeSelection) => {
+    setActiveRuleNodeKey(selection.key)
   }
 
-  const openRuleDetail = (ruleId: string) => {
-    const next = rules.find((item) => item.id === ruleId)
-    if (!next) {
-      return
-    }
-
-    setActiveRuleId(ruleId)
-    setRuleDetailDraft(next)
+  const openRuleNode = (selection: RuleNodeSelection) => {
+    setActiveRuleNodeKey(selection.key)
+    setRuleDetailDraft(structuredClone(selection))
     setRuleDetailOpen(true)
   }
 
-  const saveRuleDetail = async () => {
-    const next = normalizeRule(ruleDetailDraft)
-    const updated = await upsertRuleCatalog(next)
-    setRules(updated)
-    setActiveRuleId(next.id)
-    setRuleDetailDraft(next)
-    setRuleDetailOpen(false)
-  }
-
-  const removeRule = async (ruleId: string) => {
-    const updated = await deleteRuleCatalog(ruleId)
-    setRules(updated)
-
-    const next = updated[0] ?? createEmptyRule()
-    setActiveRuleId(next.id)
-    setRuleDetailDraft(next)
-    setRuleDetailOpen(false)
-  }
-
-  const importRules = async (payload: { sourceName: string; content: string }) => {
-    const confirmed = window.confirm('导入规则会覆盖当前本地规则列表，继续吗？')
-    if (!confirmed) {
+  const importRules = async (payload: { sourceName: string; bytes: number[] }) => {
+    if (!payload.sourceName.toLowerCase().endsWith('.zip')) {
+      const message = '请选择 .zip 格式的完整规则包'
+      setErrorMessage(message)
+      setRulePackageStatus(`导入失败：${message}`)
       return
     }
 
     try {
-      const updated = await importRuleCatalog(payload)
-      setRules(updated)
-      const next = updated[0] ?? createEmptyRule()
-      setActiveRuleId(next.id)
-      setRuleDetailDraft(next)
+      const result = await importRulePackage(payload)
+      setRulePackages(result.versions)
+      setRulePackageStatus(result.operation === 'replaced' ? `已覆盖 ${result.version}` : `已新增 ${result.version}`)
+      setErrorMessage(null)
+      setActiveRuleNodeKey('')
+      setRuleDetailDraft(null)
       setRuleDetailOpen(false)
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '导入规则失败')
+      const message = rulePackageErrorMessage(error, '导入规则失败')
+      setErrorMessage(message)
+      setRulePackageStatus(`导入失败：${message}`)
+    }
+  }
+
+  const saveRuleDetail = async () => {
+    if (!ruleDetailDraft) return
+    try {
+      const updated = await updateRulePackageNode({
+        ruleSetId: ruleDetailDraft.ruleSetId,
+        version: ruleDetailDraft.version,
+        layerId: ruleDetailDraft.layerId,
+        tablePath: ruleDetailDraft.node.tablePath,
+        nodeId: ruleDetailDraft.node.id,
+        fields: ruleDetailDraft.node.fields,
+      })
+      setRulePackages(updated)
+      setRulePackageStatus(`已保存 ${ruleDetailDraft.node.id}`)
+      setErrorMessage(null)
+      setRuleDetailOpen(false)
+    } catch (error) {
+      const message = rulePackageErrorMessage(error, '保存规则节点失败')
+      setErrorMessage(message)
+      setRulePackageStatus(`保存失败：${message}`)
     }
   }
 
@@ -442,17 +461,17 @@ export default function App() {
 
       {activeTabId === 'rule-config' ? (
         <RuleCatalogPanel
-          rules={rules}
-          activeRuleId={activeRuleId}
+          versions={rulePackages}
+          activeNodeKey={activeRuleNodeKey}
           detailOpen={ruleDetailOpen}
           detailDraft={ruleDetailDraft}
-          onSelectRule={selectRule}
-          onOpenRuleDetail={openRuleDetail}
-          onCloseRuleDetail={() => setRuleDetailOpen(false)}
-          onImportRules={importRules}
-          onDeleteRule={removeRule}
+          statusMessage={rulePackageStatus}
+          onSelectNode={selectRuleNode}
+          onOpenNode={openRuleNode}
+          onCloseDetail={() => setRuleDetailOpen(false)}
+          onImportPackage={importRules}
           onDetailDraftChange={setRuleDetailDraft}
-          onSaveRuleDetail={saveRuleDetail}
+          onSaveNode={saveRuleDetail}
         />
       ) : null}
 

@@ -60,9 +60,48 @@ export interface RuleRecordDto {
   endMatcherId?: string
 }
 
-export interface RuleCatalogImportDto {
+export interface RulePackageImportDto {
   sourceName: string
-  content: string
+  bytes: number[]
+}
+
+export interface RulePackageImportResultDto {
+  operation: 'created' | 'replaced'
+  ruleSetId: string
+  version: string
+  versions: RulePackageVersionDto[]
+}
+
+export type RulePackageFieldValue = string | number | boolean | RulePackageFieldValue[]
+
+export interface RulePackageNodeDto {
+  id: string
+  name: string
+  nodeType: string
+  tablePath: string
+  fields: Record<string, RulePackageFieldValue>
+}
+
+export interface RulePackageLayerDto {
+  id: string
+  label: string
+  fileName: string
+  nodes: RulePackageNodeDto[]
+}
+
+export interface RulePackageVersionDto {
+  ruleSetId: string
+  version: string
+  layers: RulePackageLayerDto[]
+}
+
+export interface RulePackageNodeUpdateDto {
+  ruleSetId: string
+  version: string
+  layerId: string
+  tablePath: string
+  nodeId: string
+  fields: Record<string, RulePackageFieldValue>
 }
 
 export interface LogMatcherDto {

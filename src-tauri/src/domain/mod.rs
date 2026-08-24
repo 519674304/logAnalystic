@@ -4,3 +4,4 @@
 //! 和文件系统。
 
 pub mod issue;
+pub mod rule_package;

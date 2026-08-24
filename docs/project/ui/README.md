@@ -13,6 +13,7 @@ Supersedes: docs/vscode/specs/latency-selected-request-app-lanes.svg
 
 - `latency-analysis-approved.svg`：时延分析页面的早期基线，保留作为时延分析方向参考。
 - `log-search-workbench-wireframe.png`：日志搜索页与查询管理页的原型图，体现当前确认的页面结构和交互分工。
+- `rule-config-layered-import-wireframe.svg`：规则包版本树、完整 ZIP 导入和节点编辑弹窗的低保真原型，待本轮确认。
 
 ![Log search workbench wireframe](./log-search-workbench-wireframe.png)
 
@@ -34,6 +35,13 @@ Supersedes: docs/vscode/specs/latency-selected-request-app-lanes.svg
 - 步骤卡片和树节点都需要展示业务含义、相对时延和阶段时长。
 - 鼠标悬浮或选中某个阶段时，展示起止时间戳、相对起点的开始时间和耗时。
 - 底部统计区用于展示区间统计，不与步骤树争抢空间。
+
+### 规则配置页
+
+- 左侧使用“版本 -> 层级 -> 节点”的紧凑树；单击查看概要，双击在弹窗内编辑节点。
+- 导入入口只接收完整 ZIP 规则包；`manifest.toml` 声明版本和层级文件映射。
+- 用户可在导入前自行使用外部 AI 检查文件；页面不接入或展示该检查过程。
+- 应用完成本地校验后，同版本整包覆盖，不存在的版本直接新增；页面只展示会阻断导入的本地校验结果。
 
 ## 设计边界
 

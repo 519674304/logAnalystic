@@ -1,0 +1,32 @@
+# Cross-process relations and subprocess groups.
+# Relations describe calls; groups describe child process coordination.
+
+[[process_relations]]
+id = "REL-A-CALL-B"
+name = "A starts B subprocess"
+type = "RPC_CALL"
+source_process_id = "PROCESS-A-MAIN"
+target_process_id = "PROCESS-B-HANDLE"
+start_matcher_id = "LOG-A-PARALLEL-START"
+end_matcher_id = "LOG-B-RECEIVED"
+latency_stage_id = "DEF-A-TO-B-RPC"
+
+[[process_relations]]
+id = "REL-A-CALL-C"
+name = "A starts C subprocess"
+type = "RPC_CALL"
+source_process_id = "PROCESS-A-MAIN"
+target_process_id = "PROCESS-C-HANDLE"
+start_matcher_id = "LOG-A-PARALLEL-START"
+end_matcher_id = "LOG-C-RECEIVED"
+latency_stage_id = "DEF-A-TO-C-RPC"
+
+[[subprocess_groups]]
+id = "GROUP-PARALLEL-PROCESSING"
+name = "Parallel downstream processing"
+parent_process_id = "PROCESS-A-MAIN"
+mode = "PARALLEL"
+trigger_stage_id = "DEF-A-PREPARE"
+child_process_ids = ["PROCESS-B-HANDLE", "PROCESS-C-HANDLE"]
+join_matcher_id = "LOG-A-ALL-SUBPROCESSES-COMPLETED"
+latency_stage_id = "DEF-PARALLEL-GROUP"

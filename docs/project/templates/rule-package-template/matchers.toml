@@ -1,0 +1,53 @@
+# 日志匹配器层：把原始日志文本映射为业务事件。
+# process_id 引用进程，application_id 引用应用，applicable_scenario_ids 引用分析场景。
+
+[[log_matchers]]
+# 必填：匹配器唯一 ID，阶段、关系和流程会引用它。
+id = "LOG-ORDER-START"
+name = "订单开始"
+business_meaning = "订单服务收到请求并启动主流程。"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-TEMPLATE"]
+# 必填：所属进程 ID，引用 topology.toml 的 processes.id。
+process_id = "PROCESS-ORDER-MAIN"
+# 必填：所属应用 ID，引用 topology.toml 的 applications.id。
+application_id = "APP-ORDER"
+type = "keyword"
+pattern = "order request started"
+
+[[log_matchers]]
+id = "LOG-PAYMENT-RECEIVED"
+name = "支付开始"
+business_meaning = "支付服务收到订单支付请求。"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-TEMPLATE"]
+process_id = "PROCESS-PAYMENT"
+application_id = "APP-PAYMENT"
+type = "keyword"
+pattern = "payment request received"
+
+[[log_matchers]]
+id = "LOG-PAYMENT-COMPLETED"
+name = "支付完成"
+business_meaning = "支付服务完成支付处理。"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-TEMPLATE"]
+process_id = "PROCESS-PAYMENT"
+application_id = "APP-PAYMENT"
+type = "keyword"
+pattern = "payment completed"
+
+[[log_matchers]]
+id = "LOG-ORDER-SUCCESS"
+name = "订单完成"
+business_meaning = "订单主流程结束并返回成功。"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-TEMPLATE"]
+process_id = "PROCESS-ORDER-MAIN"
+application_id = "APP-ORDER"
+type = "keyword"
+pattern = "order completed"

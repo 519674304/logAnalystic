@@ -1,0 +1,36 @@
+# 业务拓扑层：描述领域、应用和进程的归属关系。
+# domain_id 引用领域；application_id 引用应用；parent_process_id 引用父进程。
+
+[[domains]]
+# 必填：领域唯一 ID，application_ids 引用归属该领域的应用。
+id = "DOMAIN-ORDER"
+name = "订单领域"
+application_ids = ["APP-ORDER", "APP-PAYMENT"]
+
+[[applications]]
+# 必填：应用唯一 ID；domain_id 必须指向上面的领域 ID。
+id = "APP-ORDER"
+name = "订单服务"
+domain_id = "DOMAIN-ORDER"
+log_prefix = "ORDER"
+
+[[applications]]
+id = "APP-PAYMENT"
+name = "支付服务"
+domain_id = "DOMAIN-ORDER"
+log_prefix = "PAY"
+
+[[processes]]
+# 必填：进程唯一 ID；application_id 必须指向所属应用。
+id = "PROCESS-ORDER-MAIN"
+name = "订单主流程"
+kind = "MAIN"
+application_id = "APP-ORDER"
+
+[[processes]]
+id = "PROCESS-PAYMENT"
+name = "支付子流程"
+kind = "SUB"
+application_id = "APP-PAYMENT"
+# 可选：父进程 ID，引用同一规则包内的 processes.id。
+parent_process_id = "PROCESS-ORDER-MAIN"

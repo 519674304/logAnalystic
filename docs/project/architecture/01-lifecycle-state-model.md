@@ -1,7 +1,7 @@
 Document ID: ARCH-LIFECYCLE-STATE
-Status: Approved
-Approved by: 用户
-Approved at: 2026-07-07
+Status: Draft
+Approved by:
+Approved at:
 Depends on: ARCH-LIFECYCLE-OVERVIEW, RESP-RULE-LIFECYCLE-DESIGN, RESP-LATENCY-PIPELINE-DESIGN
 Supersedes:
 

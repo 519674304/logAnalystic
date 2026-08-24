@@ -1,0 +1,8 @@
+# 分析场景层：决定哪些匹配器和时延阶段参与一次分析。
+# 场景 ID 可被 matchers.toml 与 stages.toml 的 applicable_scenario_ids 引用。
+
+[[analysis_scenarios]]
+# 必填：场景唯一 ID。不要与其他层的任何 id 重复。
+id = "SCENARIO-TEMPLATE"
+name = "订单主链路"
+description = "从订单接收、支付处理到订单完成的最小链路。"

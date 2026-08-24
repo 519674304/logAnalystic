@@ -1,0 +1,18 @@
+# 关系与分组层：描述跨进程调用，或并行子流程如何汇总。
+# source_process_id、target_process_id、start_matcher_id、end_matcher_id 与 latency_stage_id 都必须引用现有 ID。
+
+[[process_relations]]
+# 必填：关系唯一 ID，可被 stages.toml 的 relation_id 引用。
+id = "REL-ORDER-CALL-PAYMENT"
+name = "订单调用支付"
+type = "RPC_CALL"
+# 调用方进程，引用 topology.toml 的 processes.id。
+source_process_id = "PROCESS-ORDER-MAIN"
+# 被调用方进程，引用 topology.toml 的 processes.id。
+target_process_id = "PROCESS-PAYMENT"
+# 调用开始日志，引用 matchers.toml 的 log_matchers.id。
+start_matcher_id = "LOG-ORDER-START"
+# 调用到达日志，引用 matchers.toml 的 log_matchers.id。
+end_matcher_id = "LOG-PAYMENT-RECEIVED"
+# 对应时延阶段，引用 stages.toml 的 stages.id。
+latency_stage_id = "STAGE-ORDER-TO-PAYMENT"

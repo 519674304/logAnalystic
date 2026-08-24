@@ -1,7 +1,7 @@
 Document ID: ARCH-LIFECYCLE-OVERVIEW
-Status: Approved
-Approved by: 用户
-Approved at: 2026-07-07
+Status: Draft
+Approved by:
+Approved at:
 Depends on: CTX-LOG-WORKSPACE, CTX-RULE-CONFIG, CTX-LATENCY-ANALYSIS, RESP-MAP
 Supersedes:
 
