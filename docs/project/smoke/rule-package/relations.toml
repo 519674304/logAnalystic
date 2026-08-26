@@ -1,0 +1,9 @@
+[[process_relations]]
+id = "REL-A-DISPATCH"
+name = "A 调度 B 子进程"
+type = "RPC_CALL"
+source_process_id = "PROCESS-A-MAIN"
+target_process_id = "PROCESS-B-WORKER"
+start_matcher_id = "LOG-PARALLEL-START"
+end_matcher_id = "LOG-SUBPROCESS-RECEIVED"
+latency_stage_id = "STAGE-DISPATCH"

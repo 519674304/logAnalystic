@@ -6,8 +6,6 @@
     "dev": "vite",
     "build": "npm run build:rule-package-template && vite build",
     "build:rule-package-template": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-rule-package-template.ps1",
-    "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build",
     "test:ui-contract": "node scripts/check-ui-contract.js",
     "test:rule-package-ui": "node scripts/check-rule-package-ui.js",
     "check:baselines": "node scripts/check-baselines.js"
@@ -20,7 +18,6 @@
     "vite": "^5.0.0",
     "@vitejs/plugin-react": "^4.0.0",
     "typescript": "^5.0.0",
-    "@tauri-apps/cli": "^1.3.0",
     "toml": "^3.0.0"
   }
 }

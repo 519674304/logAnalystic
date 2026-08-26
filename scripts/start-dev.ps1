@@ -6,12 +6,12 @@ $ErrorActionPreference = "Stop"
 $ProjectRoot = (Resolve-Path "$PSScriptRoot\..").Path
 
 # 启动后看什么：
-#   - 本脚本启动的是 Tauri 桌面应用，成功后会弹出一个原生窗口（标题 logAnalystic）。
-#   - 前端由 Vite 开发服务器托管，固定端口 1420（vite.config.ts 的 server.port），
-#     与 tauri.conf.json 的 devPath 保持一致。
-#   - 仅调试前端时，可用浏览器打开 http://localhost:1420 ；完整应用以弹出的桌面窗口为准。
-#   - 端口已设 strictPort: true：若 1420 被占用，Vite 会直接报错退出（而非悄悄换端口），
-#     避免 Tauri 窗口加载到错误地址。此时请先释放 1420 再启动。
+#   - 本脚本启动两个进程（各一个窗口）：
+#       1) Rust 本机 Web 服务（cargo run -p server），仅监听 127.0.0.1:8080。
+#       2) Vite 前端开发服务器（npm run dev），固定端口 1420（vite.config.ts 的 server.port）。
+#   - 浏览器打开 http://localhost:1420 访问前端，前端经 HTTP 调用 127.0.0.1:8080 的服务端。
+#   - 端口均设 strictPort：若 1420 被占用，Vite 会报错退出；服务端 8080 被占用时也会报 bind 失败。
+#     请先释放对应端口再启动。
 
 Write-Host "== logAnalystic 开发环境启动脚本 ==" -ForegroundColor Cyan
 
@@ -27,7 +27,7 @@ if (-not (Command-Exists node)) {
 }
 Write-Host "✓ node: $(node --version)"
 
-# 确定包管理器（tauri.conf.json 的 beforeDevCommand 使用 npm run dev）
+# 确定包管理器（前端依赖与脚本均经 package.json）
 $PkgManager = $null
 if (Command-Exists npm) {
     $PkgManager = "npm"
@@ -61,12 +61,11 @@ if (-not (Test-Path "$ProjectRoot\node_modules")) {
     }
 }
 
-# --- 3. 启动 Tauri 开发环境 ---
-Write-Host "启动 Tauri 开发环境 ($PkgManager run tauri:dev) ..." -ForegroundColor Green
-Push-Location $ProjectRoot
-try {
-    & $PkgManager run tauri:dev
-    if ($LASTEXITCODE -ne 0) { throw "tauri:dev 退出码 $LASTEXITCODE" }
-} finally {
-    Pop-Location
-}
+# --- 3. 启动开发环境（Rust 服务端 + Vite 前端，各一个窗口）---
+Write-Host "启动 Rust 服务端 (cargo run -p server) -> http://127.0.0.1:8080" -ForegroundColor Green
+Start-Process -FilePath "cmd.exe" -ArgumentList "/k cargo run -p server" -WorkingDirectory $ProjectRoot
+
+Write-Host "启动 Vite 前端 ($PkgManager run dev) -> http://localhost:1420" -ForegroundColor Green
+Start-Process -FilePath "cmd.exe" -ArgumentList "/k $PkgManager run dev" -WorkingDirectory $ProjectRoot
+
+Write-Host "两个窗口已打开：服务端 8080、前端 1420。浏览器访问 http://localhost:1420" -ForegroundColor Cyan

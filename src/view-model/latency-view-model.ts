@@ -1,4 +1,5 @@
 import type { LatencyAnalysisResult, RuleRecordDto } from '../api/dto'
+import type { LatencyAnalysis, StageSample } from '../api/latency-analysis-client'
 
 function uniqueDefinedValues(values: Array<string | undefined>) {
   return Array.from(new Set(values.filter(Boolean))) as string[]
@@ -34,6 +35,8 @@ export interface LaneBlockViewModel {
   startTimestamp: string
   endTimestamp: string
   relativeDuration: string
+  /** 所属请求（顺序时延分析结果按请求分组时使用；样例数据缺省为所有请求可见） */
+  requestId?: string
 }
 
 export interface StepTreeRowViewModel {
@@ -41,6 +44,7 @@ export interface StepTreeRowViewModel {
   name: string
   duration: string
   blockId: string
+  requestId?: string
 }
 
 export interface RequestViewModel {
@@ -331,6 +335,115 @@ export function buildLatencyViewModelFromRules(rules: RuleRecordDto[], fallback:
       p90Ms: 0,
       maxMs: 0,
     },
+  }
+}
+
+function msOf(timestamp: string): number {
+  return Date.parse(timestamp.replace(' ', 'T'))
+}
+
+function clampPercent(value: number) {
+  return Math.min(100, Math.max(0, value))
+}
+
+/**
+ * 由顺序时延分析结果构建真实泳道视图。
+ * 每个请求自带一组阶段样本；泳道块 / 步骤树按 requestId 归属请求，
+ * 面板按当前选中请求过滤展示。
+ */
+export function buildLatencyViewModelFromAnalysis(
+  rules: RuleRecordDto[],
+  analysis: LatencyAnalysis,
+  fallback: RequestViewModel,
+): RequestViewModel {
+  const stages = rules
+    .filter((rule) => rule.enabled && rule.recordType === 'stage')
+    .sort((left, right) => (left.order ?? Number.MAX_SAFE_INTEGER) - (right.order ?? Number.MAX_SAFE_INTEGER))
+
+  if (stages.length === 0 || analysis.requests.length === 0) {
+    return fallback
+  }
+
+  const stageNameById = new Map(stages.map((stage) => [stage.id, stage.description || stage.name]))
+
+  const requests: LatencyRequestViewModel[] = analysis.requests.map((request) => {
+    const slowest = request.samples.reduce<StageSample | undefined>(
+      (current, next) => (!current || next.durationMs > current.durationMs ? next : current),
+      undefined,
+    )
+    const group: RequestGroup = request.totalMs >= 300 ? 'slow' : request.totalMs >= 240 ? 'abnormal' : 'normal'
+    return {
+      id: request.id,
+      group,
+      result: '完成',
+      duration: `${request.totalMs}ms`,
+      durationMs: request.totalMs,
+      scene: '冒烟链路',
+      slowPoint: slowest ? (stageNameById.get(slowest.stageId) ?? slowest.stageId) : '无',
+      slowPointBlockId: slowest?.stageId ?? '',
+    }
+  })
+
+  const lanes = Array.from(new Set(stages.map(getStageLane)))
+
+  const laneBlocks: LaneBlockViewModel[] = analysis.requests.flatMap((request) => {
+    const samplesByStage = new Map(request.samples.map((sample) => [sample.stageId, sample]))
+    const timestamps = request.samples.flatMap((sample) => [msOf(sample.startTimestamp), msOf(sample.endTimestamp)])
+    if (timestamps.length === 0) return []
+    const min = Math.min(...timestamps)
+    const max = Math.max(...timestamps)
+    const span = Math.max(1, max - min)
+
+    return stages
+      .map((stage): LaneBlockViewModel | null => {
+        const sample = samplesByStage.get(stage.id)
+        if (!sample) return null
+        const start = msOf(sample.startTimestamp)
+        const end = msOf(sample.endTimestamp)
+        const startPercent = clampPercent(((start - min) / span) * 100)
+        const widthPercent = clampPercent(((end - start) / span) * 100)
+
+        return {
+          id: stage.id,
+          requestId: request.id,
+          lane: getStageLane(stage),
+          label: stage.description || stage.name,
+          startPercent,
+          widthPercent,
+          kind: getStageKind(stage),
+          duration: `${sample.durationMs}ms`,
+          startTimestamp: sample.startTimestamp,
+          endTimestamp: sample.endTimestamp,
+          relativeDuration: `+${start - min}ms ~ +${end - min}ms`,
+        }
+      })
+      .filter((block): block is LaneBlockViewModel => block !== null)
+  })
+
+  const stepTree: StepTreeRowViewModel[] = analysis.requests.flatMap((request) =>
+    stages
+      .filter((stage) => request.samples.some((sample) => sample.stageId === stage.id))
+      .map((stage) => {
+        const sample = request.samples.find((item) => item.stageId === stage.id)
+        return {
+          requestId: request.id,
+          level: getStageKind(stage) === 'subprocess' ? 1 : 0,
+          name: stage.description || stage.name,
+          duration: sample ? `${sample.durationMs}ms` : '-',
+          blockId: stage.id,
+        } satisfies StepTreeRowViewModel
+      }),
+  )
+
+  return {
+    requestId: analysis.requests[0].id,
+    requests,
+    requestGroups,
+    lanes,
+    laneBlocks,
+    stepTree,
+    intervalStepOptions: uniqueDefinedValues(stages.map((stage) => stage.description || stage.name)),
+    stats: analysis.stats,
   }
 }
 

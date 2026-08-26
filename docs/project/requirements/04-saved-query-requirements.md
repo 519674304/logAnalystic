@@ -1,11 +1,13 @@
 Document ID: REQ-SAVED-QUERY
-Status: Approved
+Status: Superseded
 Approved by: 用户
 Approved at: 2026-07-09
 Depends on: REQ-SEARCH
 Supersedes: docs/vscode/specs/requirements.md
 
 # 保存查询需求
+
+> 已废止（2026-08-25）：日志搜索页不再提供命名查询列表与查询管理，改为「保存查询条件」（关键字/匹配模式/大小写），见 REQ-SEARCH。
 
 ## 目标
 

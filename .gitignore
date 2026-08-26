@@ -23,5 +23,5 @@ pnpm-debug.log*
 .env
 .env.*
 
-# Tauri local files
-src-tauri/target/
+# Runtime config (local)
+/app-data/

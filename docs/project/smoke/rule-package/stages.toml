@@ -1,0 +1,75 @@
+[[stages]]
+id = "STAGE-PREPARE"
+name = "A 准备阶段"
+business_meaning = "主流程收到请求到启动并行子进程的准备时延"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-SMOKE"]
+type = "APPLICATION_PROCESSING"
+layer = "business"
+order = 1
+process_id = "PROCESS-A-MAIN"
+application_id = "APP-A"
+start_matcher_id = "LOG-REQUEST-START"
+end_matcher_id = "LOG-PARALLEL-START"
+
+[[stages]]
+id = "STAGE-DISPATCH"
+name = "A 到 B 调度时延"
+business_meaning = "主进程启动并行到子进程收到的调用时延"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-SMOKE"]
+type = "RPC_TRANSFER"
+layer = "business"
+order = 2
+relation_id = "REL-A-DISPATCH"
+source_application_id = "APP-A"
+target_application_id = "APP-B"
+start_matcher_id = "LOG-PARALLEL-START"
+end_matcher_id = "LOG-SUBPROCESS-RECEIVED"
+
+[[stages]]
+id = "STAGE-SUBPROCESS-PROCESS"
+name = "B 子进程处理时延"
+business_meaning = "子进程收到请求到处理完成的耗时"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-SMOKE"]
+type = "APPLICATION_PROCESSING"
+layer = "business"
+order = 3
+process_id = "PROCESS-B-WORKER"
+application_id = "APP-B"
+start_matcher_id = "LOG-SUBPROCESS-RECEIVED"
+end_matcher_id = "LOG-SUBPROCESS-COMPLETED"
+
+[[stages]]
+id = "STAGE-JOIN"
+name = "汇总等待时延"
+business_meaning = "子进程完成到全部子进程完成的汇总耗时"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-SMOKE"]
+type = "APPLICATION_PROCESSING"
+layer = "business"
+order = 4
+process_id = "PROCESS-A-MAIN"
+application_id = "APP-A"
+start_matcher_id = "LOG-SUBPROCESS-COMPLETED"
+end_matcher_id = "LOG-ALL-COMPLETED"
+
+[[stages]]
+id = "STAGE-FINALIZE"
+name = "A 收尾阶段"
+business_meaning = "全部子进程完成到请求成功的收尾时延"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-SMOKE"]
+type = "APPLICATION_PROCESSING"
+layer = "business"
+order = 5
+process_id = "PROCESS-A-MAIN"
+application_id = "APP-A"
+start_matcher_id = "LOG-ALL-COMPLETED"
+end_matcher_id = "LOG-REQUEST-SUCCESS"

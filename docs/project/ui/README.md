@@ -1,8 +1,8 @@
 Document ID: UI-BASELINE
 Status: Approved
 Approved by: 用户
-Approved at: 2026-07-09
-Depends on: REQ-SEARCH, REQ-SAVED-QUERY, REQ-LATENCY, REQ-VIEW
+Approved at: 2026-08-25
+Depends on: REQ-SEARCH, REQ-LATENCY, REQ-VIEW
 Supersedes: docs/vscode/specs/latency-selected-request-app-lanes.svg
 
 # 项目 UI 基线
@@ -12,21 +12,34 @@ Supersedes: docs/vscode/specs/latency-selected-request-app-lanes.svg
 ## 已确认的 UI 资产
 
 - `latency-analysis-approved.svg`：时延分析页面的早期基线，保留作为时延分析方向参考。
-- `log-search-workbench-wireframe.png`：日志搜索页与查询管理页的原型图，体现当前确认的页面结构和交互分工。
 - `rule-config-layered-import-wireframe.svg`：规则包版本树、完整 ZIP 导入和节点编辑弹窗的低保真原型，待本轮确认。
-
-![Log search workbench wireframe](./log-search-workbench-wireframe.png)
+- 日志搜索页已按「快速单查询 + 加载态 + 截断滚动」重定为文字基线（见下）；旧的 `log-search-workbench-wireframe.png` 与 `log-search-task-states-wireframe.svg` 已作废（Superseded）。
 
 ## 当前页面约定
 
 ### 日志搜索页
 
-- 页面顶部放置日志文件夹选择，与日志搜索条件同一行，便于先选目录再搜索。
-- 左侧为查询列表，可折叠，支持按分组筛选。
-- 查询列表提供“新建”入口，创建和查看详情都通过弹窗完成。
-- 单击查询项会填充到当前搜索条件中。
-- 双击查询项会打开详情弹窗。
-- 主页面只保留搜索相关操作，不把编辑表单直接铺在页面上。
+- 页面顶部放置日志文件夹选择与时间范围，便于先选目录再搜索。
+- 搜索条件区只保留「关键字/正则 + 匹配模式 + 区分大小写 + 保存条件 + 搜索」，不做查询列表或分组筛选。
+- 结果区在未出结果时显示加载态；出结果后展示命中列表（≤1000，滚动）与截断提示。
+- 命中项提供「查看上下文」，点击切换为上下文视图并可返回。
+
+### 日志搜索页（加载态与截断）
+
+搜索为单个快速查询，未出结果时显示加载态，完成后展示命中列表：
+
+- 发起搜索后未出结果时，结果区显示「加载中」。
+- 命中按时间排序，最多展示前 1000 条，滚动查看、不分页。
+- 总匹配超过 1000 时展示 `truncated` 提示与总匹配数。
+- 不做进度条、取消按钮或任务 ID。
+
+UX 与需求映射：
+
+| UX ID | 状态 | 需求 |
+| --- | --- | --- |
+| UX-SEARCH-001 | 发起搜索 → 加载态 | REQ-WEB-007 |
+| UX-SEARCH-002 | 截断 + 滚动 | REQ-WEB-008 |
+| UX-SEARCH-003 | 查看上下文 | REQ-SEARCH |
 
 ### 时延分析页
 

@@ -1,0 +1,55 @@
+[[domains]]
+id = "DOMAIN-SMOKE"
+name = "冒烟领域"
+application_ids = ["APP-A", "APP-B", "APP-C", "APP-D"]
+
+[[applications]]
+id = "APP-A"
+name = "订单编排应用"
+domain_id = "DOMAIN-SMOKE"
+log_prefix = "A00010"
+
+[[applications]]
+id = "APP-B"
+name = "B 处理应用"
+domain_id = "DOMAIN-SMOKE"
+log_prefix = "B00020"
+
+[[applications]]
+id = "APP-C"
+name = "C 处理应用"
+domain_id = "DOMAIN-SMOKE"
+log_prefix = "C00030"
+
+[[applications]]
+id = "APP-D"
+name = "D 收尾应用"
+domain_id = "DOMAIN-SMOKE"
+log_prefix = "D00040"
+
+[[processes]]
+id = "PROCESS-A-MAIN"
+name = "A 主流程"
+kind = "MAIN"
+application_id = "APP-A"
+
+[[processes]]
+id = "PROCESS-B-WORKER"
+name = "B 子进程"
+kind = "SUB"
+application_id = "APP-B"
+parent_process_id = "PROCESS-A-MAIN"
+
+[[processes]]
+id = "PROCESS-C-WORKER"
+name = "C 子进程"
+kind = "SUB"
+application_id = "APP-C"
+parent_process_id = "PROCESS-A-MAIN"
+
+[[processes]]
+id = "PROCESS-D-WORKER"
+name = "D 收尾子进程"
+kind = "SUB"
+application_id = "APP-D"
+parent_process_id = "PROCESS-A-MAIN"

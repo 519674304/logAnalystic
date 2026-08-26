@@ -1,7 +1,7 @@
 Document ID: RESP-MAP
-Status: Draft
-Approved by:
-Approved at:
+Status: Approved
+Approved by: 用户
+Approved at: 2026-08-25
 Depends on: DOMAIN-MAP, CTX-LOG-WORKSPACE, CTX-RULE-CONFIG, CTX-LATENCY-ANALYSIS
 Supersedes:
 
@@ -11,14 +11,14 @@ Supersedes:
 
 | ID | 目的 | 输入 | 输出 | 复杂度 | 详细设计 |
 | --- | --- | --- | --- | --- | --- |
-| `RESP-LOG-LOAD` | 读取日志并建立导入批次 | 本地文件 | ImportedLogBatch | 中 | 总图内说明 |
-| `RESP-LOG-PARSE` | 固定格式解析 | 原始行 | ParsedLogEntry | 中 | 总图内说明 |
-| `RESP-LOG-DATASET` | 时间合并并发布数据集 | 解析记录 | ParsedLogDataset | 中 | 总图内说明 |
-| `RESP-LOG-QUALITY` | 汇总质量与耗时 | 导入结果 | DataQualitySummary | 简单 | 总图内说明 |
-| `RESP-LOG-SEARCH` | 搜索、过滤和上下文 | 数据集、查询 | SearchResult | 复杂 | 01 |
-| `RESP-SAVED-QUERY` | 管理保存查询 | 查询命令 | SavedQueryCatalog | 简单 | 总图内说明 |
+| `RESP-LOG-OPEN` | 打开目录、扫描候选文件 | 目录路径 | Workspace { file_list, summary } | 中 | 总图内说明 |
+| `RESP-LOG-STREAM` | 流式读取原始行（固定缓冲、跨块拼接、长行上限） | 时间范围、文件清单 | 原始行迭代 | 中 | 总图内说明 |
+| `RESP-LOG-PARSE` | 固定格式解析 | 原始行 | LogEntry | 中 | 总图内说明 |
+| `RESP-LOG-QUALITY` | 汇总质量与耗时 | 读取/解析结果 | DataQualitySummary | 简单 | 总图内说明 |
+| `RESP-LOG-SEARCH` | 快速单查询、过滤和上下文 | 搜索条件、范围 | SearchResult / LogContextData | 复杂 | 01 |
+| `RESP-SAVE-SEARCH-CONDITIONS` | 保存搜索条件 | 保存命令 | SavedSearchConditions | 简单 | 总图内说明 |
 
-`RESP-LOG-LOAD`、`RESP-LOG-PARSE` 和 `RESP-LOG-DATASET` 依次形成不可变数据集；任一职责不得解释业务流程。`RESP-SAVED-QUERY` 独立持久化，只保存查询条件。
+`RESP-LOG-OPEN`、`RESP-LOG-STREAM` 和 `RESP-LOG-PARSE` 统一收敛到 `LogSource` 端口实现，任一职责不得解释业务流程。`RESP-SAVE-SEARCH-CONDITIONS` 独立持久化，只保存搜索条件，不持有会话日志结果。
 
 ## 规则配置
 
@@ -35,14 +35,14 @@ Supersedes:
 
 | ID | 目的 | 输入 | 输出 | 复杂度 | 详细设计 |
 | --- | --- | --- | --- | --- | --- |
-| `RESP-ANALYSIS-SCOPE` | 固化分析范围 | 时间、场景、数据版本 | AnalysisScope | 简单 | 04 |
+| `RESP-ANALYSIS-SCOPE` | 固化分析范围 | 时间、场景 | AnalysisScope | 简单 | 04 |
 | `RESP-SCENARIO-RESOLVE` | 解析有效规则 | 快照、场景 | EffectiveAnalysisRules | 中 | 04 |
-| `RESP-REQUEST-RECOGNIZE` | 划分 req | 数据集、边界规则、范围 | RecognizedRequest[] | 复杂 | 03 |
+| `RESP-REQUEST-RECOGNIZE` | 划分 req | LogSource.entries、边界规则、范围 | RecognizedRequest[] | 复杂 | 03 |
 | `RESP-LOG-MATCH` | req 内关键日志匹配 | 请求范围、有效 matcher | MatcherHit[] | 复杂 | 04 |
 | `RESP-STAGE-CALCULATE` | 计算阶段时延 | 命中、有效 stage | StageLatency[] | 复杂 | 04 |
 | `RESP-LATENCY-STATISTICS` | 汇总阶段统计 | 请求阶段结果 | LatencyStatistics | 中 | 04 |
 | `RESP-ANALYSIS-ASSEMBLE` | 组装不可变结果 | 全部分析产物 | LatencyAnalysisRun | 中 | 04 |
-| `RESP-ANALYSIS-COORDINATE` | 协调完整分析流程 | 数据集、规则、范围 | LatencyAnalysisResult | 复杂 | 04 |
+| `RESP-ANALYSIS-COORDINATE` | 协调完整分析流程 | LogSource、规则、范围 | LatencyAnalysisResult | 复杂 | 04 |
 
 ## 结果投影与交付
 
@@ -70,9 +70,9 @@ Supersedes:
 
 ## 需求追踪
 
-- REQ-INGEST -> RESP-LOG-LOAD / PARSE / DATASET / QUALITY
+- REQ-INGEST -> RESP-LOG-OPEN / STREAM / PARSE / QUALITY
 - REQ-SEARCH -> RESP-LOG-SEARCH
-- REQ-SAVED-QUERY -> RESP-SAVED-QUERY
+- REQ-SEARCH（保存条件）-> RESP-SAVE-SEARCH-CONDITIONS
 - REQ-RULESET -> RESP-RULE-*
 - REQ-REQUEST -> RESP-REQUEST-RECOGNIZE
 - REQ-LATENCY -> RESP-SCENARIO-RESOLVE / LOG-MATCH / STAGE-CALCULATE / STATISTICS / COORDINATE

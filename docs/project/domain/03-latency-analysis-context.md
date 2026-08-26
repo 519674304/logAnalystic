@@ -9,7 +9,7 @@ Supersedes:
 
 ## 目的
 
-使用不可变日志数据集和规则快照，在用户指定时间范围与分析场景下识别 req、匹配关键日志、计算阶段时延并生成统一统计结果。
+使用 `LogSource` 流式解析条目（时间范围子集）和规则快照，在用户指定时间范围与分析场景下识别 req、匹配关键日志、计算阶段时延并生成统一统计结果。
 
 ## 聚合根 LatencyAnalysisRun
 
@@ -18,7 +18,6 @@ Supersedes:
 ```text
 LatencyAnalysisRun
 ├─ AnalysisScope
-├─ datasetId
 ├─ ruleSetSnapshotId
 ├─ scenarioId
 ├─ EffectiveRuleCatalog
@@ -31,13 +30,13 @@ LatencyAnalysisRun
 └─ LatencyStatistics
 ```
 
-聚合生成后不可修改。时间范围、场景、规则快照或数据集变化时创建新的分析运行。
+聚合生成后不可修改。时间范围、场景或规则快照变化时创建新的分析运行。
 
 ## 主要模型
 
 | 类型 | 名称 | 含义 |
 | --- | --- | --- |
-| 值对象 | `AnalysisScope` | 用户选择的起止时间、场景、数据集和规则快照 |
+| 值对象 | `AnalysisScope` | 用户选择的起止时间、场景和规则快照 |
 | 实体 | `RecognizedRequest` | 由全局开始标记划分的一次 req |
 | 值对象 | `RequestBoundary` | 开始日志引用、结束日志引用或下一开始边界 |
 | 实体 | `MatcherHit` | 某 req 内关键 matcher 命中的日志引用 |
@@ -85,7 +84,7 @@ LatencyAnalysisRun
 
 ## 输入与输出
 
-- 输入：`ParsedLogDataset`、`RuleSetSnapshot`、时间范围、分析场景。
+- 输入：`LogSource.entries(时间范围)` 流式结构化日志条目、`RuleSetSnapshot`、时间范围、分析场景。
 - 输出：`LatencyAnalysisResult`，包含有效规则目录、请求明细、关键命中、阶段时延和统计；详细契约见 `04-analysis-result-contract.md`。
 
 ## 上下文关系
@@ -96,7 +95,7 @@ LatencyAnalysisRun
 
 ## 领域事件决定
 
-当前不引入领域事件。主流程采用显式同步调用和返回值；完成、失败和替换通知留给 Phase 3 评估。
+当前不引入领域事件。主流程采用显式同步调用和返回值；完成、失败和替换通知留待后续阶段评估。
 
 ## 问题所有权
 

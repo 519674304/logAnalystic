@@ -7,6 +7,7 @@ declare module 'react' {
     clientX: number
     clientY: number
     preventDefault(): void
+    stopPropagation(): void
     currentTarget: T
   }
   export function useMemo<T>(factory: () => T, deps: readonly unknown[]): T

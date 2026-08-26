@@ -44,6 +44,7 @@ export default function LatencyAnalysisPanel({
   const [requestSort, setRequestSort] = useState<'duration-desc' | 'time-desc'>('duration-desc')
   const [intervalStart, setIntervalStart] = useState(viewModel.intervalStepOptions[0] ?? '')
   const [intervalEnd, setIntervalEnd] = useState(viewModel.intervalStepOptions[1] ?? viewModel.intervalStepOptions[0] ?? '')
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({ normal: true, unfinished: true })
 
   const activeRequest = useMemo(
     () => viewModel.requests.find((request) => request.id === activeRequestId) ?? viewModel.requests[0],
@@ -84,6 +85,10 @@ export default function LatencyAnalysisPanel({
     const nextRequest = viewModel.requests.find((request) => request.id === requestId)
     setActiveRequestId(requestId)
     setActiveBlockId(nextRequest?.slowPointBlockId ?? 'rpc-b')
+  }
+
+  const toggleGroup = (groupId: string) => {
+    setCollapsedGroups((prev) => ({ ...prev, [groupId]: !prev[groupId] }))
   }
 
   const startResize = (kind: 'left' | 'right', startEvent: React.MouseEvent<HTMLButtonElement>) => {
@@ -170,13 +175,21 @@ export default function LatencyAnalysisPanel({
                 return null
               }
 
+              const collapsed = collapsedGroups[group.id] ?? false
+
               return (
                 <section key={group.id} className="request-group">
-                  <div className="request-group-title">
+                  <button
+                    type="button"
+                    className="request-group-title"
+                    onClick={() => toggleGroup(group.id)}
+                    title={collapsed ? '展开' : '收起'}
+                  >
+                    <span className="request-group-disclosure" aria-hidden="true">{collapsed ? '▸' : '▾'}</span>
                     <strong>{group.title}</strong>
-                    <span>{rows.length}</span>
-                  </div>
-                  {rows.map((request) => (
+                    <span className="request-group-count">{rows.length}</span>
+                  </button>
+                  {collapsed ? null : rows.map((request) => (
                     <button
                       key={request.id}
                       type="button"
@@ -259,7 +272,7 @@ export default function LatencyAnalysisPanel({
                 <div className="swimlane-label">{lane}</div>
                 <div className="swimlane-track">
                   {viewModel.laneBlocks
-                    .filter((block) => block.lane === lane)
+                    .filter((block) => block.lane === lane && (!block.requestId || block.requestId === activeRequestId))
                     .map((block) => (
                       <button
                         key={block.id}
@@ -316,7 +329,7 @@ export default function LatencyAnalysisPanel({
           </div>
 
           <div className="step-tree">
-            {viewModel.stepTree.map((step) => {
+            {viewModel.stepTree.filter((step) => !step.requestId || step.requestId === activeRequestId).map((step) => {
               const stepBlock = laneBlockById.get(step.blockId)
 
               return (

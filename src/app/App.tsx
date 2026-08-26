@@ -9,17 +9,42 @@ import {
   importRulePackage,
   listRulePackages,
   listSavedQueries,
-  searchLogs,
   updateRulePackageNode,
   upsertSavedQuery,
 } from '../api/tauri-client'
-import type { LogSearchRequestDto, RulePackageVersionDto, RuleRecordDto, SavedQueryDto } from '../api/dto'
+import { searchLogs } from '../api/http-client'
+import { analyzeSequentialLatency, type LatencyAnalysis, type LatencyStageSpec } from '../api/latency-analysis-client'
+import type {
+  ActiveRuleVersionDto,
+  LogSearchRequestDto,
+  RulePackageVersionDto,
+  RuleRecordDto,
+  SavedQueryDto,
+} from '../api/dto'
 import { mapLogSearchToViewModel } from '../view-model/log-search-view-model'
 import type { LogSearchViewModel } from '../view-model/log-search-view-model'
-import { buildLatencyViewModelFromRules, mapToViewModel, type RequestViewModel } from '../view-model/latency-view-model'
+import {
+  buildLatencyViewModelFromAnalysis,
+  buildLatencyViewModelFromRules,
+  mapToViewModel,
+  type RequestViewModel,
+} from '../view-model/latency-view-model'
 
 const sampleLatencyViewModel = mapToViewModel(latencyResult)
 const defaultTimeRange = '2026-06-12 10:30:00 ~ 2026-06-12 10:45:00'
+const activeRuleVersionStorageKey = 'log-analystic.active-rule-version'
+
+function readActiveRuleVersion(): ActiveRuleVersionDto | null {
+  try {
+    const parsed = JSON.parse(globalThis.localStorage?.getItem(activeRuleVersionStorageKey) ?? '')
+    if (parsed && typeof parsed.ruleSetId === 'string' && typeof parsed.version === 'string') {
+      return parsed as ActiveRuleVersionDto
+    }
+  } catch {
+    // 无生效版本或存储损坏时按未生效处理
+  }
+  return null
+}
 
 const tabs: WorkbenchTab[] = [
   { id: 'log-search', label: '日志搜索' },
@@ -46,6 +71,16 @@ function createEmptySavedQuery(): SavedQueryDto {
   }
 }
 
+function parseTimeRange(timeRange: string): { startTime?: string; endTime?: string } {
+  const parts = timeRange.split('~')
+  const startTime = parts[0]?.trim()
+  const endTime = parts[1]?.trim()
+  return {
+    startTime: startTime || undefined,
+    endTime: endTime || undefined,
+  }
+}
+
 function normalizeSavedQuery(draft: SavedQueryDto): SavedQueryDto {
   return {
     ...draft,
@@ -58,42 +93,43 @@ function normalizeSavedQuery(draft: SavedQueryDto): SavedQueryDto {
   }
 }
 
-function projectRuleRecords(versions: RulePackageVersionDto[]): RuleRecordDto[] {
-  const latestByRuleSet = new Map<string, RulePackageVersionDto>()
-  versions.forEach((version) => {
-    if (!latestByRuleSet.has(version.ruleSetId)) latestByRuleSet.set(version.ruleSetId, version)
-  })
+function projectRuleRecords(versions: RulePackageVersionDto[], active: ActiveRuleVersionDto | null): RuleRecordDto[] {
+  const version = active
+    ? versions.find((item) => item.ruleSetId === active.ruleSetId && item.version === active.version)
+    : undefined
+  if (!version) {
+    return []
+  }
 
-  return Array.from(latestByRuleSet.values()).flatMap((version) =>
-    version.layers
-      .filter((layer) => layer.id === 'matchers' || layer.id === 'stages')
-      .flatMap((layer) =>
-        layer.nodes.map((node) => {
-          const fields = node.fields
-          const scenarios = Array.isArray(fields.applicable_scenario_ids)
-            ? fields.applicable_scenario_ids.filter((value): value is string => typeof value === 'string')
-            : []
-          const stringField = (name: string) => typeof fields[name] === 'string' ? fields[name] as string : undefined
-          return {
-            id: node.id,
-            name: node.name,
-            description: stringField('business_meaning') ?? stringField('description') ?? '',
-            pattern: stringField('pattern') ?? '',
-            enabled: typeof fields.enabled === 'boolean' ? fields.enabled : true,
-            exportEnabled: typeof fields.export_enabled === 'boolean' ? fields.export_enabled : true,
-            scenarios,
-            recordType: layer.id === 'stages' ? 'stage' : 'matcher',
-            stageType: stringField('type'),
-            order: typeof fields.order === 'number' ? fields.order : undefined,
-            applicationId: stringField('application_id'),
-            processId: stringField('process_id'),
-            sourceApplicationId: stringField('source_application_id'),
-            targetApplicationId: stringField('target_application_id'),
-            startMatcherId: stringField('start_matcher_id'),
-            endMatcherId: stringField('end_matcher_id'),
-          } satisfies RuleRecordDto
-        }),
-      ),
+  return version.layers
+    .filter((layer) => layer.id === 'matchers' || layer.id === 'stages')
+    .flatMap((layer) =>
+      layer.nodes.map((node) => {
+      const fields = node.fields
+      const scenarios = Array.isArray(fields.applicable_scenario_ids)
+        ? fields.applicable_scenario_ids.filter((value): value is string => typeof value === 'string')
+        : []
+      const stringField = (name: string) => typeof fields[name] === 'string' ? fields[name] as string : undefined
+      return {
+        id: node.id,
+        name: node.name,
+        description: stringField('business_meaning') ?? stringField('description') ?? '',
+        pattern: stringField('pattern') ?? '',
+        enabled: typeof fields.enabled === 'boolean' ? fields.enabled : true,
+        exportEnabled: typeof fields.export_enabled === 'boolean' ? fields.export_enabled : true,
+        scenarios,
+        matchType: layer.id === 'matchers' ? stringField('type') : undefined,
+        recordType: layer.id === 'stages' ? 'stage' : 'matcher',
+        stageType: stringField('type'),
+        order: typeof fields.order === 'number' ? fields.order : undefined,
+        applicationId: stringField('application_id'),
+        processId: stringField('process_id'),
+        sourceApplicationId: stringField('source_application_id'),
+        targetApplicationId: stringField('target_application_id'),
+        startMatcherId: stringField('start_matcher_id'),
+        endMatcherId: stringField('end_matcher_id'),
+      } satisfies RuleRecordDto
+    }),
   )
 }
 
@@ -157,6 +193,7 @@ export default function App() {
   const [queryEditorOpen, setQueryEditorOpen] = useState(false)
   const [queryEditorDraft, setQueryEditorDraft] = useState<SavedQueryDto>(createEmptySavedQuery())
   const [rulePackages, setRulePackages] = useState<RulePackageVersionDto[]>([])
+  const [activeRuleVersion, setActiveRuleVersion] = useState<ActiveRuleVersionDto | null>(() => readActiveRuleVersion())
   const [activeRuleNodeKey, setActiveRuleNodeKey] = useState('')
   const [ruleDetailOpen, setRuleDetailOpen] = useState(false)
   const [ruleDetailDraft, setRuleDetailDraft] = useState<RuleNodeSelection | null>(null)
@@ -166,19 +203,36 @@ export default function App() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [latencyAnalysisRunId, setLatencyAnalysisRunId] = useState(0)
   const [latencyAnalysisMessage, setLatencyAnalysisMessage] = useState('等待分析')
-  const rules = useMemo(() => projectRuleRecords(rulePackages), [rulePackages])
+  const [latencyAnalysis, setLatencyAnalysis] = useState<LatencyAnalysis | null>(null)
+  const rules = useMemo(() => projectRuleRecords(rulePackages, activeRuleVersion), [rulePackages, activeRuleVersion])
   const latencyViewModel = useMemo(
-    () => buildLatencyViewModelFromRules(rules, sampleLatencyViewModel),
-    [rules, latencyAnalysisRunId],
+    () =>
+      latencyAnalysis
+        ? buildLatencyViewModelFromAnalysis(rules, latencyAnalysis, sampleLatencyViewModel)
+        : buildLatencyViewModelFromRules(rules, sampleLatencyViewModel),
+    [rules, latencyAnalysis, latencyAnalysisRunId],
   )
 
   const runSearch = async (record?: SavedQueryDto) => {
     const source = record ?? queryDraft
+    const { startTime, endTime } = parseTimeRange(source.timeRange)
     const request: LogSearchRequestDto = {
+      path: logFolderPath,
       query: source.query,
       mode: source.mode,
       caseSensitive: source.caseSensitive,
       contextLines: 1,
+      startTime,
+      endTime,
+    }
+
+    if (!request.path.trim()) {
+      setErrorMessage('请先选择日志文件夹')
+      return
+    }
+    if (!request.query.trim()) {
+      setErrorMessage('请输入搜索内容')
+      return
     }
 
     setIsSearching(true)
@@ -379,15 +433,68 @@ export default function App() {
     }
   }
 
-  const runLatencyAnalysis = () => {
-    const enabledStages = rules.filter((rule) => rule.enabled && rule.recordType === 'stage')
+  const activateRuleVersion = (next: ActiveRuleVersionDto | null) => {
+    setActiveRuleVersion(next)
+    if (next) {
+      window.localStorage.setItem(activeRuleVersionStorageKey, JSON.stringify(next))
+    } else {
+      window.localStorage.removeItem(activeRuleVersionStorageKey)
+    }
+    setLatencyAnalysis(null)
+    setLatencyAnalysisMessage(next ? `已切换生效版本：${next.ruleSetId} ${next.version}` : '已取消生效版本')
+  }
 
-    setLatencyAnalysisRunId((value) => value + 1)
-    setLatencyAnalysisMessage(
-      enabledStages.length > 0
-        ? `已按导入规则生成 ${enabledStages.length} 个阶段`
-        : '未导入 stage 规则，当前展示样例数据',
+  const runLatencyAnalysis = async () => {
+    const activeExists =
+      activeRuleVersion !== null &&
+      rulePackages.some((item) => item.ruleSetId === activeRuleVersion.ruleSetId && item.version === activeRuleVersion.version)
+
+    if (!activeExists) {
+      setLatencyAnalysisMessage('请先在规则配置页设置生效版本')
+      return
+    }
+
+    if (!logFolderPath.trim()) {
+      setLatencyAnalysisMessage('请先选择日志文件夹')
+      return
+    }
+
+    const matchers = new Map(
+      rules
+        .filter((rule) => rule.recordType === 'matcher')
+        .map((rule) => [rule.id, rule] as const),
     )
+    const stageSpecs: LatencyStageSpec[] = rules
+      .filter((rule) => rule.enabled && rule.recordType === 'stage')
+      .sort((left, right) => (left.order ?? Number.MAX_SAFE_INTEGER) - (right.order ?? Number.MAX_SAFE_INTEGER))
+      .map((stage): LatencyStageSpec | null => {
+        const start = stage.startMatcherId ? matchers.get(stage.startMatcherId) : undefined
+        const end = stage.endMatcherId ? matchers.get(stage.endMatcherId) : undefined
+        if (!start?.pattern || !end?.pattern) return null
+        return {
+          id: stage.id,
+          startPattern: start.pattern,
+          endPattern: end.pattern,
+          startMode: start.matchType === 'regex' ? 'regex' : 'keyword',
+          endMode: end.matchType === 'regex' ? 'regex' : 'keyword',
+        }
+      })
+      .filter((spec): spec is LatencyStageSpec => spec !== null)
+
+    if (stageSpecs.length === 0) {
+      setLatencyAnalysisMessage('未导入带 start/end 匹配器的 stage 规则')
+      return
+    }
+
+    setLatencyAnalysisMessage('正在分析…')
+    try {
+      const result = await analyzeSequentialLatency(logFolderPath, stageSpecs)
+      setLatencyAnalysis(result)
+      setLatencyAnalysisRunId((value) => value + 1)
+      setLatencyAnalysisMessage(`已分析 ${result.requests.length} 个请求 · ${result.stats.sampleCount} 个阶段样本`)
+    } catch (error) {
+      setLatencyAnalysisMessage(`分析失败：${error instanceof Error ? error.message : String(error)}`)
+    }
   }
 
   const exportLatencyCsv = () => {
@@ -454,7 +561,7 @@ export default function App() {
         <LatencyAnalysisPanel
           viewModel={latencyViewModel}
           analysisMessage={latencyAnalysisMessage}
-          onAnalyze={runLatencyAnalysis}
+          onAnalyze={() => void runLatencyAnalysis()}
           onExport={exportLatencyCsv}
         />
       ) : null}
@@ -462,6 +569,7 @@ export default function App() {
       {activeTabId === 'rule-config' ? (
         <RuleCatalogPanel
           versions={rulePackages}
+          activeRuleVersion={activeRuleVersion}
           activeNodeKey={activeRuleNodeKey}
           detailOpen={ruleDetailOpen}
           detailDraft={ruleDetailDraft}
@@ -470,6 +578,7 @@ export default function App() {
           onOpenNode={openRuleNode}
           onCloseDetail={() => setRuleDetailOpen(false)}
           onImportPackage={importRules}
+          onActivateVersion={activateRuleVersion}
           onDetailDraftChange={setRuleDetailDraft}
           onSaveNode={saveRuleDetail}
         />

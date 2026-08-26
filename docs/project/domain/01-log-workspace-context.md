@@ -1,76 +1,72 @@
 Document ID: CTX-LOG-WORKSPACE
 Status: Approved
 Approved by: 用户
-Approved at: 2026-07-06
-Depends on: REQ-INGEST, REQ-SEARCH, REQ-SAVED-QUERY
+Approved at: 2026-08-25
+Depends on: REQ-INGEST, REQ-SEARCH, REQ-WEB
 Supersedes:
 
 # 日志工作区上下文
 
+> 因「整体载入 → 流式」重构而修订（原版批准于 2026-07-06）：删除「导入批次 + 时间合并 + 搜索索引 + ParsedLogDataset」，改为「目录工作区 + 统一 `LogSource` 端口 + 快速单查询 + 保存搜索条件」。
+
 ## 目的
 
-将本地固定格式日志转换为可搜索、可引用的当前会话数据集，并维护跨会话保存的查询定义。该上下文只描述日志事实，不解释业务请求或时延阶段。
+把本地日志目录转换成一个可搜索、可引用的工作区，并通过统一的 `LogSource` 端口向搜索、时延分析和后续「问题提示」提供日志访问。该上下文只描述日志事实，不解释业务请求或时延阶段。
 
 ## 聚合
 
-### LogWorkspaceSession
+### LogWorkspace
 
-当前会话聚合根，拥有导入批次、加载状态、数据集引用和质量摘要。关闭软件后销毁。
+当前会话的工作区聚合根：持有目录路径、扫描到的文件清单、摘要（文件数、总大小）与数据质量统计。不持有日志正文或解析后的内存数据集；关闭后销毁。
 
-### SavedQueryCatalog
+### SavedSearchConditions
 
-保存查询聚合根，拥有保存查询的创建、修改、删除和命名唯一性。生命周期跨越日志会话。
+保存的搜索条件（关键字/匹配模式/大小写），本地持久化，跨会话保留。不做命名查询列表。
 
-## 主要模型
+## 统一日志访问端口
 
-| 类型 | 名称 | 含义 |
-| --- | --- | --- |
-| 实体 | `ImportedFile` | 本次批次读取的文件及身份信息 |
-| 实体 | `ParsedLogEntry` | 解析成功的日志，具有稳定日志 ID 和全局序号 |
-| 值对象 | `OriginalTimestamp` | 日志中的原始时间戳文本及可比较时间值 |
-| 值对象 | `LogLocation` | 文件 ID、原始行号和合并后序号 |
-| 值对象 | `DataQualitySummary` | 总行数、成功数、失败数、耗时 |
-| 实体 | `SavedQuery` | 名称、条件、分组与标签 |
+`LogSource` 是本上下文对外提供的唯一日志访问契约，初始由 ripgrep 实现（Rust `regex` + `memchr` + 字面前缀提取），可替换为数据库实现：
+
+| 操作 | 说明 |
+| --- | --- |
+| `open(dir)` | 校验目录、扫描候选文件，返回 `Workspace { file_list, summary }` |
+| `scan(range)` | 流式迭代原始行：固定缓冲区、跨块残行拼接、长行上限 |
+| `search(cond, range)` | 快速单查询：返回 `{ hits≤1000, context, total_matches, truncated }` |
+| `read_context(ref, n)` | 按行引用读前后 n 行上下文 |
+| `entries(range)` | 流式解析指定时间范围的结构化日志条目，供时延分析 |
 
 ## 不变量
 
-- 一个成功发布的数据集在当前会话中不可修改。
-- 合并后每条成功日志具有唯一日志 ID 和稳定全局序号。
-- 解析失败行不进入搜索、请求识别或时延分析。
-- 原始时间戳文本必须保留，以支持 CSV 原样导出。
-- 保存查询不持有当前会话日志结果。
+- 工作区只保存文件清单与摘要，不保存完整日志文本。
+- 流式读取的内存使用不随日志总大小线性增长。
+- 解析失败行不进入搜索、请求识别或时延分析，只进入数据质量统计。
+- 搜索命中默认最多保留前 1000 条，同时持续统计 `total_matches` 并返回 `truncated`。
+- 保存搜索条件不持有当前会话日志结果。
 
 ## 输入与输出
 
-- 输入：本地日志文件、搜索条件、日志引用、保存查询命令。
-- 输出：`ParsedLogDataset`、`SearchResult`、`LogContextData`、`DataQualitySummary`、`SavedQueryCatalog`。
+- 输入：本地日志目录、搜索条件、时间范围、日志引用、保存搜索条件命令。
+- 输出：`Workspace` 摘要、`LogSource` 端口、`LogSearchResult`、`LogContextData`、数据质量统计、保存搜索条件。
 
 ## 领域服务
 
-- 日志固定格式解析。
-- 多文件时间合并。
-- 搜索索引构建与查询执行。
-- 按日志引用读取边界日志和前后上下文。
+日志固定格式解析、流式读取、快速单查询执行、上下文读取，统一收敛到 `LogSource` 端口实现中，不作为独立并行路径。
 
 ## 上下文关系
 
-- 向时延分析提供不可变 `ParsedLogDataset`。
-- 通过 `LogLookupPort` 向结果投影提供原始日志读取。
+- 经 `LogSource` 端口向搜索、时延分析及后续「问题提示」提供日志访问。
 - 不依赖规则配置或时延分析模型。
 
 ## 问题所有权
 
-- 文件读取与重复：RESP-LOG-LOAD。
-- 单行解析失败：RESP-LOG-PARSE、RESP-LOG-QUALITY。
-- 正则语法和超时：RESP-LOG-SEARCH。
+文件读取/重复、单行解析失败与质量、正则语法与超时，分别落在日志工作区内的读取、解析、搜索职责上（具体 RESP 映射在 Phase 4 职责设计复核）。
 
 ## 需求覆盖
 
-REQ-INGEST、REQ-SEARCH、REQ-SAVED-QUERY。
+REQ-INGEST、REQ-SEARCH、REQ-WEB（工作区/搜索/有界内存）。
 
 ## 明确排除
 
-- 不识别业务请求。
-- 不执行业务 matcher。
-- 不计算阶段或统计时延。
+- 不识别业务请求、不执行业务 matcher、不计算阶段或统计时延。
 - 不永久保存会话日志数据。
+- 不预先构建完整解析数据集或搜索索引。

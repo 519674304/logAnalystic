@@ -1,0 +1,133 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="940" viewBox="0 0 1440 940">
+  <defs>
+    <style>
+      .t{font-family:Arial,"Microsoft YaHei",sans-serif;fill:#172033}
+      .m{font-family:Arial,"Microsoft YaHei",sans-serif;fill:#607084}
+      .h{font-family:Arial,"Microsoft YaHei",sans-serif;font-weight:700;fill:#172033}
+      .w{font-family:Arial,"Microsoft YaHei",sans-serif;font-weight:700;fill:#fff}
+      .panel{fill:#fff;stroke:#cfd8e3;stroke-width:1}
+      .field{fill:#fff;stroke:#cfd8e3;stroke-width:1}
+      .soft{fill:#f8fafc;stroke:#d8e0eb;stroke-width:1}
+      .active{fill:#eff6ff;stroke:#2563eb;stroke-width:1.5}
+      .slow{fill:#fff7ed;stroke:#fb923c;stroke-width:1.5}
+      .tag{font-family:Arial,"Microsoft YaHei",sans-serif;font-size:10;fill:#607084}
+      .barTrack{fill:#e9edf3;stroke:#d8e0eb;stroke-width:1}
+      .barFill{fill:#2563eb}
+      .barCancel{fill:#fb923c}
+    </style>
+  </defs>
+
+  <rect width="1440" height="940" fill="#edf1f6"/>
+
+  <!-- header -->
+  <rect class="panel" x="24" y="20" width="1392" height="54" rx="8"/>
+  <text class="m" x="44" y="39" font-size="11">LOCAL WEB TOOL · 仅监听 127.0.0.1</text>
+  <text class="h" x="44" y="64" font-size="20">日志分析工作台</text>
+
+  <!-- tabs -->
+  <rect class="panel" x="24" y="86" width="1392" height="44" rx="8"/>
+  <rect x="44" y="93" width="100" height="30" rx="6" fill="#dff0ff"/>
+  <text class="h" x="62" y="113" font-size="15">日志搜索</text>
+  <text class="t" x="168" y="113" font-size="15">时延分析</text>
+  <text class="t" x="260" y="113" font-size="15">规则配置</text>
+  <text class="t" x="352" y="113" font-size="15">问题提示</text>
+
+  <!-- search conditions (unchanged from baseline) -->
+  <text class="m" x="24" y="158" font-size="12">日志目录</text>
+  <rect class="field" x="24" y="166" width="350" height="34" rx="6"/>
+  <text class="t" x="36" y="188" font-size="13">D:\logs\2026-06-12</text>
+  <text class="m" x="386" y="158" font-size="12">关键字 / 正则</text>
+  <rect class="field" x="386" y="166" width="320" height="34" rx="6"/>
+  <text class="t" x="398" y="188" font-size="13">RPC.*timeout</text>
+  <text class="m" x="718" y="158" font-size="12">级别</text>
+  <rect class="field" x="718" y="166" width="80" height="34" rx="6"/>
+  <text class="t" x="730" y="188" font-size="13">W</text>
+  <text class="m" x="810" y="158" font-size="12">应用前缀</text>
+  <rect class="field" x="810" y="166" width="110" height="34" rx="6"/>
+  <text class="t" x="822" y="188" font-size="13">A00010</text>
+  <rect x="1290" y="166" width="80" height="34" rx="6" fill="#2563eb"/>
+  <text class="w" x="1310" y="188" font-size="14">搜索</text>
+
+  <!-- left query list (unchanged from baseline) -->
+  <rect class="panel" x="24" y="214" width="286" height="662" rx="8"/>
+  <text class="h" x="42" y="244" font-size="16">查询列表</text>
+  <rect class="field" x="248" y="228" width="42" height="28" rx="6"/>
+  <text class="m" x="258" y="247" font-size="12">收起</text>
+
+  <text class="m" x="42" y="282" font-size="12">分组筛选</text>
+  <rect class="field" x="42" y="290" width="118" height="32" rx="6"/>
+  <text class="t" x="54" y="311" font-size="13">全部</text>
+  <rect x="170" y="290" width="122" height="32" rx="6" fill="#2563eb"/>
+  <text class="w" x="192" y="311" font-size="13">+ 新建查询</text>
+
+  <rect class="active" x="42" y="342" width="250" height="54" rx="6"/>
+  <text class="h" x="56" y="366" font-size="14">RPC 超时</text>
+  <text class="m" x="56" y="386" font-size="12">关键字 RPC.*timeout · 级别 W</text>
+  <rect class="soft" x="42" y="404" width="250" height="54" rx="6"/>
+  <text class="h" x="56" y="428" font-size="14">wakeup 唤醒</text>
+  <text class="m" x="56" y="448" font-size="12">关键字 wakeup · A00010</text>
+  <rect class="soft" x="42" y="466" width="250" height="54" rx="6"/>
+  <text class="h" x="56" y="490" font-size="14">子进程分支</text>
+  <text class="m" x="56" y="510" font-size="12">关键字 子进程 · tag</text>
+  <text class="m" x="42" y="558" font-size="11">单击填充条件 · 双击查看详情</text>
+
+  <!-- ============ 主结果区 · 状态 1：搜索中 ============ -->
+  <rect class="panel" x="322" y="214" width="1094" height="230" rx="8"/>
+  <text class="h" x="342" y="244" font-size="16">搜索结果 · 搜索中</text>
+  <text class="tag" x="482" y="244">UX-SEARCH-002 · 后台任务，立即返回任务 ID（REQ-WEB-007 / 008）</text>
+
+  <rect class="barTrack" x="342" y="262" width="780" height="16" rx="8"/>
+  <rect class="barFill" x="342" y="262" width="468" height="16" rx="8"/>
+  <text class="h" x="1136" y="276" font-size="14">60%</text>
+  <text class="m" x="342" y="300" font-size="13">已扫描 320 MB / 512 MB · 3 / 4 文件 · 命中 845（持续增长）</text>
+
+  <rect x="1270" y="286" width="104" height="30" rx="6" fill="#fb923c"/>
+  <text class="w" x="1288" y="306" font-size="13">取消搜索</text>
+  <text class="tag" x="1310" y="328">REQ-WEB-009</text>
+
+  <rect class="soft" x="342" y="334" width="1054" height="44" rx="6"/>
+  <text class="m" x="356" y="352" font-size="12">10:39:38.257 · W · A00010/WakeupManager</text>
+  <text class="t" x="356" y="370" font-size="13">mainProcess dispatch wakeup request [undefined,]</text>
+  <rect class="soft" x="342" y="386" width="1054" height="44" rx="6"/>
+  <text class="m" x="356" y="404" font-size="12">10:40:02.120 · W · A00010/RpcClient</text>
+  <text class="t" x="356" y="422" font-size="13">RPC调用B 超时 · timeout · 410ms</text>
+  <text class="m" x="342" y="444" font-size="12">命中随扫描流式追加，不必等全量扫描结束</text>
+
+  <!-- ============ 状态 2：已完成 ============ -->
+  <rect class="panel" x="322" y="456" width="1094" height="230" rx="8"/>
+  <text class="h" x="342" y="486" font-size="16">搜索结果 · 已完成</text>
+  <text class="tag" x="482" y="486">UX-SEARCH-003 · 截断 + 分页（REQ-WEB-011）</text>
+
+  <rect class="barTrack" x="342" y="504" width="780" height="16" rx="8"/>
+  <rect class="barFill" x="342" y="504" width="780" height="16" rx="8"/>
+  <text class="h" x="1136" y="518" font-size="14">100%</text>
+
+  <rect class="slow" x="342" y="536" width="400" height="32" rx="6"/>
+  <text x="356" y="557" font-family="Arial,'Microsoft YaHei',sans-serif" font-size="13" fill="#9a3412">已截断：总匹配 15,234，仅显示前 1000 条</text>
+  <text class="tag" x="758" y="557">truncated 标志 + total_matches 持续统计</text>
+
+  <rect class="soft" x="342" y="580" width="1054" height="44" rx="6"/>
+  <text class="m" x="356" y="598" font-size="12">10:39:38.257 · W · A00010/WakeupManager</text>
+  <text class="t" x="356" y="616" font-size="13">mainProcess dispatch wakeup request [undefined,]</text>
+  <rect class="soft" x="342" y="632" width="1054" height="44" rx="6"/>
+  <text class="m" x="356" y="650" font-size="12">10:40:02.120 · W · A00010/RpcClient</text>
+  <text class="t" x="356" y="668" font-size="13">RPC调用B 超时 · timeout · 410ms</text>
+
+  <rect class="soft" x="1020" y="684" width="376" height="34" rx="6"/>
+  <text class="m" x="1040" y="706" font-size="13">第 1 页 / 100 页 · 上一页 · 下一页</text>
+
+  <!-- ============ 状态 3：已取消 ============ -->
+  <rect class="panel" x="322" y="698" width="1094" height="170" rx="8"/>
+  <text class="h" x="342" y="728" font-size="16">搜索结果 · 已取消</text>
+  <text class="tag" x="482" y="728">UX-SEARCH-004 · 取消后停止读取，保留已完成进度（REQ-WEB-009）</text>
+
+  <rect class="barTrack" x="342" y="746" width="780" height="16" rx="8"/>
+  <rect class="barCancel" x="342" y="746" width="351" height="16" rx="8"/>
+  <text class="h" x="1136" y="760" font-size="14">45%</text>
+  <text class="m" x="342" y="786" font-size="13">已取消 · 已扫描 230 MB / 512 MB · 命中 320</text>
+  <text class="m" x="342" y="814" font-size="13">取消后不再继续读取剩余文件；已扫部分的结果与命中仍可查看</text>
+
+  <!-- footer mapping note -->
+  <rect class="soft" x="24" y="886" width="1392" height="38" rx="8"/>
+  <text class="m" x="44" y="910" font-size="12">UX-SEARCH-001 提交→后台任务 · UX-SEARCH-002 进度 · UX-SEARCH-003 截断/分页 · UX-SEARCH-004 取消 → 映射 REQ-WEB-007 / 008 / 011 / 009</text>
+</svg>

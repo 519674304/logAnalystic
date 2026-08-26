@@ -7,10 +7,13 @@ export interface IssueDto {
 export type LogSearchMode = 'keyword' | 'regex'
 
 export interface LogSearchRequestDto {
+  path: string
   query: string
   mode: LogSearchMode
   caseSensitive: boolean
   contextLines: number
+  startTime?: string
+  endTime?: string
 }
 
 export interface LogSearchHitDto {
@@ -27,6 +30,7 @@ export interface LogSearchHitDto {
 export interface LogSearchResponseDto {
   totalMatches: number
   hits: LogSearchHitDto[]
+  truncated?: boolean
 }
 
 export interface SavedQueryDto {
@@ -49,6 +53,7 @@ export interface RuleRecordDto {
   enabled: boolean
   exportEnabled: boolean
   scenarios: string[]
+  matchType?: string
   recordType?: 'matcher' | 'stage' | string
   stageType?: string
   order?: number
@@ -93,6 +98,11 @@ export interface RulePackageVersionDto {
   ruleSetId: string
   version: string
   layers: RulePackageLayerDto[]
+}
+
+export interface ActiveRuleVersionDto {
+  ruleSetId: string
+  version: string
 }
 
 export interface RulePackageNodeUpdateDto {

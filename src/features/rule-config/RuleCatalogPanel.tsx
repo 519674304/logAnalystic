@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import type * as React from 'react'
 import type {
+  ActiveRuleVersionDto,
   RulePackageFieldValue,
   RulePackageImportDto,
   RulePackageNodeDto,
@@ -18,6 +19,7 @@ export type RuleNodeSelection = {
 
 type RuleCatalogPanelProps = {
   versions: RulePackageVersionDto[]
+  activeRuleVersion: ActiveRuleVersionDto | null
   activeNodeKey: string
   detailOpen: boolean
   detailDraft: RuleNodeSelection | null
@@ -26,6 +28,7 @@ type RuleCatalogPanelProps = {
   onOpenNode: (selection: RuleNodeSelection) => void
   onCloseDetail: () => void
   onImportPackage: (payload: RulePackageImportDto) => Promise<void>
+  onActivateVersion: (next: ActiveRuleVersionDto | null) => void
   onDetailDraftChange: (next: RuleNodeSelection) => void
   onSaveNode: () => Promise<void>
 }
@@ -51,6 +54,7 @@ function updateFieldValue(original: RulePackageFieldValue, rawValue: string): Ru
 
 export default function RuleCatalogPanel({
   versions,
+  activeRuleVersion,
   activeNodeKey,
   detailOpen,
   detailDraft,
@@ -59,6 +63,7 @@ export default function RuleCatalogPanel({
   onOpenNode,
   onCloseDetail,
   onImportPackage,
+  onActivateVersion,
   onDetailDraftChange,
   onSaveNode,
 }: RuleCatalogPanelProps) {
@@ -133,13 +138,44 @@ export default function RuleCatalogPanel({
             <span>双击具体节点编辑</span>
           </div>
           <div className="rule-package-tree">
-            {versions.map((version) => (
-              <details key={`${version.ruleSetId}/${version.version}`} className="package-version-node" open>
-                <summary>
-                  <span className="tree-disclosure" aria-hidden="true">▾</span>
-                  <strong>{version.version}</strong>
-                  <em>{version.ruleSetId}</em>
-                </summary>
+            {versions.map((version) => {
+              const isActive =
+                activeRuleVersion?.ruleSetId === version.ruleSetId && activeRuleVersion?.version === version.version
+
+              return (
+                <details key={`${version.ruleSetId}/${version.version}`} className="package-version-node" open>
+                  <summary>
+                    <span className="tree-disclosure" aria-hidden="true">▾</span>
+                    <strong>{version.version}</strong>
+                    <em>{version.ruleSetId}</em>
+                    {isActive ? (
+                      <button
+                        type="button"
+                        className="version-active-badge"
+                        title="点击取消生效"
+                        onClick={(event: React.MouseEvent<HTMLButtonElement>) => {
+                          event.preventDefault()
+                          event.stopPropagation()
+                          onActivateVersion(null)
+                        }}
+                      >
+                        生效中
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="version-activate-button"
+                        title="设为生效版本，时延分析将使用该版本规则"
+                        onClick={(event: React.MouseEvent<HTMLButtonElement>) => {
+                          event.preventDefault()
+                          event.stopPropagation()
+                          onActivateVersion({ ruleSetId: version.ruleSetId, version: version.version })
+                        }}
+                      >
+                        设为生效
+                      </button>
+                    )}
+                  </summary>
                 <div className="package-version-children">
                   {version.layers.map((layer) => (
                     <details key={layer.id} className="package-layer-node" open>
@@ -178,9 +214,10 @@ export default function RuleCatalogPanel({
                       </div>
                     </details>
                   ))}
-                </div>
-              </details>
-            ))}
+                  </div>
+                </details>
+              )
+            })}
             {versions.length === 0 ? (
               <div className="empty-state rule-package-empty">
                 <strong>还没有规则版本</strong>

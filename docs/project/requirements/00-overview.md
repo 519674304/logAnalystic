@@ -1,7 +1,7 @@
 Document ID: REQ-OVERVIEW
 Status: Approved
 Approved by: 用户
-Approved at: 2026-07-05
+Approved at: 2026-08-25
 Depends on: IDX-000
 Supersedes: docs/vscode/specs/requirements.md, 日志分析软件需求.md
 
@@ -22,7 +22,7 @@ Supersedes: docs/vscode/specs/requirements.md, 日志分析软件需求.md
 
 1. 测试人员选择一个或多个 `.log` / `.txt` 文件。
 2. 系统按固定日志格式解析并合并日志。
-3. 测试人员用关键字、短语、正则和结构化条件搜索日志，并可保存常用查询。
+3. 测试人员用关键字、短语、正则和结构化条件搜索日志，并可保存常用查询条件。
 4. 测试人员导入或维护业务规则集。
 5. 系统根据规则识别请求列表。
 6. 测试人员按业务流程、时间、结束结果、是否异常筛选请求列表，并选择某一次请求。
@@ -35,7 +35,7 @@ Supersedes: docs/vscode/specs/requirements.md, 日志分析软件需求.md
 | --- | --- | --- |
 | 日志导入与数据质量 | 基础能力 | 02-log-ingestion-and-quality-requirements.md |
 | 日志搜索与上下文查看 | 基础能力 | 03-log-search-and-context-requirements.md |
-| 保存查询管理 | 基础能力 | 04-saved-query-requirements.md |
+| 保存查询条件 | 基础能力 | 03-log-search-and-context-requirements.md |
 | 业务规则集管理 | 进阶能力前置 | 05-rule-set-management-requirements.md |
 | 业务请求识别 | 进阶能力 | 06-request-recognition-requirements.md |
 | 阶段定义与时延计算 | 进阶能力 | 07-latency-analysis-requirements.md |
@@ -46,7 +46,7 @@ Supersedes: docs/vscode/specs/requirements.md, 日志分析软件需求.md
 
 ### Delivery 1: 基础能力
 
-用户可以导入固定格式日志，完成解析、搜索、上下文查看，并保存常用查询。该阶段不做查询结果导出。
+用户可以导入固定格式日志，完成解析、搜索、上下文查看，并保存常用查询条件。该阶段不做查询结果导出。
 
 ### Delivery 2: 进阶能力
 
@@ -64,10 +64,10 @@ Supersedes: docs/vscode/specs/requirements.md, 日志分析软件需求.md
 ## 成功标准
 
 - 测试人员无需开发协助即可在本机完成日志导入、搜索、请求选择和时延查看。
-- 对 5MB 以内日志，加载到可查询状态 P90 <= 1s。
-- 对 30MB 以内日志，加载到可查询状态 P90 <= 5s。
-- 常用查询、过滤、请求切换、时延视图切换 P90 <= 1s。
-- 峰值内存不超过 2GB。
+- 浏览器无需启动 Tauri 即可通过本机 Web 服务完成日志分析主流程。
+- 内存使用不随日志总大小线性增长（固定缓冲区、有限结果集）。
+- 30MB 日志在目标机器上正常处理；1~2GB 日志（典型 ≤1GB，上限约 2GB）不因整体载入内存而阻塞。（五档规模烟测验证，见 REQ-WEB）
+- 常用查询、过滤、请求切换、时延视图切换保持快速响应。
 - UI 展示不要求一次展开所有请求；单次请求明细优先，其它请求用统计摘要表达。
 
 ## 术语
@@ -82,5 +82,5 @@ Supersedes: docs/vscode/specs/requirements.md, 日志分析软件需求.md
 | 跨应用业务阶段 | 请求在不同应用或业务节点之间推进的阶段链，例如 A 处理、A 到 B 传递、B 处理。 |
 | 应用内部阶段 | 同一个应用内部由规则定义的细分阶段。 |
 | 应用间传递阶段 | 一个应用完成到另一个应用开始之间的耗时阶段。 |
-| 保存查询 | 测试人员本地保存的搜索条件集合，不受业务规则集导入和恢复影响。 |
+| 保存查询条件 | 测试人员本地保存的搜索条件（关键字/匹配模式/大小写），不做命名查询列表，不受业务规则集导入和恢复影响。 |
 | 规则集 | 用于识别业务流程、请求边界、阶段、分支和结束结果的本地业务配置。 |

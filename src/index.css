@@ -634,13 +634,32 @@ button {
 
 .request-group-title {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 6px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 2px 0;
+  text-align: left;
+  font: inherit;
   color: #334155;
   font-size: 12px;
+  cursor: pointer;
 }
 
-.request-group-title span {
+.request-group-title:hover {
+  color: #172033;
+}
+
+.request-group-disclosure {
+  width: 12px;
+  flex-shrink: 0;
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.request-group-count {
+  margin-left: auto;
   min-width: 20px;
   border-radius: 999px;
   background: #e2e8f0;
@@ -1045,6 +1064,39 @@ button {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.package-version-node > summary .version-active-badge,
+.package-version-node > summary .version-activate-button {
+  margin-left: auto;
+  border-radius: 6px;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 8px;
+  flex-shrink: 0;
+}
+
+.package-version-node > summary .version-active-badge {
+  border: 1px solid #16a34a;
+  background: #f0fdf4;
+  color: #15803d;
+  font-weight: 600;
+}
+
+.package-version-node > summary .version-active-badge:hover {
+  background: #dcfce7;
+}
+
+.package-version-node > summary .version-activate-button {
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #475569;
+}
+
+.package-version-node > summary .version-activate-button:hover {
+  border-color: #2563eb;
+  color: #2563eb;
 }
 
 .package-layer-node > summary strong {
