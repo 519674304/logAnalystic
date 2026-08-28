@@ -7,4 +7,5 @@ export const TauriCommands = {
   listRulePackages: 'list_rule_packages',
   importRulePackage: 'import_rule_package',
   updateRulePackageNode: 'update_rule_package_node',
+  deleteRulePackage: 'delete_rule_package',
 } as const

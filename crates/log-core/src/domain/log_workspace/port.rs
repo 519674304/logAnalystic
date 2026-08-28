@@ -1,5 +1,6 @@
 use serde::Serialize;
 
+use crate::domain::log_workspace::log_entry::LogEntry;
 use crate::domain::log_workspace::workspace::Workspace;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -71,4 +72,6 @@ pub trait LogSource {
         line_number: u64,
         context_lines: usize,
     ) -> Result<LogContextData, String>;
+    /// 单遍解析目录内时间范围内的全部日志条目，供时延分析流式消费。
+    fn entries(&self, dir: &str, range: &TimeRange) -> Result<Vec<LogEntry>, String>;
 }

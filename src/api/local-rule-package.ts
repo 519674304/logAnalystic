@@ -358,6 +358,16 @@ export function mergeImportedRulePackage(
   }
 }
 
+export function removeLocalRulePackageVersion(
+  versions: RulePackageVersionDto[],
+  ruleSetId: string,
+  version: string,
+): RulePackageVersionDto[] {
+  return versions.filter(
+    (item) => !(item.ruleSetId === ruleSetId && item.version === version),
+  )
+}
+
 export function updateLocalRulePackageNodeTree(
   versions: RulePackageVersionDto[],
   payload: RulePackageNodeUpdateDto,

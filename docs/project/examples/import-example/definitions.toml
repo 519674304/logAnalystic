@@ -1,0 +1,74 @@
+# 定义层：分析场景、领域、应用、进程与流程的静态结构。
+# 本层只定义元素；日志匹配见 matchers.toml，时延计算见 stages.toml。
+#
+# 进程靠 application_id 归属应用；跨应用进程是 flow 中的平级成员（无 parent_process_id），
+# 跨应用的调用关系由 stages.toml 中的 flow 级 RPC stage 表达。
+
+# ---------- 分析场景 ----------
+[[scenarios]]
+id = "SCENARIO-EXAMPLE"
+name = "端侧订单主链路"
+description = "端侧一次请求从启动、并行子进程到请求完成的最小链路。"
+
+# ---------- 领域 ----------
+[[domains]]
+id = "DOMAIN-EXAMPLE"
+name = "端侧订单领域"
+
+# ---------- 应用 ----------
+# log_prefix 用于定位、过滤与展示日志来源（对应日志行里的 A00010/B00020/C00030/D00040）。
+[[applications]]
+id = "APP-A"
+name = "订单编排应用"
+log_prefix = "A00010"
+
+[[applications]]
+id = "APP-B"
+name = "B 处理应用"
+log_prefix = "B00020"
+
+[[applications]]
+id = "APP-C"
+name = "C 处理应用"
+log_prefix = "C00030"
+
+[[applications]]
+id = "APP-D"
+name = "D 收尾应用"
+log_prefix = "D00040"
+
+# ---------- 进程 ----------
+# kind 可选：MAIN（主进程，默认）/ SUB（子进程）。
+# 跨应用子进程是 flow 的平级成员，不挂 parent_process_id；并行归属由 stages.toml 的 sub_process_ids 表达。
+[[processes]]
+id = "PROCESS-A-MAIN"
+name = "A 主流程"
+kind = "MAIN"
+application_id = "APP-A"
+
+[[processes]]
+id = "PROCESS-B-WORKER"
+name = "B 子进程"
+kind = "SUB"
+application_id = "APP-B"
+
+[[processes]]
+id = "PROCESS-C-WORKER"
+name = "C 子进程"
+kind = "SUB"
+application_id = "APP-C"
+
+[[processes]]
+id = "PROCESS-D-WORKER"
+name = "D 收尾子进程"
+kind = "SUB"
+application_id = "APP-D"
+
+# ---------- 流程 ----------
+# flow 只有 stage，无开始/结尾边界；请求边界由 stages 的 start/end matcher 表达。
+[[flows]]
+id = "FLOW-EXAMPLE"
+name = "端侧订单处理流程"
+domain_id = "DOMAIN-EXAMPLE"
+root_process_id = "PROCESS-A-MAIN"
+process_ids = ["PROCESS-A-MAIN", "PROCESS-B-WORKER", "PROCESS-C-WORKER", "PROCESS-D-WORKER"]

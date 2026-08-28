@@ -115,32 +115,6 @@ export default function LatencyAnalysisPanel({
 
   return (
     <section className="tab-page latency-page">
-      <div className="analysis-toolbar">
-        <label className="field compact-field">
-          <span>场景</span>
-          <select
-            value={selectedScenarioId ?? ''}
-            onChange={(event: React.ChangeEvent<HTMLSelectElement>) => onScenarioChange(event.target.value)}
-          >
-            {scenarios.length === 0 ? (
-              <option value="">全场景</option>
-            ) : (
-              scenarios.map((scenario) => (
-                <option key={scenario.id} value={scenario.id}>{scenario.name}</option>
-              ))
-            )}
-          </select>
-        </label>
-
-        <button type="button" className="primary-button" onClick={onAnalyze}>
-          分析
-        </button>
-        <button type="button" className="ghost-button strong" onClick={onExport}>
-          导出 CSV
-        </button>
-        <span className="analysis-status">{analysisMessage}</span>
-      </div>
-
       <div
         className={`latency-workspace ${leftHidden ? 'left-hidden' : ''}`}
         style={{
@@ -153,6 +127,35 @@ export default function LatencyAnalysisPanel({
             <button type="button" className="icon-button" onClick={() => setLeftHidden(true)}>
               收起
             </button>
+          </div>
+
+          <div className="analysis-controls">
+            <label className="field compact-field">
+              <span>场景</span>
+              <select
+                value={selectedScenarioId ?? ''}
+                onChange={(event: React.ChangeEvent<HTMLSelectElement>) => onScenarioChange(event.target.value)}
+              >
+                {scenarios.length === 0 ? (
+                  <option value="">全场景</option>
+                ) : (
+                  scenarios.map((scenario) => (
+                    <option key={scenario.id} value={scenario.id}>{scenario.name}</option>
+                  ))
+                )}
+              </select>
+            </label>
+
+            <div className="analysis-actions">
+              <button type="button" className="primary-button" onClick={onAnalyze}>
+                分析
+              </button>
+              <button type="button" className="ghost-button strong" onClick={onExport}>
+                导出 CSV
+              </button>
+            </div>
+
+            <span className="analysis-status">{analysisMessage}</span>
           </div>
 
           <div className="request-tools">

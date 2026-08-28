@@ -9,13 +9,14 @@ export class ApiHttpError extends Error {
   }
 }
 
-async function postJson<T>(path: string, body: unknown): Promise<T> {
+async function requestJson<T>(method: string, path: string, body?: unknown): Promise<T> {
   let response: Response
   try {
+    const hasBody = body !== undefined
     response = await fetch(`${BASE_URL}${path}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      method,
+      headers: hasBody ? { 'Content-Type': 'application/json' } : undefined,
+      body: hasBody ? JSON.stringify(body) : undefined,
     })
   } catch {
     throw new ApiHttpError(`无法连接服务端（${BASE_URL}），请先运行 cargo run -p server`)
@@ -33,6 +34,18 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
   }
 
   return (await response.json()) as T
+}
+
+export function getJson<T>(path: string): Promise<T> {
+  return requestJson<T>('GET', path)
+}
+
+export function putJson<T>(path: string, body: unknown): Promise<T> {
+  return requestJson<T>('PUT', path, body)
+}
+
+export function postJson<T>(path: string, body: unknown): Promise<T> {
+  return requestJson<T>('POST', path, body)
 }
 
 export function searchLogs(request: LogSearchRequestDto): Promise<LogSearchResponseDto> {

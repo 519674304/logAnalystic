@@ -29,6 +29,7 @@ type RuleCatalogPanelProps = {
   onCloseDetail: () => void
   onImportPackage: (payload: RulePackageImportDto) => Promise<void>
   onActivateVersion: (next: ActiveRuleVersionDto | null) => void
+  onDeleteVersion: (ruleSetId: string, version: string) => void
   onDetailDraftChange: (next: RuleNodeSelection) => void
   onSaveNode: () => Promise<void>
 }
@@ -64,6 +65,7 @@ export default function RuleCatalogPanel({
   onCloseDetail,
   onImportPackage,
   onActivateVersion,
+  onDeleteVersion,
   onDetailDraftChange,
   onSaveNode,
 }: RuleCatalogPanelProps) {
@@ -175,6 +177,18 @@ export default function RuleCatalogPanel({
                         设为生效
                       </button>
                     )}
+                    <button
+                      type="button"
+                      className="version-delete-button"
+                      title="删除整个版本及其全部规则节点"
+                      onClick={(event: React.MouseEvent<HTMLButtonElement>) => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        onDeleteVersion(version.ruleSetId, version.version)
+                      }}
+                    >
+                      删除
+                    </button>
                   </summary>
                 <div className="package-version-children">
                   {version.layers.map((layer) => (

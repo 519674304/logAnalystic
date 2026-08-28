@@ -140,7 +140,7 @@ button {
   height: 100%;
   min-height: 0;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr) auto;
   overflow: hidden;
 }
 
@@ -222,12 +222,23 @@ button {
   font-weight: 700;
 }
 
-.analysis-toolbar {
+.analysis-controls {
   display: grid;
-  grid-template-columns: 150px minmax(0, 1fr) auto auto minmax(180px, 1fr);
-  gap: 10px;
-  align-items: end;
+  gap: 8px;
   margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.analysis-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+}
+
+.analysis-actions .primary-button,
+.analysis-actions .ghost-button {
+  width: 100%;
 }
 
 .analysis-status {
@@ -266,7 +277,7 @@ button {
 
 .request-panel {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto minmax(0, 1fr);
 }
 
 .left-hidden .request-panel {
@@ -705,7 +716,7 @@ button {
 
 .swimlane-row {
   display: grid;
-  grid-template-columns: 104px minmax(0, 1fr);
+  grid-template-columns: 168px minmax(0, 1fr);
   align-items: center;
   gap: 8px;
 }
@@ -714,6 +725,9 @@ button {
   color: #334155;
   font-size: 13px;
   text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .swimlane-track {
@@ -1009,14 +1023,19 @@ button {
 }
 
 .package-version-node > summary .version-active-badge,
-.package-version-node > summary .version-activate-button {
-  margin-left: auto;
+.package-version-node > summary .version-activate-button,
+.package-version-node > summary .version-delete-button {
   border-radius: 6px;
   font-size: 11px;
   line-height: 1;
   cursor: pointer;
   padding: 4px 8px;
   flex-shrink: 0;
+}
+
+.package-version-node > summary .version-active-badge,
+.package-version-node > summary .version-activate-button {
+  margin-left: auto;
 }
 
 .package-version-node > summary .version-active-badge {
@@ -1039,6 +1058,17 @@ button {
 .package-version-node > summary .version-activate-button:hover {
   border-color: #2563eb;
   color: #2563eb;
+}
+
+.package-version-node > summary .version-delete-button {
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.package-version-node > summary .version-delete-button:hover {
+  border-color: #dc2626;
+  background: #fee2e2;
 }
 
 .package-layer-node > summary strong {

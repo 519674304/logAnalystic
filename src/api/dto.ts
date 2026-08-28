@@ -105,6 +105,11 @@ export interface ActiveRuleVersionDto {
   version: string
 }
 
+export interface RuleConfigDto {
+  versions: RulePackageVersionDto[]
+  active: ActiveRuleVersionDto | null
+}
+
 export interface RulePackageNodeUpdateDto {
   ruleSetId: string
   version: string

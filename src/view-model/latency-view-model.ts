@@ -251,12 +251,43 @@ function getStageKind(stage: RuleRecordDto): LaneBlockKind {
   return 'main'
 }
 
-function getStageLane(stage: RuleRecordDto) {
-  if (stage.applicationId) {
-    return stage.applicationId
+interface DefinitionContext {
+  applicationNameById: Map<string, string>
+  processNameById: Map<string, string>
+  processApplicationId: Map<string, string>
+}
+
+function buildDefinitionContext(rules: RuleRecordDto[]): DefinitionContext {
+  const applicationNameById = new Map<string, string>()
+  const processNameById = new Map<string, string>()
+  const processApplicationId = new Map<string, string>()
+
+  for (const rule of rules) {
+    if (rule.recordType === 'application') {
+      applicationNameById.set(rule.id, rule.name)
+    } else if (rule.recordType === 'process') {
+      processNameById.set(rule.id, rule.name)
+      if (rule.applicationId) {
+        processApplicationId.set(rule.id, rule.applicationId)
+      }
+    }
   }
+
+  return { applicationNameById, processNameById, processApplicationId }
+}
+
+function getStageLane(stage: RuleRecordDto, context: DefinitionContext) {
   if (stage.processId) {
-    return stage.processId
+    const processName = context.processNameById.get(stage.processId) ?? stage.processId
+    const applicationId = context.processApplicationId.get(stage.processId)
+    const applicationName = applicationId ? context.applicationNameById.get(applicationId) : undefined
+    return applicationName ? `${applicationName} · ${processName}` : processName
+  }
+  if (stage.applicationId) {
+    return context.applicationNameById.get(stage.applicationId) ?? stage.applicationId
+  }
+  if (stage.flowId) {
+    return stage.flowId
   }
   return '未指定应用'
 }
@@ -270,7 +301,8 @@ export function buildLatencyViewModelFromRules(rules: RuleRecordDto[], fallback:
     return fallback
   }
 
-  const lanes = Array.from(new Set(stages.map(getStageLane)))
+  const context = buildDefinitionContext(rules)
+  const lanes = Array.from(new Set(stages.map((stage) => getStageLane(stage, context))))
   const gapMs = 12
   let cursor = 0
   const timings = stages.map((stage, index) => {
@@ -284,7 +316,7 @@ export function buildLatencyViewModelFromRules(rules: RuleRecordDto[], fallback:
 
   const laneBlocks = timings.map(({ stage, durationMs, startMs, endMs }) => ({
     id: stage.id,
-    lane: getStageLane(stage),
+    lane: getStageLane(stage, context),
     label: stage.description || stage.name,
     startPercent: clampPercent((startMs / totalSpan) * 100),
     widthPercent: clampPercent((durationMs / totalSpan) * 100),
@@ -380,7 +412,8 @@ export function buildLatencyViewModelFromAnalysis(
     }
   })
 
-  const lanes = Array.from(new Set(stages.map(getStageLane)))
+  const context = buildDefinitionContext(rules)
+  const lanes = Array.from(new Set(stages.map((stage) => getStageLane(stage, context))))
 
   const laneBlocks: LaneBlockViewModel[] = analysis.requests.flatMap((request) => {
     const samplesByStage = new Map(request.samples.map((sample) => [sample.stageId, sample]))
@@ -402,7 +435,7 @@ export function buildLatencyViewModelFromAnalysis(
         return {
           id: stage.id,
           requestId: request.id,
-          lane: getStageLane(stage),
+          lane: getStageLane(stage, context),
           label: stage.description || stage.name,
           startPercent,
           widthPercent,

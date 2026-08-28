@@ -1,0 +1,94 @@
+# 日志匹配器层：把原始日志文本映射为业务事件。
+# application_id 引用 definitions.toml 的 applications.id；一个进程的所有 matcher 与应用同属一个应用。
+# type 为 keyword（关键字）或 regex（正则）。
+
+# ---------- APP-A（订单编排应用）----------
+[[log_matchers]]
+id = "LOG-REQUEST-START"
+name = "请求启动"
+business_meaning = "端侧收到请求并启动主流程。"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-EXAMPLE"]
+application_id = "APP-A"
+type = "keyword"
+pattern = "request started"
+
+[[log_matchers]]
+id = "LOG-PARALLEL-START"
+name = "启动并行子进程"
+business_meaning = "主流程进入并行阶段。"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-EXAMPLE"]
+application_id = "APP-A"
+type = "keyword"
+pattern = "start parallel subprocesses"
+
+[[log_matchers]]
+id = "LOG-ALL-COMPLETED"
+name = "全部子进程完成"
+business_meaning = "主流程汇总全部子进程结果。"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-EXAMPLE"]
+application_id = "APP-A"
+type = "keyword"
+pattern = "all subprocesses completed"
+
+# ---------- APP-B（B 处理应用）----------
+[[log_matchers]]
+id = "LOG-SUBPROCESS-RECEIVED"
+name = "子进程收到请求"
+business_meaning = "子进程收到并行请求。"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-EXAMPLE"]
+application_id = "APP-B"
+type = "regex"
+pattern = 'subprocess received, sequence=[0-9]+'
+
+[[log_matchers]]
+id = "LOG-PREPARATION-COMPLETED"
+name = "子进程准备完成"
+business_meaning = "子进程数据准备完成。"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-EXAMPLE"]
+application_id = "APP-B"
+type = "keyword"
+pattern = "preparation completed"
+
+[[log_matchers]]
+id = "LOG-SUBPROCESS-COMPLETED"
+name = "子进程完成"
+business_meaning = "子进程处理完成。"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-EXAMPLE"]
+application_id = "APP-B"
+type = "keyword"
+pattern = "subprocess completed"
+
+[[log_matchers]]
+id = "LOG-TIMEOUT"
+name = "子进程超时"
+business_meaning = "等待子进程超时（异常结尾）。"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-EXAMPLE"]
+application_id = "APP-B"
+type = "keyword"
+pattern = "timeout waiting for subprocess"
+
+# ---------- APP-D（D 收尾应用）----------
+[[log_matchers]]
+id = "LOG-REQUEST-SUCCESS"
+name = "请求成功"
+business_meaning = "全局请求完成成功。"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-EXAMPLE"]
+application_id = "APP-D"
+type = "keyword"
+pattern = "request completed successfully"

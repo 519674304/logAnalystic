@@ -19,9 +19,15 @@ yarn-error.log*
 pnpm-debug.log*
 *.log
 
+# Sample fixtures are intentional (not runtime logs)
+!docs/project/examples/fixture/*.log
+
 # Environment
 .env
 .env.*
 
 # Runtime config (local)
 /app-data/
+
+# Claude Code local settings
+.claude/

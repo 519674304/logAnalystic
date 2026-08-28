@@ -34,8 +34,8 @@ assert(panel.includes('package-layer-node'), 'Rule tree must render layer nodes.
 assert(panel.includes('package-leaf-node'), 'Rule tree must render concrete rule nodes.')
 assert(panel.includes('onDoubleClick'), 'Concrete nodes must support double-click editing.')
 assert(panel.includes('rule-node-modal'), 'Node editing must use a modal.')
-assert(!panel.includes('onDeleteRule'), 'Rule package page must not expose rule deletion.')
-assert(!panel.includes('handleDelete'), 'Rule package page must not expose delete handling.')
+assert(panel.includes('onDeleteVersion'), 'Rule package page must expose whole-version deletion.')
+assert(panel.includes('version-delete-button'), 'Version nodes must expose a delete control.')
 
 assert(app.includes('listRulePackages'), 'App must load the package version tree.')
 assert(app.includes('importRulePackage'), 'App must import complete ZIP packages.')

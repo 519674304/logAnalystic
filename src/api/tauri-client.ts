@@ -1,16 +1,20 @@
 import { TauriCommands } from './commands'
 import type {
+  ActiveRuleVersionDto,
   LogSearchRequestDto,
   LogSearchResponseDto,
+  RuleConfigDto,
   RulePackageImportDto,
   RulePackageImportResultDto,
   RulePackageNodeUpdateDto,
   RulePackageVersionDto,
   SavedQueryDto,
 } from './dto'
+import { getJson, putJson } from './http-client'
 import {
   mergeImportedRulePackage,
   parseLocalRulePackageImport,
+  removeLocalRulePackageVersion,
   updateLocalRulePackageNodeTree,
 } from './local-rule-package'
 
@@ -25,7 +29,6 @@ const sampleLogLines = [
 ]
 
 const savedQueryStorageKey = 'log-analystic.saved-queries'
-const rulePackageStorageKey = 'log-analystic.rule-packages'
 
 function parseLine(rawLine: string, lineNumber: number) {
   const match = rawLine.match(/^(\S+\s+\S+)\s+\[(\w+)\]\s+(\S+)\s+(.*)$/)
@@ -109,25 +112,10 @@ function writeLocalList(storageKey: string, value: unknown[]) {
   globalThis.localStorage?.setItem(storageKey, JSON.stringify(value))
 }
 
-function localListRulePackages(): RulePackageVersionDto[] {
-  return readLocalList<RulePackageVersionDto>(rulePackageStorageKey)
-}
+const ruleConfigPath = '/api/rule-config'
 
-function writeLocalRulePackages(value: RulePackageVersionDto[]) {
-  writeLocalList(rulePackageStorageKey, value)
-}
-
-async function localImportRulePackage(payload: RulePackageImportDto): Promise<RulePackageImportResultDto> {
-  const parsed = await parseLocalRulePackageImport(payload)
-  const merged = mergeImportedRulePackage(localListRulePackages(), parsed)
-  writeLocalRulePackages(merged.versions)
-  return merged
-}
-
-function localUpdateRulePackageNode(payload: RulePackageNodeUpdateDto): RulePackageVersionDto[] {
-  const updated = updateLocalRulePackageNodeTree(localListRulePackages(), payload)
-  writeLocalRulePackages(updated)
-  return updated
+async function loadRuleConfig(): Promise<RuleConfigDto> {
+  return getJson<RuleConfigDto>(ruleConfigPath)
 }
 
 async function invokeCommand<T>(command: string, payload?: unknown): Promise<T | null> {
@@ -187,23 +175,40 @@ export async function deleteSavedQuery(queryId: string): Promise<SavedQueryDto[]
   return next
 }
 
+// 规则配置已迁移到后端 HTTP（/api/rule-config）；保存的查询仍为 localStorage 过渡态。
 export async function importRulePackage(payload: RulePackageImportDto): Promise<RulePackageImportResultDto> {
-  const result = await invokeCommand<RulePackageImportResultDto>(TauriCommands.importRulePackage, { payload })
-  if (!result) {
-    return localImportRulePackage(payload)
-  }
-  return result
+  const parsed = await parseLocalRulePackageImport(payload)
+  const config = await loadRuleConfig()
+  const merged = mergeImportedRulePackage(config.versions, parsed)
+  await putJson(ruleConfigPath, { ...config, versions: merged.versions })
+  return merged
 }
 
 export async function listRulePackages(): Promise<RulePackageVersionDto[]> {
-  const result = await invokeCommand<RulePackageVersionDto[]>(TauriCommands.listRulePackages)
-  return result ?? localListRulePackages()
+  const config = await loadRuleConfig()
+  return config.versions
 }
 
 export async function updateRulePackageNode(payload: RulePackageNodeUpdateDto): Promise<RulePackageVersionDto[]> {
-  const result = await invokeCommand<RulePackageVersionDto[]>(TauriCommands.updateRulePackageNode, { payload })
-  if (!result) {
-    return localUpdateRulePackageNode(payload)
-  }
-  return result
+  const config = await loadRuleConfig()
+  const versions = updateLocalRulePackageNodeTree(config.versions, payload)
+  await putJson(ruleConfigPath, { ...config, versions })
+  return versions
+}
+
+export async function deleteRulePackage(ruleSetId: string, version: string): Promise<RulePackageVersionDto[]> {
+  const config = await loadRuleConfig()
+  const versions = removeLocalRulePackageVersion(config.versions, ruleSetId, version)
+  await putJson(ruleConfigPath, { ...config, versions })
+  return versions
+}
+
+export async function loadActiveRuleVersion(): Promise<ActiveRuleVersionDto | null> {
+  const config = await loadRuleConfig()
+  return config.active
+}
+
+export async function saveActiveRuleVersion(active: ActiveRuleVersionDto | null): Promise<void> {
+  const config = await loadRuleConfig()
+  await putJson(ruleConfigPath, { ...config, active })
 }

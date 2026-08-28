@@ -1,0 +1,35 @@
+10001,2026-07-06 10:00:00.000 41001 41001 I A00010/com.example.shop/Order: request started
+10002,2026-07-06 10:00:00.030 41001 41001 I A00010/com.example.shop/Order: start parallel subprocesses
+10003,2026-07-06 10:00:00.045 42002 42002 I B00020/com.example.shop/BWorker: subprocess received, sequence=0
+10004,2026-07-06 10:00:00.057 42002 42002 I B00020/com.example.shop/BWorker: preparation completed
+10005,2026-07-06 10:00:00.085 42002 42002 I B00020/com.example.shop/BWorker: subprocess completed
+10006,2026-07-06 10:00:00.093 41001 41001 I A00010/com.example.shop/Order: all subprocesses completed
+10007,2026-07-06 10:00:00.105 44004 44004 I D00040/com.example.shop/DWorker: request completed successfully
+10008,2026-07-06 10:00:01.000 41001 41001 I A00010/com.example.shop/Order: request started
+10009,2026-07-06 10:00:01.050 41001 41001 I A00010/com.example.shop/Order: start parallel subprocesses
+10010,2026-07-06 10:00:01.070 42002 42002 I B00020/com.example.shop/BWorker: subprocess received, sequence=0
+10011,2026-07-06 10:00:01.097 42002 42002 I B00020/com.example.shop/BWorker: preparation completed
+10012,2026-07-06 10:00:01.160 42002 42002 I B00020/com.example.shop/BWorker: subprocess completed
+10013,2026-07-06 10:00:01.170 41001 41001 I A00010/com.example.shop/Order: all subprocesses completed
+10014,2026-07-06 10:00:01.185 44004 44004 I D00040/com.example.shop/DWorker: request completed successfully
+10015,2026-07-06 10:00:02.000 41001 41001 I A00010/com.example.shop/Order: request started
+10016,2026-07-06 10:00:02.040 41001 41001 I A00010/com.example.shop/Order: start parallel subprocesses
+10017,2026-07-06 10:00:02.140 42002 42002 I B00020/com.example.shop/BWorker: subprocess received, sequence=0
+10018,2026-07-06 10:00:02.156 42002 42002 I B00020/com.example.shop/BWorker: preparation completed
+10019,2026-07-06 10:00:02.195 42002 42002 I B00020/com.example.shop/BWorker: subprocess completed
+10020,2026-07-06 10:00:02.207 41001 41001 I A00010/com.example.shop/Order: all subprocesses completed
+10021,2026-07-06 10:00:02.227 44004 44004 I D00040/com.example.shop/DWorker: request completed successfully
+10022,2026-07-06 10:00:03.000 41001 41001 I A00010/com.example.shop/Order: request started
+10023,2026-07-06 10:00:03.055 41001 41001 I A00010/com.example.shop/Order: start parallel subprocesses
+10024,2026-07-06 10:00:03.080 42002 42002 I B00020/com.example.shop/BWorker: subprocess received, sequence=0
+10025,2026-07-06 10:00:03.146 42002 42002 I B00020/com.example.shop/BWorker: preparation completed
+10026,2026-07-06 10:00:03.300 42002 42002 I B00020/com.example.shop/BWorker: subprocess completed
+10027,2026-07-06 10:00:03.315 41001 41001 I A00010/com.example.shop/Order: all subprocesses completed
+10028,2026-07-06 10:00:03.340 44004 44004 I D00040/com.example.shop/DWorker: request completed successfully
+10029,2026-07-06 10:00:04.000 41001 41001 I A00010/com.example.shop/Order: request started
+10030,2026-07-06 10:00:04.035 41001 41001 I A00010/com.example.shop/Order: start parallel subprocesses
+10031,2026-07-06 10:00:04.053 42002 42002 I B00020/com.example.shop/BWorker: subprocess received, sequence=0
+10032,2026-07-06 10:00:04.074 42002 42002 I B00020/com.example.shop/BWorker: preparation completed
+10033,2026-07-06 10:00:04.123 42002 42002 I B00020/com.example.shop/BWorker: subprocess completed
+10034,2026-07-06 10:00:04.133 41001 41001 I A00010/com.example.shop/Order: all subprocesses completed
+10035,2026-07-06 10:00:04.151 44004 44004 I D00040/com.example.shop/DWorker: request completed successfully

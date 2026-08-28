@@ -1,112 +1,84 @@
 Document ID: PLAN-RUST-LATENCY-ANALYSIS
-Status: Draft
-Approved by:
-Approved at:
-Depends on: PLAN-RUST-LOG-WORKSPACE, PLAN-RUST-RULE-CONFIGURATION, RESP-LATENCY-PIPELINE-DESIGN, CONTRACT-LATENCY-ANALYSIS-RESULT
-Supersedes:
+Status: Approved
+Approved by: 用户（下一步落地清单）
+Approved at: 2026-08-28
+Depends on: PLAN-RUST-LOG-WORKSPACE, PLAN-RUST-RULE-CONFIGURATION, RESP-LATENCY-PIPELINE-DESIGN
+Supersedes: PLAN-RUST-LATENCY-ANALYSIS（旧版：result 闭合、并行子进程）
 
 # Rust 时延分析核心计划
 
-## PLAN-ANALYSIS-001 分析范围和场景解析
+> 因「栈式拆分 + 拦截丢弃」新建模修订：去掉 result 分支闭合与并行子进程（`sub_process_ids`）建模。
+> 请求识别改为纯栈式——`request_start` 命中即压栈开新请求；拦截 end matcher 命中弹栈、整个请求丢弃；
+> process 级 stage 取第一对起止算时延。算法镜像前端 TS 原型 `analyzeLatencyStream`（已用冒烟场景验证）。
 
-- 需求：REQ-REQUEST、REQ-LATENCY。
-- 职责：RESP-ANALYSIS-SCOPE、RESP-SCENARIO-RESOLVE。
-- ADR：ADR-002。
-- 目标：固定时间范围、场景、数据集版本和规则快照，生成有效分析规则。
-- 依赖：PLAN-LOG-003、PLAN-RULE-003。
-- 文件/模块：`domain/latency_analysis/analysis_scope.rs`、`effective_rule_resolver.rs`。
+## PLAN-ANALYSIS-001 输入契约
+
+- 需求：REQ-LATENCY。
+- 职责：RESP-ANALYSIS-SCOPE。
+- 目标：把规则投影为 `LatencyAnalysisSpec`，作为核心的纯输入（本模块不读 TOML）。
+- 依赖：PLAN-RULE-003。
+- 文件/模块：`domain/latency_analysis/spec.rs`。
 - 步骤：
-  1. 生成 AnalysisScope。
-  2. 校验 scenarioId。
-  3. 聚合 stage（`order=1`）的开始 matcher 始终生效。
-  4. 普通 matcher/stage 按 enabled 和 applicable_scenario_ids 过滤。
-  5. 保留 export_enabled 到结果目录。
-- 测试：FULL/CORE 场景、无效场景、边界规则不受场景影响。
-- 完成证据：同一数据集在不同场景生成不同有效规则，但请求边界一致。
+  1. `Marker { pattern, mode }`：keyword / regex，大小写不敏感。
+  2. `request_start`：flow 级 `order=1` 非拦截 stage 的 start matcher。
+  3. `intercept_ends`：`kind="intercept"` 的 `end_matcher_ids` 逐个展开。
+  4. `process_stages`：process 级 stage（有 `process_id` + start/end matcher）。
+- 测试：投影契约与 `App.tsx` 的 `runLatencyAnalysis` 一致。
+- 完成证据：`LatencyAnalysisSpec` 覆盖拆分点、拦截 ends、process stage。
 
-## PLAN-ANALYSIS-002 请求识别
-
-- 需求：REQ-REQUEST。
-- 职责：RESP-REQUEST-RECOGNIZE。
-- ADR：ADR-002、ADR-004。
-- 目标：根据流程级聚合 stage（`order=1`）的开始匹配器识别请求，请求结果取命中的聚合 `result` 分支，或下一次开始日志之前。
-- 依赖：PLAN-ANALYSIS-001。
-- 文件/模块：`domain/latency_analysis/request_recognizer.rs`。
-- 步骤：
-  1. 在用户选择时间范围内寻找聚合 stage（`order=1`）的开始匹配器命中。
-  2. 仅开始命中时间位于范围内的请求进入分析。
-  3. 请求处理到聚合 `result` 分支的结束匹配器命中，或下一次开始命中之前。
-  4. 没有开始命中不生成请求。
-  5. 生成非空 systemRequestId 和 displayStartTimestamp。
-- 测试：正常结束、缺失结束、最后一个无结束、范围前日志不属于请求、同一应用多次进入。
-- 完成证据：请求列表和边界符合批准规则。
-
-## PLAN-ANALYSIS-003 log_matcher 命中
+## PLAN-ANALYSIS-002 日志条目获取
 
 - 需求：REQ-LATENCY。
 - 职责：RESP-LOG-MATCH。
-- ADR：ARCH-EXTENSION-PATTERNS、ADR-004。
-- 目标：在每次请求范围内执行有效 matcher，生成 MatcherHit。
-- 依赖：PLAN-ANALYSIS-002、PLAN-LOG-004。
-- 文件/模块：`domain/latency_analysis/request_log_matcher.rs`、`domain/latency_analysis/matcher_strategy.rs`。
+- 目标：单遍解析目录内时间范围内的全部日志条目，供核心流式消费。
+- 依赖：PLAN-LOG-003。
+- 文件/模块：`domain/latency_analysis/analyzer.rs`（消费）、`log_workspace/port.rs` + `infrastructure/ripgrep_log_source.rs`（`LogSource::entries`）。
 - 步骤：
-  1. 实现 keyword/regex 内部策略。
-  2. 只在 RecognizedRequest 范围内匹配普通 matcher。
-  3. 未命中的普通日志不进入分析结果。
-  4. 重复命中按规则取第一条并输出提示。
-  5. 保存日志引用、原始时间戳、可比较时间和 systemRequestId。
-- 测试：三类 matcher、重复命中、未命中、跨应用请求范围、regex 编译失败。
-- 完成证据：基线请求内 matcher 命中与规则顺序一致。
+  1. `LogSource::entries(dir, range)` 逐文件 `LineReader` 读行、`parse_line`、`in_range` 过滤。
+  2. 解析失败行不参与（`parse_line` 返回 `None` 已跳过）。
+- 测试：范围内条目被收集、范围外/解析失败行被排除。
+- 完成证据：`entries` 返回的条目与工作区日志一致。
 
-## PLAN-ANALYSIS-004 阶段时延计算
+## PLAN-ANALYSIS-003 匹配与排序
 
 - 需求：REQ-LATENCY。
-- 职责：RESP-STAGE-CALCULATE。
-- ADR：ARCH-EXTENSION-PATTERNS。
-- 目标：按 start_matcher_id 和 end_matcher_id 计算阶段时延，区分进程级阶段（process 归属）与流程级阶段（flow 归属，含自定义的跨应用/多进程流程段（常见为进程整体聚合与跨应用 RPC））；聚合 `result` 分支命中即判定请求结果并取 `result`；拦截 stage（`kind="intercept"`）任一 `end_matcher_ids` 命中即整请求丢弃。
+- 职责：RESP-LOG-MATCH。
+- 目标：对每条日志匹配 marker，收集 `TimedHit` 后稳定排序，等价 TS 的 `ts / line` 排序。
+- 依赖：PLAN-ANALYSIS-001、PLAN-ANALYSIS-002。
+- 文件/模块：`domain/latency_analysis/analyzer.rs`。
+- 步骤：
+  1. 组装规则，固定顺序 = request_start → intercept_ends → process stage（start/end）。
+  2. 对每条 entry 逐规则匹配，命中产出 `TimedHit { ts_ms, line_no, raw_ts, role }`。
+  3. 稳定排序 `by (ts_ms, line_no)`。
+- 测试：keyword / regex 匹配、同一行命中多 marker 的角色顺序、时间戳非法行被跳过。
+- 完成证据：命中顺序与前端一致。
+
+## PLAN-ANALYSIS-004 栈式请求识别与拦截丢弃
+
+- 需求：REQ-REQUEST、REQ-LATENCY。
+- 职责：RESP-REQUEST-RECOGNIZE、RESP-STAGE-CALCULATE。
+- 目标：按栈（LIFO）划分请求；拦截命中优先级最高，整请求丢弃。
 - 依赖：PLAN-ANALYSIS-003。
-- 文件/模块：`domain/latency_analysis/stage_latency_calculator.rs`。
+- 文件/模块：`domain/latency_analysis/analyzer.rs`。
 - 步骤：
-  1. 查找同一请求内起止 MatcherHit。
-  2. 计算 durationMs。
-  3. RPC 阶段允许跨应用和进程。
-  4. 阶段缺失不生成零值样本。
-  5. 聚合 `result` 分支命中时判定结果，同 `order` 多个结果分支都命中时取时间最先者、其余记 Issue。
-  6. 拦截 stage（`kind="intercept"`）在识别窗口内命中任一 `end_matcher_ids` → 判定被拦截，整个请求丢弃，不生成任何样本、不进统计（flow/process 级命中一律丢弃）。
-  7. 时间顺序异常进入 Issue。
-- 测试：应用内部阶段、应用间 RPC、跨进程、缺失起点、缺失终点、时间倒序、多结果分支互斥、拦截请求整体丢弃。
-- 完成证据：所有基线阶段时延与预期 CSV 一致。
+  1. `start` 命中压栈开新请求。
+  2. `intercept` 命中弹栈（栈顶请求及其 stage 事件一并丢弃，不产样本、不进统计）。
+  3. `stage` start/end 命中累积到栈顶请求（栈空则忽略）。
+  4. 日志结束后统一结算栈中剩余请求（无 result 闭合）。
+- 测试：正常栈、拦截丢弃、无 start 不生成请求、栈空时 stage 事件被忽略。
+- 完成证据：请求边界与拦截丢弃行为符合新建模。
 
-## PLAN-ANALYSIS-005 并行子进程组
-
-- 需求：REQ-LATENCY。
-- 职责：RESP-STAGE-CALCULATE、RESP-ANALYSIS-ASSEMBLE。
-- ADR：ARCH-LIFECYCLE-STATE、ARCH-EXTENSION-PATTERNS。
-- 目标：表达主流程进入跨子进程并行（进程级 stage 带 sub_process_ids）、子进程独立分析、主进程汇总 matcher 汇总。
-- 依赖：PLAN-ANALYSIS-004。
-- 文件/模块：`domain/latency_analysis/stage_latency_calculator.rs`（并行阶段作为带 sub_process_ids 的进程级 stage 计算）。
-- 步骤：
-  1. 根据触发点进入并行（进程级并行 stage 的 start matcher）。
-  2. 各子进程阶段独立计算。
-  3. 汇总 matcher 命中代表并行阶段整体完成。
-  4. 计算并行阶段总等待时延。
-  5. 主流程后续阶段只能从汇总 matcher 或其后的日志开始。
-- 测试：多子进程并行、子进程顺序不同、汇总缺失、主流程后续阶段。
-- 完成证据：无需为每个子进程建模返回主流程日志，仍能生成并行阶段结果。
-
-## PLAN-ANALYSIS-006 统计与结果组装
+## PLAN-ANALYSIS-005 process 级 stage 时延与统计
 
 - 需求：REQ-LATENCY、REQ-VIEW、REQ-LATENCY-EXPORT。
-- 职责：RESP-LATENCY-STATISTICS、RESP-ANALYSIS-ASSEMBLE、RESP-ANALYSIS-COORDINATE。
-- ADR：ADR-006。
-- 目标：生成不可变 LatencyAnalysisResult，包括 EffectiveRuleCatalog、请求、命中、阶段、统计。
-- 依赖：PLAN-ANALYSIS-005。
-- 文件/模块：`domain/latency_analysis/statistics.rs`、`analysis_assembler.rs`。
+- 职责：RESP-STAGE-CALCULATE、RESP-LATENCY-STATISTICS。
+- 目标：每个 stage 取第一对起止算时延，汇总样本统计。
+- 依赖：PLAN-ANALYSIS-004。
+- 文件/模块：`domain/latency_analysis/analyzer.rs`、`result.rs`。
 - 步骤：
-  1. 按 stage ID 汇总样本。
-  2. 计算样本数、平均、P90、最大值。
-  3. 组装 EffectiveRuleCatalog。
-  4. 生成 LatencyAnalysisResult。
-  5. 任一 EXCEPTION 不发布新结果。
-- 测试：统计样本、缺失阶段不计入、P90、结果不可变、异常不发布。
-- 完成证据：基线输入能生成与 CSV 基线一致的分析结果。
+  1. 每 stage 只取第一对 start/end，`duration_ms = max(0, end - start)`；重复命中丢弃。
+  2. `total_ms = max(全部样本起止) - min(全部样本起止)`；无样本为 0。
+  3. 汇总所有请求样本 → `sample_count / average_ms / p90_ms / max_ms`（P90 索引 `ceil(n*0.9)-1`）。
+  4. 生成不可变 `LatencyAnalysis`。
+- 测试：第一对、缺失起/止不产样本、P90 取整、空样本统计为 0。
+- 完成证据：冒烟 fixture（5 请求 × 4 stage = 20 样本）输出与前端一致。

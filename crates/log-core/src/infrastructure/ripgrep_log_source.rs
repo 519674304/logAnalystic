@@ -3,6 +3,7 @@ use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
+use crate::domain::log_workspace::log_entry::LogEntry;
 use crate::domain::log_workspace::log_parser::parse_line;
 use crate::domain::log_workspace::port::{
     LogContextData, LogSource, SearchCondition, SearchHit, SearchMode, SearchResult, TimeRange,
@@ -358,5 +359,22 @@ impl LogSource for RipgrepLogSource {
             before: before.into_iter().collect(),
             after,
         })
+    }
+
+    fn entries(&self, dir: &str, range: &TimeRange) -> Result<Vec<LogEntry>, String> {
+        let workspace = self.open(dir)?;
+        let mut entries = Vec::new();
+        for file in &workspace.files {
+            let mut reader = LineReader::new(Path::new(&file.path))?;
+            while let Some(raw) = reader.next_line()? {
+                let line = strip_newline(&raw);
+                if let Some(entry) = parse_line(&line) {
+                    if in_range(&entry.timestamp, range) {
+                        entries.push(entry);
+                    }
+                }
+            }
+        }
+        Ok(entries)
     }
 }

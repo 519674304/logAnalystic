@@ -5,10 +5,13 @@ import RuleCatalogPanel, { type RuleNodeSelection } from '../features/rule-confi
 import LatencyAnalysisPanel from '../features/latency-analysis/LatencyAnalysisPanel'
 import { issueRules, latencyResult } from './app-state'
 import {
+  deleteRulePackage,
   deleteSavedQuery,
   importRulePackage,
   listRulePackages,
   listSavedQueries,
+  loadActiveRuleVersion,
+  saveActiveRuleVersion,
   updateRulePackageNode,
   upsertSavedQuery,
 } from '../api/tauri-client'
@@ -32,20 +35,7 @@ import {
 
 const sampleLatencyViewModel = mapToViewModel(latencyResult)
 const defaultTimeRange = '2026-06-12 10:30:00 ~ 2026-06-12 10:45:00'
-const activeRuleVersionStorageKey = 'log-analystic.active-rule-version'
 const activeScenarioStorageKey = 'log-analystic.active-scenario'
-
-function readActiveRuleVersion(): ActiveRuleVersionDto | null {
-  try {
-    const parsed = JSON.parse(globalThis.localStorage?.getItem(activeRuleVersionStorageKey) ?? '')
-    if (parsed && typeof parsed.ruleSetId === 'string' && typeof parsed.version === 'string') {
-      return parsed as ActiveRuleVersionDto
-    }
-  } catch {
-    // 无生效版本或存储损坏时按未生效处理
-  }
-  return null
-}
 
 function readActiveScenario(): string | null {
   try {
@@ -111,38 +101,64 @@ function projectRuleRecords(versions: RulePackageVersionDto[], active: ActiveRul
     return []
   }
 
-  return version.layers
-    .filter((layer) => layer.id === 'matchers' || layer.id === 'stages')
-    .flatMap((layer) =>
-      layer.nodes.map((node) => {
+  return version.layers.flatMap((layer): RuleRecordDto[] => {
+    const stringField = (fields: Record<string, unknown>, name: string) => {
+      const value = fields[name]
+      return typeof value === 'string' ? value : undefined
+    }
+
+    // definitions 层只投影应用与进程，供泳道把 stage 的 process_id 映射到应用名 / 进程名。
+    if (layer.id === 'definitions') {
+      return layer.nodes
+        .filter((node) => node.nodeType === 'applications' || node.nodeType === 'processes')
+        .map(
+          (node) =>
+            ({
+              id: node.id,
+              name: node.name,
+              description: stringField(node.fields, 'description') ?? '',
+              pattern: '',
+              enabled: true,
+              exportEnabled: true,
+              scenarios: [],
+              recordType: node.nodeType === 'applications' ? 'application' : 'process',
+              applicationId: node.nodeType === 'processes' ? stringField(node.fields, 'application_id') : undefined,
+            }) satisfies RuleRecordDto,
+        )
+    }
+
+    if (layer.id !== 'matchers' && layer.id !== 'stages') {
+      return []
+    }
+
+    return layer.nodes.map((node) => {
       const fields = node.fields
       const scenarios = Array.isArray(fields.applicable_scenario_ids)
         ? fields.applicable_scenario_ids.filter((value): value is string => typeof value === 'string')
         : []
-      const stringField = (name: string) => typeof fields[name] === 'string' ? fields[name] as string : undefined
       return {
         id: node.id,
         name: node.name,
-        description: stringField('business_meaning') ?? stringField('description') ?? '',
-        pattern: stringField('pattern') ?? '',
+        description: stringField(fields, 'business_meaning') ?? stringField(fields, 'description') ?? '',
+        pattern: stringField(fields, 'pattern') ?? '',
         enabled: typeof fields.enabled === 'boolean' ? fields.enabled : true,
         exportEnabled: typeof fields.export_enabled === 'boolean' ? fields.export_enabled : true,
         scenarios,
-        matchType: layer.id === 'matchers' ? stringField('type') : undefined,
+        matchType: layer.id === 'matchers' ? stringField(fields, 'type') : undefined,
         recordType: layer.id === 'stages' ? 'stage' : 'matcher',
         order: typeof fields.order === 'number' ? fields.order : undefined,
-        applicationId: stringField('application_id'),
-        processId: stringField('process_id'),
-        flowId: stringField('flow_id'),
-        kind: stringField('kind'),
-        startMatcherId: stringField('start_matcher_id'),
-        endMatcherId: stringField('end_matcher_id'),
+        applicationId: stringField(fields, 'application_id'),
+        processId: stringField(fields, 'process_id'),
+        flowId: stringField(fields, 'flow_id'),
+        kind: stringField(fields, 'kind'),
+        startMatcherId: stringField(fields, 'start_matcher_id'),
+        endMatcherId: stringField(fields, 'end_matcher_id'),
         endMatcherIds: Array.isArray(fields.end_matcher_ids)
           ? fields.end_matcher_ids.filter((value): value is string => typeof value === 'string')
           : undefined,
       } satisfies RuleRecordDto
-    }),
-  )
+    })
+  })
 }
 
 function filterRulesByScenario(rules: RuleRecordDto[], scenarioId: string | null): RuleRecordDto[] {
@@ -210,7 +226,7 @@ export default function App() {
   const [queryEditorOpen, setQueryEditorOpen] = useState(false)
   const [queryEditorDraft, setQueryEditorDraft] = useState<SavedQueryDto>(createEmptySavedQuery())
   const [rulePackages, setRulePackages] = useState<RulePackageVersionDto[]>([])
-  const [activeRuleVersion, setActiveRuleVersion] = useState<ActiveRuleVersionDto | null>(() => readActiveRuleVersion())
+  const [activeRuleVersion, setActiveRuleVersion] = useState<ActiveRuleVersionDto | null>(null)
   const [activeRuleNodeKey, setActiveRuleNodeKey] = useState('')
   const [ruleDetailOpen, setRuleDetailOpen] = useState(false)
   const [ruleDetailDraft, setRuleDetailDraft] = useState<RuleNodeSelection | null>(null)
@@ -320,7 +336,11 @@ export default function App() {
 
     async function loadWorkspaceLists() {
       try {
-        const [loadedQueries, loadedRulePackages] = await Promise.all([listSavedQueries(), listRulePackages()])
+        const [loadedQueries, loadedRulePackages, loadedActiveRuleVersion] = await Promise.all([
+          listSavedQueries(),
+          listRulePackages(),
+          loadActiveRuleVersion(),
+        ])
 
         if (cancelled) {
           return
@@ -333,7 +353,8 @@ export default function App() {
         setLogFolderPath(window.localStorage.getItem('log-analystic.log-folder-path') ?? '')
 
         setRulePackages(loadedRulePackages)
-        setRulePackageStatus(loadedRulePackages.length > 0 ? '已加载本地规则包' : '等待导入')
+        setActiveRuleVersion(loadedActiveRuleVersion)
+        setRulePackageStatus(loadedRulePackages.length > 0 ? '已加载规则包' : '等待导入')
 
         if (loadedQueries[0]) {
           void runSearch(loadedQueries[0])
@@ -464,13 +485,34 @@ export default function App() {
     }
   }
 
+  const removeRulePackage = async (ruleSetId: string, version: string) => {
+    try {
+      const updated = await deleteRulePackage(ruleSetId, version)
+      setRulePackages(updated)
+      setRulePackageStatus(`已删除 ${version}`)
+      setErrorMessage(null)
+
+      const wasActive =
+        activeRuleVersion?.ruleSetId === ruleSetId && activeRuleVersion?.version === version
+      if (wasActive) {
+        setActiveRuleVersion(null)
+        void saveActiveRuleVersion(null)
+        setLatencyAnalysis(null)
+        setLatencyAnalysisMessage('已删除生效版本，请重新选择')
+      }
+      setActiveRuleNodeKey('')
+      setRuleDetailDraft(null)
+      setRuleDetailOpen(false)
+    } catch (error) {
+      const message = rulePackageErrorMessage(error, '删除规则版本失败')
+      setErrorMessage(message)
+      setRulePackageStatus(`删除失败：${message}`)
+    }
+  }
+
   const activateRuleVersion = (next: ActiveRuleVersionDto | null) => {
     setActiveRuleVersion(next)
-    if (next) {
-      window.localStorage.setItem(activeRuleVersionStorageKey, JSON.stringify(next))
-    } else {
-      window.localStorage.removeItem(activeRuleVersionStorageKey)
-    }
+    void saveActiveRuleVersion(next)
     setLatencyAnalysis(null)
     setLatencyAnalysisMessage(next ? `已切换生效版本：${next.ruleSetId} ${next.version}` : '已取消生效版本')
   }
@@ -637,6 +679,7 @@ export default function App() {
           onCloseDetail={() => setRuleDetailOpen(false)}
           onImportPackage={importRules}
           onActivateVersion={activateRuleVersion}
+          onDeleteVersion={removeRulePackage}
           onDetailDraftChange={setRuleDetailDraft}
           onSaveNode={saveRuleDetail}
         />
