@@ -15,14 +15,14 @@ Supersedes: CTX-RULE-CONFIG (2026-07-09)
 
 ```text
 RulePackage
-  -> manifest（规则集 ID、version、六类文件映射）
+  -> manifest（规则集 ID、version、三层文件映射）
   -> RuleSet（全部业务规则子元素）
   -> RuleCatalogView（给树和紧凑列表使用的投影）
 ```
 
-`RuleSet` 是聚合根，包含场景、业务拓扑、matcher、关系、stage 与业务流程。详细归属和引用见 `05-rule-set-data-relationships.md`。
+`RuleSet` 是聚合根，包含场景、业务拓扑、matcher、stage 与业务流程。详细归属和引用见 `05-rule-set-data-relationships.md`。
 
-本地存储以 `rule_set_id/version` 为键保存完整 `RulePackage`。每个版本保留 manifest 与六层原始 TOML 文档；同一键的成功导入直接替换原包，不同版本保留为独立可选项。
+本地存储以 `rule_set_id/version` 为键保存完整 `RulePackage`。每个版本保留 manifest 与三层原始 TOML 文档；同一键的成功导入直接替换原包，不同版本保留为独立可选项。
 
 ## 主流程边界
 
@@ -36,7 +36,7 @@ RulePackage
 ## 不变量
 
 - 只接受根目录具有 `manifest.toml` 的完整 ZIP。
-- manifest 必须声明 version 和六类层级文件映射。
+- manifest 必须声明 version 和三层层级文件映射。
 - 文件层级、稳定 ID 和关键跨层级引用必须一致。
 - 覆盖的最小单位是完整规则包，不能只写入一个 matcher 或 stage。
 - 拒绝导入时，原版本内容保持不变。

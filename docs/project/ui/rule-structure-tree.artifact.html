@@ -1,0 +1,278 @@
+<title>规则结构树</title>
+
+<style>
+  :root {
+    --bg: #f5f7fa;
+    --surface: #ffffff;
+    --surface-2: #f0f3f7;
+    --ink: #1b2433;
+    --muted: #64708a;
+    --faint: #9aa6bd;
+    --line: #dfe5ee;
+    --line-strong: #c4cddb;
+    --flow: #2563eb;
+    --flow-bg: #eaf1ff;
+    --proc: #0f9d8c;
+    --proc-bg: #e6f8f5;
+    --sub: #d97706;
+    --sub-bg: #fff4e3;
+    --start: #16a34a;
+    --start-bg: #e8f7ee;
+    --end: #db2777;
+    --end-bg: #fceaf2;
+    --chip-border: #d7deea;
+  }
+  :root:not([data-theme="light"]) {
+    @media (prefers-color-scheme: dark) {
+      --bg: #10141d;
+      --surface: #171d29;
+      --surface-2: #1d2432;
+      --ink: #e6ebf4;
+      --muted: #9aa6bd;
+      --faint: #6b7691;
+      --line: #2a3346;
+      --line-strong: #3b465c;
+      --flow: #6fa3ff;
+      --flow-bg: #17263f;
+      --proc: #37d0bd;
+      --proc-bg: #0f2f2b;
+      --sub: #f0a347;
+      --sub-bg: #372614;
+      --start: #4ade80;
+      --start-bg: #123322;
+      --end: #f26d9f;
+      --end-bg: #3a1626;
+      --chip-border: #33405a;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #10141d;
+    --surface: #171d29;
+    --surface-2: #1d2432;
+    --ink: #e6ebf4;
+    --muted: #9aa6bd;
+    --faint: #6b7691;
+    --line: #2a3346;
+    --line-strong: #3b465c;
+    --flow: #6fa3ff;
+    --flow-bg: #17263f;
+    --proc: #37d0bd;
+    --proc-bg: #0f2f2b;
+    --sub: #f0a347;
+    --sub-bg: #372614;
+    --start: #4ade80;
+    --start-bg: #123322;
+    --end: #f26d9f;
+    --end-bg: #3a1626;
+    --chip-border: #33405a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 48px 28px 72px; }
+  .eyebrow {
+    font-size: 12px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--faint); font-weight: 600; margin: 0 0 10px;
+  }
+  h1 {
+    font-size: 30px; margin: 0 0 8px; font-weight: 700; text-wrap: balance;
+    letter-spacing: -.01em;
+  }
+  .sub { color: var(--muted); font-size: 15px; line-height: 1.6; margin: 0 0 26px; max-width: 62ch; }
+  .sub code {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 13px;
+    background: var(--surface-2); padding: 1px 6px; border-radius: 5px;
+    color: var(--flow);
+  }
+
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center;
+    padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px;
+    background: var(--surface); margin-bottom: 26px;
+  }
+  .legend .lg-label { font-size: 12px; color: var(--muted); margin-right: 2px; }
+  .lg-item { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+  .sw { width: 11px; height: 11px; border-radius: 3px; }
+
+  .tree { position: relative; padding-left: 26px; }
+  .tree::before {
+    content: ""; position: absolute; left: 9px; top: 0; bottom: 0; width: 1px;
+    background: var(--line);
+  }
+  .trunk { position: relative; }
+  .trunk::before {
+    content: ""; position: absolute; left: -17px; top: 22px; width: 17px; height: 1px;
+    background: var(--line-strong);
+  }
+  .trunk:not(:last-child)::after {
+    content: ""; position: absolute; left: -17px; top: 22px; bottom: -14px; width: 1px;
+    background: var(--line);
+  }
+
+  .flow-node {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; border-radius: 10px; margin-bottom: 6px;
+    background: var(--flow-bg); border: 1px solid color-mix(in srgb, var(--flow) 35%, transparent);
+  }
+  .flow-name { font-size: 15px; font-weight: 700; }
+  .flow-id { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--flow); }
+  .flow-tag { font-size: 11px; color: var(--flow); opacity: .85; }
+
+  .owner { margin: 12px 0 2px 6px; }
+  .owner-head {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 600; padding: 5px 12px; border-radius: 8px;
+  }
+  .owner-head .dot { width: 8px; height: 8px; border-radius: 2px; }
+  .owner-head .oid { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--muted); font-weight: 500; }
+  .owner-head.proc { color: var(--proc); }
+  .owner-head.proc .dot { background: var(--proc); }
+  .owner-head.sub { color: var(--sub); }
+  .owner-head.sub .dot { background: var(--sub); }
+  .owner-head .parent { font-size: 11px; color: var(--faint); font-family: "IBM Plex Mono", monospace; }
+
+  .stages { display: flex; flex-direction: column; gap: 6px; margin: 8px 0 2px 18px; position: relative; }
+  .stages::before {
+    content: ""; position: absolute; left: -13px; top: 0; bottom: 0; width: 1px; background: var(--line);
+  }
+
+  .stage {
+    position: relative; display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px; border: 1px solid var(--line); border-radius: 9px;
+    background: var(--surface);
+  }
+  .stage::before {
+    content: ""; position: absolute; left: -13px; top: 20px; width: 13px; height: 1px;
+    background: var(--line-strong);
+  }
+  .stage:not(:last-child)::after {
+    content: ""; position: absolute; left: -13px; top: 20px; bottom: -14px; width: 1px; background: var(--line);
+  }
+  .order-badge {
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 700;
+    min-width: 24px; text-align: center; padding: 3px 7px; border-radius: 6px;
+    background: var(--surface-2); color: var(--muted); border: 1px solid var(--chip-border);
+  }
+  .stage-main { display: flex; flex-direction: column; min-width: 0; }
+  .stage-name { font-size: 14px; font-weight: 600; }
+  .stage-id { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--faint); }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip {
+    font-size: 11px; padding: 2px 8px; border-radius: 999px; font-weight: 600;
+    border: 1px solid transparent;
+  }
+  .chip.role { color: var(--start); background: var(--start-bg); border-color: color-mix(in srgb, var(--start) 35%, transparent); }
+  .chip.end { color: var(--end); background: var(--end-bg); border-color: color-mix(in srgb, var(--end) 35%, transparent); }
+  .chip.owner { color: var(--proc); background: var(--proc-bg); }
+  .chip.owner.flow { color: var(--flow); background: var(--flow-bg); }
+  .chip.owner.sub { color: var(--sub); background: var(--sub-bg); }
+
+  .matchers { display: flex; gap: 6px; flex-wrap: wrap; margin-left: 8px; }
+  .mat {
+    font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--muted);
+    background: var(--surface-2); border: 1px dashed var(--line-strong);
+    padding: 2px 8px; border-radius: 6px;
+  }
+  .mat-arrow { color: var(--faint); font-family: "IBM Plex Mono", monospace; font-size: 11px; align-self: center; }
+
+  .note {
+    margin-top: 30px; font-size: 12px; color: var(--muted); line-height: 1.7;
+    padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface);
+  }
+  .note strong { color: var(--ink); }
+  .note code { font-family: "IBM Plex Mono", monospace; font-size: 11px; }
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">Rule-set structure · owner-scoped ordering</p>
+  <h1>规则结构树</h1>
+  <p class="sub">按新定的数据结构排布：<code>flow → stage → process → stage → subprocess → stage → matcher</code>。<code>order</code> 在每个 owner 内独立编号——flow 级 order=1 是开始边界，最大 order 是结束边界，方便定位起止。</p>
+
+  <div class="legend">
+    <span class="lg-label">owner 分组</span>
+    <span class="lg-item"><span class="sw" style="background:var(--flow)"></span>flow 级 stage</span>
+    <span class="lg-item"><span class="sw" style="background:var(--proc)"></span>进程 stage</span>
+    <span class="lg-item"><span class="sw" style="background:var(--sub)"></span>子进程 stage</span>
+    <span class="lg-item"><span class="sw" style="background:var(--start)"></span>role=start</span>
+    <span class="lg-item"><span class="sw" style="background:var(--end)"></span>role=end</span>
+  </div>
+
+  <div class="tree">
+    <div class="trunk">
+      <div class="flow-node">
+        <div class="flow-name">下单流程</div>
+        <span class="flow-id">FLOW-ORDER</span>
+        <span class="flow-tag">domain DOMAIN-ORDER · root PROCESS-ORDER</span>
+      </div>
+
+      <div class="owner">
+        <span class="owner-head"><span class="dot"></span>flow 级 stage <span class="oid">owner = flow_id</span></span>
+      </div>
+      <div class="stages">
+        <div class="stage">
+          <span class="order-badge">1</span>
+          <div class="stage-main"><span class="stage-name">开始边界</span><span class="stage-id">STAGE-START</span></div>
+          <div class="chips"><span class="chip role">start</span></div>
+          <div class="matchers"><span class="mat-arrow">→</span><span class="mat">LOG-START</span></div>
+        </div>
+        <div class="stage">
+          <span class="order-badge">2</span>
+          <div class="stage-main"><span class="stage-name">跨进程 RPC</span><span class="stage-id">STAGE-RPC</span></div>
+          <div class="chips"><span class="chip owner flow">flow</span></div>
+          <div class="matchers"><span class="mat-arrow">→</span><span class="mat">LOG-ORDER-DONE</span><span class="mat-arrow">·</span><span class="mat">LOG-ARRIVED</span></div>
+        </div>
+        <div class="stage">
+          <span class="order-badge">3</span>
+          <div class="stage-main"><span class="stage-name">跨子进程并行</span><span class="stage-id">STAGE-SUB-PARALLEL</span></div>
+          <div class="chips"><span class="chip owner flow">flow</span><span class="chip owner sub">sub PROCESS-B</span></div>
+          <div class="matchers"><span class="mat-arrow">→</span><span class="mat">LOG-ARRIVED</span><span class="mat-arrow">·</span><span class="mat">LOG-SUB-DONE</span></div>
+        </div>
+        <div class="stage">
+          <span class="order-badge">4</span>
+          <div class="stage-main"><span class="stage-name">请求成功</span><span class="stage-id">STAGE-SUCCESS</span></div>
+          <div class="chips"><span class="chip end">end · SUCCESS</span></div>
+          <div class="matchers"><span class="mat-arrow">→</span><span class="mat">LOG-START</span><span class="mat-arrow">·</span><span class="mat">LOG-END</span></div>
+        </div>
+        <div class="stage">
+          <span class="order-badge">4</span>
+          <div class="stage-main"><span class="stage-name">子进程超时</span><span class="stage-id">STAGE-TIMEOUT</span></div>
+          <div class="chips"><span class="chip end">end · TIMEOUT</span></div>
+          <div class="matchers"><span class="mat-arrow">→</span><span class="mat">LOG-START</span><span class="mat-arrow">·</span><span class="mat">LOG-TIMEOUT</span></div>
+        </div>
+      </div>
+
+      <div class="owner">
+        <span class="owner-head proc"><span class="dot"></span>主进程 <span class="oid">PROCESS-ORDER</span> <span class="parent">owner = process_id</span></span>
+      </div>
+      <div class="stages">
+        <div class="stage">
+          <span class="order-badge">1</span>
+          <div class="stage-main"><span class="stage-name">下单准备</span><span class="stage-id">STAGE-PROCESS</span></div>
+          <div class="chips"><span class="chip owner">process</span></div>
+          <div class="matchers"><span class="mat-arrow">→</span><span class="mat">LOG-START</span><span class="mat-arrow">·</span><span class="mat">LOG-ORDER-DONE</span></div>
+        </div>
+      </div>
+
+      <div class="owner">
+        <span class="owner-head sub"><span class="dot"></span>子进程 <span class="oid">PROCESS-B</span> <span class="parent">parent PROCESS-ORDER</span></span>
+      </div>
+      <div class="stages">
+        <div class="stage">
+          <span class="order-badge">1</span>
+          <div class="stage-main"><span class="stage-name">B 处理</span><span class="stage-id">STAGE-SUB-B</span></div>
+          <div class="chips"><span class="chip owner sub">subprocess</span></div>
+          <div class="matchers"><span class="mat-arrow">→</span><span class="mat">LOG-ARRIVED</span><span class="mat-arrow">·</span><span class="mat">LOG-SUB-DONE</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">
+    <strong>要点：</strong> 每个 owner（flow / process / subprocess）内 <code>order</code> 独立从 1 编号。flow 级 order=1 固定为 <code>role=start</code> 开始边界，order 最大值为 <code>role=end</code> 结束边界；同 order 的多个 end stage 是互斥结尾。进程/子进程是 stage 的分组容器，不单独携带 order；matcher 是 stage 的叶子引用，可被多个 stage 共享。
+  </div>
+</div>

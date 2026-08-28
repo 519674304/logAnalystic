@@ -1,0 +1,213 @@
+# 规则结构示例 —— 时延阶段（stages），按 owner 分组
+# 只保留表达「关系与结构」的必要属性，省略 name / business_meaning 等非结构属性。
+# 一个 stage 测 start_matcher_id 与 end_matcher_id 之间的时延；result 表达结果/异常分支。
+# 同 order 的多个 result 分支（SUCCESS / ERROR…）在定义上都存在，但实际执行搜索日志时，同一个 order 只会命中其中一个。
+
+# ============ FLOW-ORDER（owner = flow）============
+# flow 级 stage 不限定类别：自定义起止段，可覆盖一个或多个进程、可跨应用。常见：聚合 stage（按 result 拆分支）+ RPC 边界。
+# flow 只见各进程整体的时延，看不到进程内部细节 stage。
+
+# 应用A（APP-A）完整 PROCESS-ORDER 整体，按结果拆分支，同 order=1
+[[stages]]
+id = "STAGE-A-SUCCESS"
+flow_id = "FLOW-ORDER"
+order = 1
+result = "SUCCESS"
+start_matcher_id = "LOG-ORDER-START"
+end_matcher_id = "LOG-PAY-CALL"
+
+[[stages]]
+id = "STAGE-A-ERROR"
+flow_id = "FLOW-ORDER"
+order = 1
+result = "ERROR"
+start_matcher_id = "LOG-ORDER-START"
+end_matcher_id = "LOG-ORDER-ERROR"
+
+# 跨应用 RPC 边界：主应用 APP-A -> 支付应用 APP-PAY
+# 该 stage 的 start/end matcher 分属不同应用，因此不属于任何单一应用，归属 flow/domain 层。
+[[stages]]
+id = "STAGE-PAY-RPC"
+flow_id = "FLOW-ORDER"
+order = 2
+start_matcher_id = "LOG-PAY-CALL"
+end_matcher_id = "LOG-PAY-RECEIVED"
+
+# 应用B（APP-PAY）完整 PROCESS-PAY 整体，按结果拆分支，同 order=3
+[[stages]]
+id = "STAGE-PAY-SUCCESS"
+flow_id = "FLOW-ORDER"
+order = 3
+result = "SUCCESS"
+start_matcher_id = "LOG-PAY-RECEIVED"
+end_matcher_id = "LOG-PAY-DONE"
+
+[[stages]]
+id = "STAGE-PAY-ERROR"
+flow_id = "FLOW-ORDER"
+order = 3
+result = "ERROR"
+start_matcher_id = "LOG-PAY-RECEIVED"
+end_matcher_id = "LOG-PAY-ERROR"
+
+# ============ 主进程 PROCESS-ORDER ============
+# 内部 stage 恰好铺满 flow 聚合 STAGE-A-SUCCESS 的整段（LOG-ORDER-START -> LOG-PAY-CALL）：
+#   入口段 -> 主处理段 -> 跨子进程并行段 -> 结束段
+# 入口段：进程入口到主处理段前（补全聚合与内部的衔接）
+[[stages]]
+id = "STAGE-ORDER-ENTRY"
+process_id = "PROCESS-ORDER"
+order = 1
+start_matcher_id = "LOG-ORDER-START"
+end_matcher_id = "LOG-FIRST-PROCESS-END"
+
+# 主处理段（到向子进程分发前）
+[[stages]]
+id = "STAGE-PROCESS"
+process_id = "PROCESS-ORDER"
+order = 2
+start_matcher_id = "LOG-FIRST-PROCESS-END"
+end_matcher_id = "LOG-DISPATCH-START"
+
+# 跨子进程并行段（覆盖整个并行段 p_start -> p_end），按结果拆 SUCCESS / ERROR 分支，同 order=3。
+[[stages]]
+id = "STAGE-PARALLEL-SUCCESS"
+process_id = "PROCESS-ORDER"
+sub_process_ids = ["PROCESS-A", "PROCESS-A1"]
+order = 3
+result = "SUCCESS"
+start_matcher_id = "LOG-DISPATCH-START"   # p_start
+end_matcher_id = "LOG-JOIN"               # p_end
+
+[[stages]]
+id = "STAGE-PARALLEL-ERROR"
+process_id = "PROCESS-ORDER"
+sub_process_ids = ["PROCESS-A", "PROCESS-A1"]
+order = 3
+result = "ERROR"
+start_matcher_id = "LOG-DISPATCH-START"   # p_start
+end_matcher_id = "LOG-JOIN-ERROR"
+
+# 结束段：子进程汇合后运行至主进程终结。end 事件即 LOG-PAY-CALL（结束前发起的跨应用调用）。
+[[stages]]
+id = "STAGE-ORDER-END"
+process_id = "PROCESS-ORDER"
+order = 4
+start_matcher_id = "LOG-JOIN"
+end_matcher_id = "LOG-PAY-CALL"
+
+# ============ 子进程 PROCESS-A ============
+[[stages]]
+id = "STAGE-A"
+process_id = "PROCESS-A"
+order = 1
+start_matcher_id = "LOG-A-START"
+end_matcher_id = "LOG-A-END"
+[[stages]]
+id = "STAGE-B"
+process_id = "PROCESS-A"
+order = 2
+start_matcher_id = "LOG-B-START"
+end_matcher_id = "LOG-B-END"
+[[stages]]
+id = "STAGE-C"
+process_id = "PROCESS-A"
+order = 3
+start_matcher_id = "LOG-C-START"
+end_matcher_id = "LOG-C-END"
+
+# ============ 子进程 PROCESS-A1 ============
+[[stages]]
+id = "STAGE-A1"
+process_id = "PROCESS-A1"
+order = 1
+start_matcher_id = "LOG-A1-START"
+end_matcher_id = "LOG-A1-END"
+[[stages]]
+id = "STAGE-B1"
+process_id = "PROCESS-A1"
+order = 2
+start_matcher_id = "LOG-B1-START"
+end_matcher_id = "LOG-B1-END"
+[[stages]]
+id = "STAGE-C1"
+process_id = "PROCESS-A1"
+order = 3
+start_matcher_id = "LOG-C1-START"
+end_matcher_id = "LOG-C1-END"
+
+# ============ 主进程 PROCESS-PAY（application = APP-PAY，镜像 PROCESS-ORDER 结构）============
+# 主处理段（到向子进程分发前）
+[[stages]]
+id = "STAGE-PAY-MAIN"
+process_id = "PROCESS-PAY"
+order = 1
+start_matcher_id = "LOG-PAY-RECEIVED"
+end_matcher_id = "LOG-PAY-DISPATCH-START"
+
+# 跨子进程并行段，按结果拆 SUCCESS / ERROR 分支，同 order=2。
+[[stages]]
+id = "STAGE-PAY-PARALLEL-SUCCESS"
+process_id = "PROCESS-PAY"
+sub_process_ids = ["PROCESS-PAY-A", "PROCESS-PAY-A1"]
+order = 2
+result = "SUCCESS"
+start_matcher_id = "LOG-PAY-DISPATCH-START"   # p_start
+end_matcher_id = "LOG-PAY-JOIN"               # p_end
+
+[[stages]]
+id = "STAGE-PAY-PARALLEL-ERROR"
+process_id = "PROCESS-PAY"
+sub_process_ids = ["PROCESS-PAY-A", "PROCESS-PAY-A1"]
+order = 2
+result = "ERROR"
+start_matcher_id = "LOG-PAY-DISPATCH-START"   # p_start
+end_matcher_id = "LOG-PAY-JOIN-ERROR"
+
+# 结束段：子进程汇合后运行至主进程终结（支付完成）
+[[stages]]
+id = "STAGE-PAY-END"
+process_id = "PROCESS-PAY"
+order = 3
+start_matcher_id = "LOG-PAY-JOIN"
+end_matcher_id = "LOG-PAY-DONE"
+
+# ============ 子进程 PROCESS-PAY-A ============
+[[stages]]
+id = "STAGE-PAY-A"
+process_id = "PROCESS-PAY-A"
+order = 1
+start_matcher_id = "LOG-PAY-A-START"
+end_matcher_id = "LOG-PAY-A-END"
+[[stages]]
+id = "STAGE-PAY-B"
+process_id = "PROCESS-PAY-A"
+order = 2
+start_matcher_id = "LOG-PAY-B-START"
+end_matcher_id = "LOG-PAY-B-END"
+[[stages]]
+id = "STAGE-PAY-C"
+process_id = "PROCESS-PAY-A"
+order = 3
+start_matcher_id = "LOG-PAY-C-START"
+end_matcher_id = "LOG-PAY-C-END"
+
+# ============ 子进程 PROCESS-PAY-A1 ============
+[[stages]]
+id = "STAGE-PAY-A1"
+process_id = "PROCESS-PAY-A1"
+order = 1
+start_matcher_id = "LOG-PAY-A1-START"
+end_matcher_id = "LOG-PAY-A1-END"
+[[stages]]
+id = "STAGE-PAY-B1"
+process_id = "PROCESS-PAY-A1"
+order = 2
+start_matcher_id = "LOG-PAY-B1-START"
+end_matcher_id = "LOG-PAY-B1-END"
+[[stages]]
+id = "STAGE-PAY-C1"
+process_id = "PROCESS-PAY-A1"
+order = 3
+start_matcher_id = "LOG-PAY-C1-START"
+end_matcher_id = "LOG-PAY-C1-END"

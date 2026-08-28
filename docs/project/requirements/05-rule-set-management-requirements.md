@@ -9,7 +9,7 @@ Supersedes: docs/vscode/specs/requirements.md, REQ-RULESET (2026-07-09)
 
 ## 目标
 
-规则页负责管理业务规则包版本。一个规则包由 `manifest.toml` 和六类层级文件组成；系统以整包为单位导入、校验和覆盖。每个版本彼此隔离；版本导入后不自动生效，用户手动把某个版本设为「生效版本」后，该版本才作为时延分析等能力的规则输入。
+规则页负责管理业务规则包版本。一个规则包由 `manifest.toml` 和三层 TOML 文件组成；系统以整包为单位导入、校验和覆盖。每个版本彼此隔离；版本导入后不自动生效，用户手动把某个版本设为「生效版本」后，该版本才作为时延分析等能力的规则输入。
 
 ## 功能范围
 
@@ -36,12 +36,9 @@ Supersedes: docs/vscode/specs/requirements.md, REQ-RULESET (2026-07-09)
 一个规则包必须包含：
 
 - `manifest.toml`：规则集标识、版本、格式和层级文件映射。
-- `scenarios.toml`：`analysis_scenarios`。
-- `topology.toml`：`domains`、`applications`、`processes`。
+- `definitions.toml`：`scenarios`、`domains`、`applications`、`flows`、`processes`。
 - `matchers.toml`：`log_matchers`。
-- `relations.toml`：`process_relations`、`subprocess_groups`。
 - `stages.toml`：`stages`。
-- `flow.toml`：`business_flow`。
 
 文件名由 `manifest.toml` 显式映射，不能仅依赖文件名猜测层级。系统还必须校验映射层级与文件内 TOML 节点一致。
 
@@ -60,7 +57,7 @@ Supersedes: docs/vscode/specs/requirements.md, REQ-RULESET (2026-07-09)
 
 - 规则包可通过 `manifest.toml` 无歧义定位版本与全部层级文件。
 - 非 `.zip`、根目录缺少 `manifest.toml`、层级映射错误或关键引用错误时，均不改变已有版本。
-- 导入新版本后，版本树可展示全部六类层级及节点数量。
+- 导入新版本后，版本树可展示全部三层层级及节点数量。
 - 再次导入同版本的合法规则包后，该版本的全部规则内容被新包替换，其他版本不受影响。
 - 导入不存在版本的合法规则包后，系统自动新增该版本。
 - 缺少文件、层级不匹配或引用不完整的规则包不能创建或覆盖版本。

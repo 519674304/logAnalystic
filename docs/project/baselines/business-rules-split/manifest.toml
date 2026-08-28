@@ -14,9 +14,6 @@ version = "1.1.0"
 description = "A parallel subprocess latency analysis rule package."
 
 [package.layers]
-scenarios = "scenarios.toml"
-topology = "topology.toml"
+definitions = "definitions.toml"
 matchers = "matchers.toml"
-relations = "relations.toml"
 stages = "stages.toml"
-flow = "flow.toml"

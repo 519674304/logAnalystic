@@ -1,5 +1,6 @@
 # Primary-flow business rule-set baseline.
 # Domain -> application -> process -> key log -> latency stage.
+# 请求开始与结尾由 stage 的 role="start" / role="end" 表达；跨进程 RPC 与跨子进程并行由 flow 层特殊 stage 表达。
 
 [rule_set]
 id = "RULESET-A-PARALLEL"
@@ -7,12 +8,12 @@ name = "A parallel subprocess latency analysis"
 schema_version = "1.0"
 business_version = "1.1.0"
 
-[[analysis_scenarios]]
+[[scenarios]]
 id = "SCENARIO-FULL"
 name = "完整链路分析"
 description = "展示主流程、并行子进程、跨应用调用和所有应用内部阶段。"
 
-[[analysis_scenarios]]
+[[scenarios]]
 id = "SCENARIO-CORE"
 name = "核心链路分析"
 description = "只关注主流程、并行子进程和跨应用核心时延。"
@@ -21,24 +22,20 @@ description = "只关注主流程、并行子进程和跨应用核心时延。"
 id = "DOMAIN-ORDER"
 name = "Order domain"
 description = "Handles an order request through parallel downstream processing."
-application_ids = ["APP-A", "APP-B", "APP-C"]
 
 [[applications]]
 id = "APP-A"
 name = "A orchestration application"
-domain_id = "DOMAIN-ORDER"
 log_prefix = "A00010"
 
 [[applications]]
 id = "APP-B"
 name = "B processing application"
-domain_id = "DOMAIN-ORDER"
 log_prefix = "B00020"
 
 [[applications]]
 id = "APP-C"
 name = "C processing application"
-domain_id = "DOMAIN-ORDER"
 log_prefix = "C00030"
 
 [[processes]]
@@ -75,7 +72,6 @@ business_meaning = "A应用接收订单并启动主进程"
 enabled = true
 export_enabled = true
 applicable_scenario_ids = ["SCENARIO-FULL", "SCENARIO-CORE"]
-process_id = "PROCESS-A-MAIN"
 application_id = "APP-A"
 type = "keyword"
 pattern = "request started"
@@ -87,7 +83,6 @@ business_meaning = "A完成准备并进入并行子进程"
 enabled = true
 export_enabled = true
 applicable_scenario_ids = ["SCENARIO-FULL", "SCENARIO-CORE"]
-process_id = "PROCESS-A-MAIN"
 application_id = "APP-A"
 type = "keyword"
 pattern = "start parallel subprocesses"
@@ -99,7 +94,6 @@ business_meaning = "B子进程收到请求并开始执行"
 enabled = true
 export_enabled = true
 applicable_scenario_ids = ["SCENARIO-FULL", "SCENARIO-CORE"]
-process_id = "PROCESS-B-HANDLE"
 application_id = "APP-B"
 type = "regex"
 pattern = 'B subprocess received, sequence=[0-9]+'
@@ -111,7 +105,6 @@ business_meaning = "B已准备后续处理所需数据"
 enabled = true
 export_enabled = true
 applicable_scenario_ids = ["SCENARIO-FULL"]
-process_id = "PROCESS-B-PREPARE"
 application_id = "APP-B"
 type = "keyword"
 pattern = "B preparation completed"
@@ -123,7 +116,6 @@ business_meaning = "B子进程完成处理"
 enabled = true
 export_enabled = true
 applicable_scenario_ids = ["SCENARIO-FULL", "SCENARIO-CORE"]
-process_id = "PROCESS-B-HANDLE"
 application_id = "APP-B"
 type = "keyword"
 pattern = "B subprocess completed"
@@ -135,7 +127,6 @@ business_meaning = "C子进程收到请求并开始执行"
 enabled = true
 export_enabled = true
 applicable_scenario_ids = ["SCENARIO-FULL", "SCENARIO-CORE"]
-process_id = "PROCESS-C-HANDLE"
 application_id = "APP-C"
 type = "regex"
 pattern = 'C subprocess received, sequence=[0-9]+'
@@ -147,7 +138,6 @@ business_meaning = "C子进程完成处理"
 enabled = true
 export_enabled = true
 applicable_scenario_ids = ["SCENARIO-FULL", "SCENARIO-CORE"]
-process_id = "PROCESS-C-HANDLE"
 application_id = "APP-C"
 type = "keyword"
 pattern = "C subprocess completed"
@@ -159,7 +149,6 @@ business_meaning = "A确认所有并行子进程已经完成"
 enabled = true
 export_enabled = true
 applicable_scenario_ids = ["SCENARIO-FULL", "SCENARIO-CORE"]
-process_id = "PROCESS-A-MAIN"
 application_id = "APP-A"
 type = "keyword"
 pattern = "all subprocesses completed"
@@ -171,7 +160,6 @@ business_meaning = "A完成收尾且全局请求成功"
 enabled = true
 export_enabled = true
 applicable_scenario_ids = ["SCENARIO-FULL", "SCENARIO-CORE"]
-process_id = "PROCESS-A-MAIN"
 application_id = "APP-A"
 type = "keyword"
 pattern = "request completed successfully"
@@ -183,41 +171,25 @@ business_meaning = "A终止处理且全局请求失败"
 enabled = true
 export_enabled = true
 applicable_scenario_ids = ["SCENARIO-FULL", "SCENARIO-CORE"]
-process_id = "PROCESS-A-MAIN"
 application_id = "APP-A"
 type = "regex"
 pattern = 'request failed, code=[A-Z0-9_]+'
 
-[[process_relations]]
-id = "REL-A-CALL-B"
-name = "A starts B subprocess"
-type = "RPC_CALL"
-source_process_id = "PROCESS-A-MAIN"
-target_process_id = "PROCESS-B-HANDLE"
-start_matcher_id = "LOG-A-PARALLEL-START"
-end_matcher_id = "LOG-B-RECEIVED"
-latency_stage_id = "DEF-A-TO-B-RPC"
+# 开始边界（owner = flow）：请求启动
+[[stages]]
+id = "STAGE-REQUEST-START"
+name = "Global request start"
+business_meaning = "A应用接收订单并启动主进程"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-FULL", "SCENARIO-CORE"]
+flow_id = "FLOW-A-PARALLEL"
+role = "start"
+start_matcher_id = "LOG-REQUEST-START"
+end_matcher_id = "LOG-REQUEST-START"
+order = 1
 
-[[process_relations]]
-id = "REL-A-CALL-C"
-name = "A starts C subprocess"
-type = "RPC_CALL"
-source_process_id = "PROCESS-A-MAIN"
-target_process_id = "PROCESS-C-HANDLE"
-start_matcher_id = "LOG-A-PARALLEL-START"
-end_matcher_id = "LOG-C-RECEIVED"
-latency_stage_id = "DEF-A-TO-C-RPC"
-
-[[subprocess_groups]]
-id = "GROUP-PARALLEL-PROCESSING"
-name = "Parallel downstream processing"
-parent_process_id = "PROCESS-A-MAIN"
-mode = "PARALLEL"
-trigger_stage_id = "DEF-A-PREPARE"
-child_process_ids = ["PROCESS-B-HANDLE", "PROCESS-C-HANDLE"]
-join_matcher_id = "LOG-A-ALL-SUBPROCESSES-COMPLETED"
-latency_stage_id = "DEF-PARALLEL-GROUP"
-
+# 普通 stage：A 准备
 [[stages]]
 id = "DEF-A-PREPARE"
 name = "A preparation stage"
@@ -225,14 +197,12 @@ business_meaning = "A主进程进入并行子进程前的准备时延"
 enabled = true
 export_enabled = true
 applicable_scenario_ids = ["SCENARIO-FULL", "SCENARIO-CORE"]
-type = "APPLICATION_PROCESSING"
-layer = "business"
-order = 1
 process_id = "PROCESS-A-MAIN"
-application_id = "APP-A"
 start_matcher_id = "LOG-REQUEST-START"
 end_matcher_id = "LOG-A-PARALLEL-START"
+order = 2
 
+# 特殊 stage：A 到 B 的 RPC（owner = flow，跨进程）
 [[stages]]
 id = "DEF-A-TO-B-RPC"
 name = "A to B RPC latency"
@@ -240,15 +210,12 @@ business_meaning = "A启动并行处理到B子进程开始的时延"
 enabled = true
 export_enabled = true
 applicable_scenario_ids = ["SCENARIO-FULL", "SCENARIO-CORE"]
-type = "RPC_TRANSFER"
-layer = "business"
-order = 2
-relation_id = "REL-A-CALL-B"
-source_application_id = "APP-A"
-target_application_id = "APP-B"
+flow_id = "FLOW-A-PARALLEL"
 start_matcher_id = "LOG-A-PARALLEL-START"
 end_matcher_id = "LOG-B-RECEIVED"
+order = 3
 
+# 特殊 stage：A 到 C 的 RPC（owner = flow，跨进程，与 A->B 同 order 并发）
 [[stages]]
 id = "DEF-A-TO-C-RPC"
 name = "A to C RPC latency"
@@ -256,15 +223,12 @@ business_meaning = "A启动并行处理到C子进程开始的时延"
 enabled = true
 export_enabled = true
 applicable_scenario_ids = ["SCENARIO-FULL", "SCENARIO-CORE"]
-type = "RPC_TRANSFER"
-layer = "business"
-order = 3
-relation_id = "REL-A-CALL-C"
-source_application_id = "APP-A"
-target_application_id = "APP-C"
+flow_id = "FLOW-A-PARALLEL"
 start_matcher_id = "LOG-A-PARALLEL-START"
 end_matcher_id = "LOG-C-RECEIVED"
+order = 3
 
+# 普通 stage：B 处理
 [[stages]]
 id = "DEF-B-PROCESS"
 name = "B processing stage"
@@ -272,15 +236,12 @@ business_meaning = "B子进程处理时延"
 enabled = true
 export_enabled = true
 applicable_scenario_ids = ["SCENARIO-FULL", "SCENARIO-CORE"]
-type = "APPLICATION_PROCESSING"
-layer = "business"
-order = 4
 process_id = "PROCESS-B-HANDLE"
-application_id = "APP-B"
-parent_group_id = "GROUP-PARALLEL-PROCESSING"
 start_matcher_id = "LOG-B-RECEIVED"
 end_matcher_id = "LOG-B-COMPLETED"
+order = 4
 
+# 普通 stage：C 处理（与 B 处理同 order 并发）
 [[stages]]
 id = "DEF-C-PROCESS"
 name = "C processing stage"
@@ -288,45 +249,12 @@ business_meaning = "C子进程处理时延"
 enabled = true
 export_enabled = true
 applicable_scenario_ids = ["SCENARIO-FULL", "SCENARIO-CORE"]
-type = "APPLICATION_PROCESSING"
-layer = "business"
-order = 5
 process_id = "PROCESS-C-HANDLE"
-application_id = "APP-C"
-parent_group_id = "GROUP-PARALLEL-PROCESSING"
 start_matcher_id = "LOG-C-RECEIVED"
 end_matcher_id = "LOG-C-COMPLETED"
+order = 4
 
-[[stages]]
-id = "DEF-PARALLEL-GROUP"
-name = "Parallel subprocess group"
-business_meaning = "全部并行子进程完成的总等待时延"
-enabled = true
-export_enabled = true
-applicable_scenario_ids = ["SCENARIO-FULL", "SCENARIO-CORE"]
-type = "PARALLEL_GROUP"
-layer = "business"
-order = 6
-process_id = "PROCESS-A-MAIN"
-subprocess_group_id = "GROUP-PARALLEL-PROCESSING"
-start_matcher_id = "LOG-A-PARALLEL-START"
-end_matcher_id = "LOG-A-ALL-SUBPROCESSES-COMPLETED"
-
-[[stages]]
-id = "DEF-A-FINALIZE"
-name = "A finalization stage"
-business_meaning = "并行子进程汇总后A主进程的收尾时延"
-enabled = true
-export_enabled = true
-applicable_scenario_ids = ["SCENARIO-FULL", "SCENARIO-CORE"]
-type = "APPLICATION_PROCESSING"
-layer = "business"
-order = 7
-process_id = "PROCESS-A-MAIN"
-application_id = "APP-A"
-start_matcher_id = "LOG-A-ALL-SUBPROCESSES-COMPLETED"
-end_matcher_id = "LOG-REQUEST-SUCCESS"
-
+# 普通 stage：B 内部准备（更细粒度，仅 FULL 场景）
 [[stages]]
 id = "DEF-B-PREPARE"
 name = "B preparation stage"
@@ -334,50 +262,76 @@ business_meaning = "B应用准备时延"
 enabled = true
 export_enabled = true
 applicable_scenario_ids = ["SCENARIO-FULL"]
-type = "APPLICATION_INTERNAL"
-layer = "internal"
-order = 1
 process_id = "PROCESS-B-PREPARE"
-application_id = "APP-B"
 start_matcher_id = "LOG-B-RECEIVED"
 end_matcher_id = "LOG-B-PREPARED"
+order = 4
 
-[business_flow]
+# 特殊 stage：跨子进程并行（owner = flow，sub_process_ids 列出跨过的子进程）
+[[stages]]
+id = "DEF-PARALLEL-GROUP"
+name = "Parallel subprocess group"
+business_meaning = "全部并行子进程完成的总等待时延"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-FULL", "SCENARIO-CORE"]
+flow_id = "FLOW-A-PARALLEL"
+sub_process_ids = ["PROCESS-B-HANDLE", "PROCESS-C-HANDLE"]
+start_matcher_id = "LOG-A-PARALLEL-START"
+end_matcher_id = "LOG-A-ALL-SUBPROCESSES-COMPLETED"
+order = 5
+
+# 普通 stage：A 收尾
+[[stages]]
+id = "DEF-A-FINALIZE"
+name = "A finalization stage"
+business_meaning = "并行子进程汇总后A主进程的收尾时延"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-FULL", "SCENARIO-CORE"]
+process_id = "PROCESS-A-MAIN"
+start_matcher_id = "LOG-A-ALL-SUBPROCESSES-COMPLETED"
+end_matcher_id = "LOG-REQUEST-SUCCESS"
+order = 6
+
+# 结束边界（owner = flow）：成功结尾
+[[stages]]
+id = "STAGE-SUCCESS"
+name = "Global request success"
+business_meaning = "A完成收尾且全局请求成功"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-FULL", "SCENARIO-CORE"]
+flow_id = "FLOW-A-PARALLEL"
+role = "end"
+result = "SUCCESS"
+start_matcher_id = "LOG-REQUEST-START"
+end_matcher_id = "LOG-REQUEST-SUCCESS"
+order = 7
+
+# 结束边界（owner = flow）：失败结尾，与成功同 order=7 互为互斥结尾
+[[stages]]
+id = "STAGE-FAILED"
+name = "Global request failure"
+business_meaning = "A终止处理且全局请求失败"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-FULL", "SCENARIO-CORE"]
+flow_id = "FLOW-A-PARALLEL"
+role = "end"
+result = "FAILED"
+start_matcher_id = "LOG-REQUEST-START"
+end_matcher_id = "LOG-REQUEST-FAILED"
+order = 7
+
+[[flows]]
 id = "FLOW-A-PARALLEL"
 name = "A parallel subprocess business flow"
 domain_id = "DOMAIN-ORDER"
 root_process_id = "PROCESS-A-MAIN"
-request_start_matcher_id = "LOG-REQUEST-START"
 process_ids = [
   "PROCESS-A-MAIN",
   "PROCESS-B-HANDLE",
   "PROCESS-B-PREPARE",
   "PROCESS-C-HANDLE"
-]
-subprocess_group_ids = ["GROUP-PARALLEL-PROCESSING"]
-
-[business_flow.matching]
-strategy = "ordered_first_match"
-
-[[business_flow.end_results]]
-result = "SUCCESS"
-matcher_id = "LOG-REQUEST-SUCCESS"
-
-[[business_flow.end_results]]
-result = "FAILED"
-matcher_id = "LOG-REQUEST-FAILED"
-
-[[business_flow.branches]]
-id = "BRANCH-NORMAL"
-name = "Normal branch"
-default = true
-stage_ids = [
-  "DEF-A-PREPARE",
-  "DEF-A-TO-B-RPC",
-  "DEF-A-TO-C-RPC",
-  "DEF-B-PROCESS",
-  "DEF-C-PROCESS",
-  "DEF-PARALLEL-GROUP",
-  "DEF-A-FINALIZE",
-  "DEF-B-PREPARE"
 ]

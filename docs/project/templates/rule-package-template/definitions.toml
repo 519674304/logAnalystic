@@ -1,0 +1,54 @@
+# 简单定义层：场景 / 领域 / 应用 / 流程 / 进程。
+# 本层只承载这些元素的定义；日志匹配器见 matchers.toml，时延阶段见 stages.toml。
+
+# ---------- 分析场景 ----------
+[[scenarios]]
+# 必填：场景唯一 ID。matchers.toml 与 stages.toml 的 applicable_scenario_ids 引用它。
+id = "SCENARIO-TEMPLATE"
+name = "订单主链路"
+description = "从订单接收、支付处理到订单完成的最小链路。"
+
+# ---------- 领域 ----------
+[[domains]]
+# 必填：领域唯一 ID，被 flows.domain_id 引用。
+id = "DOMAIN-ORDER"
+name = "订单领域"
+
+# ---------- 应用 ----------
+[[applications]]
+# 必填：应用唯一 ID，被 processes.application_id 与 log_matchers.application_id 引用。
+id = "APP-ORDER"
+name = "订单服务"
+# 可选：日志前缀，用于定位、过滤与展示日志来源。
+log_prefix = "A00010"
+
+[[applications]]
+id = "APP-PAYMENT"
+name = "支付服务"
+log_prefix = "B00020"
+
+# ---------- 流程 ----------
+# flow 只有 stage，无开始/结尾边界；请求边界由 stages 的 start/end matcher 表达。
+[[flows]]
+id = "FLOW-ORDER-PAYMENT"
+name = "订单支付流程"
+domain_id = "DOMAIN-ORDER"
+root_process_id = "PROCESS-ORDER-MAIN"
+# 本流程涉及的进程。APP-PAYMENT 的进程由跨应用 RPC stage 进入。
+process_ids = ["PROCESS-ORDER-MAIN", "PROCESS-PAYMENT"]
+
+# ---------- 进程 ----------
+# 一个进程的所有 stage 与 matcher 都归属同一个 application_id。
+# kind 可选：MAIN（主进程，默认）/ SUB（子进程）。
+[[processes]]
+id = "PROCESS-ORDER-MAIN"
+name = "订单主流程"
+kind = "MAIN"
+application_id = "APP-ORDER"
+
+# 第二个应用的主进程，靠 application_id 归属，不挂在第一个应用下。
+[[processes]]
+id = "PROCESS-PAYMENT"
+name = "支付流程"
+kind = "MAIN"
+application_id = "APP-PAYMENT"

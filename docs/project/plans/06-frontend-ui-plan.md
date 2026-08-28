@@ -68,9 +68,9 @@ Supersedes:
 - 依赖：PLAN-ANALYSIS-006、PLAN-UI-001。
 - 文件/模块：`src/features/latency-analysis/request-list/`。
 - 步骤：
-  1. 分析条件面板。
+  1. 分析条件面板（场景下拉来自生效版本 `definitions` 层；分析按 `selectedScenarioId` 过滤 matcher/stage，空 `applicable_scenario_ids` 视为全场景适用）。
   2. 请求列表 ViewModel。
-  3. 请求筛选。
+  3. 请求筛选（大数量请求按分组折叠展示，慢/异常默认展开、正常/未结束默认折叠，默认耗时降序）。
   4. 请求选中状态。
   5. STALE/EMPTY/FAILED 状态展示。
 - 测试：筛选条件、空结果、过期结果、选中请求。

@@ -5,12 +5,9 @@
   "operation": "created",
   "state": "available",
   "layer_counts": {
-    "scenarios": 2,
-    "topology": 8,
+    "definitions": 8,
     "matchers": 10,
-    "relations": 3,
-    "stages": 8,
-    "flow": 1
+    "stages": 8
   },
   "validation": {
     "passed": true,

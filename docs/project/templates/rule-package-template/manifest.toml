@@ -1,6 +1,6 @@
 # 规则包入口文件。
 # package.version 是导入目标版本：同版本号会覆盖已导入的完整规则包；新版本号会新增版本目录。
-# 六个 layer 文件必须都位于 ZIP 根目录，并且文件名需要与下方映射一致。
+# 三个 layer 文件必须都位于 ZIP 根目录，并且文件名需要与下方映射一致。
 
 [rule_set]
 # 必填：规则集稳定标识。修改它会创建另一套规则集。
@@ -13,10 +13,7 @@ version = "1.0.0"
 description = "带中文注释的最小完整规则包模板。"
 
 [package.layers]
-# 必填：六层文件名。不要填写目录、绝对路径或 ..。
-scenarios = "scenarios.toml"
-topology = "topology.toml"
+# 必填：三层文件名。不要填写目录、绝对路径或 ..。
+definitions = "definitions.toml"
 matchers = "matchers.toml"
-relations = "relations.toml"
 stages = "stages.toml"
-flow = "flow.toml"

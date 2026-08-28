@@ -18,7 +18,7 @@ Supersedes:
 - 步骤：
   1. 生成 AnalysisScope。
   2. 校验 scenarioId。
-  3. 边界 matcher 始终生效。
+  3. 聚合 stage（`order=1`）的开始 matcher 始终生效。
   4. 普通 matcher/stage 按 enabled 和 applicable_scenario_ids 过滤。
   5. 保留 export_enabled 到结果目录。
 - 测试：FULL/CORE 场景、无效场景、边界规则不受场景影响。
@@ -29,14 +29,14 @@ Supersedes:
 - 需求：REQ-REQUEST。
 - 职责：RESP-REQUEST-RECOGNIZE。
 - ADR：ADR-002、ADR-004。
-- 目标：根据全局开始日志识别请求，请求结束取结束日志或下一次开始日志之前。
+- 目标：根据流程级聚合 stage（`order=1`）的开始匹配器识别请求，请求结果取命中的聚合 `result` 分支，或下一次开始日志之前。
 - 依赖：PLAN-ANALYSIS-001。
 - 文件/模块：`domain/latency_analysis/request_recognizer.rs`。
 - 步骤：
-  1. 在用户选择时间范围内寻找开始日志。
-  2. 仅开始日志时间位于范围内的请求进入分析。
-  3. 请求处理到结束日志或下一次开始日志之前。
-  4. 没有开始日志不生成请求。
+  1. 在用户选择时间范围内寻找聚合 stage（`order=1`）的开始匹配器命中。
+  2. 仅开始命中时间位于范围内的请求进入分析。
+  3. 请求处理到聚合 `result` 分支的结束匹配器命中，或下一次开始命中之前。
+  4. 没有开始命中不生成请求。
   5. 生成非空 systemRequestId 和 displayStartTimestamp。
 - 测试：正常结束、缺失结束、最后一个无结束、范围前日志不属于请求、同一应用多次进入。
 - 完成证据：请求列表和边界符合批准规则。
@@ -50,7 +50,7 @@ Supersedes:
 - 依赖：PLAN-ANALYSIS-002、PLAN-LOG-004。
 - 文件/模块：`domain/latency_analysis/request_log_matcher.rs`、`domain/latency_analysis/matcher_strategy.rs`。
 - 步骤：
-  1. 实现 keyword/regex/structured-field 内部策略。
+  1. 实现 keyword/regex 内部策略。
   2. 只在 RecognizedRequest 范围内匹配普通 matcher。
   3. 未命中的普通日志不进入分析结果。
   4. 重复命中按规则取第一条并输出提示。
@@ -63,7 +63,7 @@ Supersedes:
 - 需求：REQ-LATENCY。
 - 职责：RESP-STAGE-CALCULATE。
 - ADR：ARCH-EXTENSION-PATTERNS。
-- 目标：按 start_matcher_id 和 end_matcher_id 计算阶段时延，支持 internal/business/rpc 层。
+- 目标：按 start_matcher_id 和 end_matcher_id 计算阶段时延，区分进程级阶段（process 归属）与流程级阶段（flow 归属，含自定义的跨应用/多进程流程段（常见为进程整体聚合与跨应用 RPC））；聚合 `result` 分支命中即判定请求结果并取 `result`。
 - 依赖：PLAN-ANALYSIS-003。
 - 文件/模块：`domain/latency_analysis/stage_latency_calculator.rs`。
 - 步骤：
@@ -71,8 +71,9 @@ Supersedes:
   2. 计算 durationMs。
   3. RPC 阶段允许跨应用和进程。
   4. 阶段缺失不生成零值样本。
-  5. 时间顺序异常进入 Issue。
-- 测试：应用内部阶段、应用间 RPC、跨进程、缺失起点、缺失终点、时间倒序。
+  5. 聚合 `result` 分支命中时判定结果，同 `order` 多个结果分支都命中时取时间最先者、其余记 Issue。
+  6. 时间顺序异常进入 Issue。
+- 测试：应用内部阶段、应用间 RPC、跨进程、缺失起点、缺失终点、时间倒序、多结果分支互斥。
 - 完成证据：所有基线阶段时延与预期 CSV 一致。
 
 ## PLAN-ANALYSIS-005 并行子进程组
@@ -80,17 +81,17 @@ Supersedes:
 - 需求：REQ-LATENCY。
 - 职责：RESP-STAGE-CALCULATE、RESP-ANALYSIS-ASSEMBLE。
 - ADR：ARCH-LIFECYCLE-STATE、ARCH-EXTENSION-PATTERNS。
-- 目标：表达主流程进入并行子进程组、子进程独立分析、主流程 join matcher 汇总。
+- 目标：表达主流程进入跨子进程并行（进程级 stage 带 sub_process_ids）、子进程独立分析、主进程汇总 matcher 汇总。
 - 依赖：PLAN-ANALYSIS-004。
-- 文件/模块：`domain/latency_analysis/subprocess_group_result.rs`。
+- 文件/模块：`domain/latency_analysis/stage_latency_calculator.rs`（并行阶段作为带 sub_process_ids 的进程级 stage 计算）。
 - 步骤：
-  1. 根据 trigger stage 进入并行组。
+  1. 根据触发点进入并行（进程级并行 stage 的 start matcher）。
   2. 各子进程阶段独立计算。
-  3. join matcher 命中代表组整体完成。
-  4. 计算组总等待时延。
-  5. 主流程后续阶段只能从 join 或其后日志开始。
-- 测试：B/C 并行组、子进程顺序不同、join 缺失、主流程后续阶段。
-- 完成证据：无需为每个子进程建模返回主流程日志，仍能生成组结果。
+  3. 汇总 matcher 命中代表并行阶段整体完成。
+  4. 计算并行阶段总等待时延。
+  5. 主流程后续阶段只能从汇总 matcher 或其后的日志开始。
+- 测试：多子进程并行、子进程顺序不同、汇总缺失、主流程后续阶段。
+- 完成证据：无需为每个子进程建模返回主流程日志，仍能生成并行阶段结果。
 
 ## PLAN-ANALYSIS-006 统计与结果组装
 

@@ -5,6 +5,9 @@ import type { RequestGroup, RequestViewModel } from '../../view-model/latency-vi
 type LatencyAnalysisPanelProps = {
   viewModel: RequestViewModel
   analysisMessage: string
+  scenarios: Array<{ id: string; name: string }>
+  selectedScenarioId: string | null
+  onScenarioChange: (nextId: string) => void
   onAnalyze: () => void
   onExport: () => void
 }
@@ -28,14 +31,15 @@ function formatRelativeStart(relativeDuration: string) {
 export default function LatencyAnalysisPanel({
   viewModel,
   analysisMessage,
+  scenarios,
+  selectedScenarioId,
+  onScenarioChange,
   onAnalyze,
   onExport,
 }: LatencyAnalysisPanelProps) {
   const [leftHidden, setLeftHidden] = useState(false)
-  const [rightHidden, setRightHidden] = useState(false)
   const [bottomHidden, setBottomHidden] = useState(false)
   const [leftWidth, setLeftWidth] = useState(270)
-  const [rightWidth, setRightWidth] = useState(320)
   const [activeRequestId, setActiveRequestId] = useState(
     viewModel.requests.find((request) => request.group === 'slow')?.id ?? viewModel.requests[0]?.id ?? viewModel.requestId,
   )
@@ -91,19 +95,13 @@ export default function LatencyAnalysisPanel({
     setCollapsedGroups((prev) => ({ ...prev, [groupId]: !prev[groupId] }))
   }
 
-  const startResize = (kind: 'left' | 'right', startEvent: React.MouseEvent<HTMLButtonElement>) => {
+  const startResize = (startEvent: React.MouseEvent<HTMLButtonElement>) => {
     startEvent.preventDefault()
     const startX = startEvent.clientX
     const baseLeftWidth = leftWidth
-    const baseRightWidth = rightWidth
 
     const onMove = (moveEvent: MouseEvent) => {
-      if (kind === 'left') {
-        setLeftWidth(clamp(baseLeftWidth + moveEvent.clientX - startX, 190, 420))
-      }
-      if (kind === 'right') {
-        setRightWidth(clamp(baseRightWidth - (moveEvent.clientX - startX), 220, 520))
-      }
+      setLeftWidth(clamp(baseLeftWidth + moveEvent.clientX - startX, 190, 420))
     }
 
     const onUp = () => {
@@ -120,9 +118,17 @@ export default function LatencyAnalysisPanel({
       <div className="analysis-toolbar">
         <label className="field compact-field">
           <span>场景</span>
-          <select defaultValue="core">
-            <option value="core">核心链路</option>
-            <option value="full">完整链路</option>
+          <select
+            value={selectedScenarioId ?? ''}
+            onChange={(event: React.ChangeEvent<HTMLSelectElement>) => onScenarioChange(event.target.value)}
+          >
+            {scenarios.length === 0 ? (
+              <option value="">全场景</option>
+            ) : (
+              scenarios.map((scenario) => (
+                <option key={scenario.id} value={scenario.id}>{scenario.name}</option>
+              ))
+            )}
           </select>
         </label>
 
@@ -136,9 +142,9 @@ export default function LatencyAnalysisPanel({
       </div>
 
       <div
-        className={`latency-workspace ${leftHidden ? 'left-hidden' : ''} ${rightHidden ? 'right-hidden' : ''}`}
+        className={`latency-workspace ${leftHidden ? 'left-hidden' : ''}`}
         style={{
-          gridTemplateColumns: `${leftHidden ? 0 : leftWidth}px minmax(0, 1fr) ${rightHidden ? 0 : rightWidth}px`,
+          gridTemplateColumns: `${leftHidden ? 0 : leftWidth}px minmax(0, 1fr)`,
         }}
       >
         <aside className="side-panel request-panel">
@@ -211,7 +217,7 @@ export default function LatencyAnalysisPanel({
             type="button"
             className="resize-handle left-resize"
             aria-label="调整请求资源管理器宽度"
-            onMouseDown={(event: React.MouseEvent<HTMLButtonElement>) => startResize('left', event)}
+            onMouseDown={startResize}
           />
         </aside>
 
@@ -227,11 +233,6 @@ export default function LatencyAnalysisPanel({
                   显示请求
                 </button>
               ) : null}
-              {rightHidden ? (
-                <button type="button" className="ghost-button" onClick={() => setRightHidden(false)}>
-                  显示步骤
-                </button>
-              ) : null}
               {bottomHidden ? (
                 <button type="button" className="ghost-button" onClick={() => setBottomHidden(false)}>
                   显示区间统计
@@ -239,25 +240,6 @@ export default function LatencyAnalysisPanel({
               ) : null}
             </div>
           </div>
-
-          {activeRequest ? (
-            <div className="slow-request-summary">
-              <div>
-                <span>慢请求摘要</span>
-                <strong>
-                  {activeRequest.result} · {activeRequest.duration}
-                </strong>
-              </div>
-              <div>
-                <span>主要慢点</span>
-                <strong>{activeRequest.slowPoint}</strong>
-              </div>
-              <div>
-                <span>场景</span>
-                <strong>{activeRequest.scene}</strong>
-              </div>
-            </div>
-          ) : null}
 
           <div className="time-axis">
             <span>0ms</span>
@@ -298,61 +280,6 @@ export default function LatencyAnalysisPanel({
             ))}
           </div>
         </section>
-
-        <aside className="side-panel step-panel">
-          <button
-            type="button"
-            className="resize-handle right-resize"
-            aria-label="调整步骤树宽度"
-            onMouseDown={(event: React.MouseEvent<HTMLButtonElement>) => startResize('right', event)}
-          />
-
-          <div className="panel-title-row">
-            <h2>步骤树</h2>
-            <button type="button" className="icon-button" onClick={() => setRightHidden(true)}>
-              收起
-            </button>
-          </div>
-
-          <div className="selected-step-card">
-            <span className={`level ${activeBlock?.kind ?? 'info'}`}>{activeBlock?.kind ?? 'stage'}</span>
-            <strong>{activeBlock?.label ?? '未选择阶段'}</strong>
-            <p>{activeBlock ? `${activeBlock.lane} · ${activeBlock.duration}` : '先在中间泳道图中选择一个阶段'}</p>
-            {activeBlock ? (
-              <div className="selected-step-meta">
-                <span>开始: {activeBlock.startTimestamp}</span>
-                <span>结束: {activeBlock.endTimestamp}</span>
-                <span>相对时延: {activeBlock.relativeDuration}</span>
-                <span>阶段时延: {activeBlock.duration}</span>
-              </div>
-            ) : null}
-          </div>
-
-          <div className="step-tree">
-            {viewModel.stepTree.filter((step) => !step.requestId || step.requestId === activeRequestId).map((step) => {
-              const stepBlock = laneBlockById.get(step.blockId)
-
-              return (
-                <button
-                  key={`${step.level}-${step.name}`}
-                  type="button"
-                  className={`tree-row ${step.blockId === activeBlockId ? 'active' : ''}`}
-                  style={{ paddingLeft: `${12 + step.level * 18}px` }}
-                  onClick={() => setActiveBlockId(step.blockId)}
-                >
-                  <span className="tree-row-main">
-                    <span className="tree-row-title">{step.name}</span>
-                    <strong className="tree-row-duration">{stepBlock?.duration ?? step.duration}</strong>
-                  </span>
-                  <span className="tree-row-sub">
-                    <span>{stepBlock?.relativeDuration ?? '-'}</span>
-                    <span>{stepBlock?.lane ?? ''}</span>
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        </aside>
       </div>
 
       {!bottomHidden ? (

@@ -1,32 +1,40 @@
+# 定义层：分析场景、领域、应用、进程与流程的静态结构。
+# 进程靠 application_id 归属应用；跨应用进程是 flow 中的平级成员（无 parent_process_id），
+# 跨应用的调用关系由 stages.toml 中的 flow 级 RPC stage 表达。
+
+# 分析场景
+[[scenarios]]
+id = "SCENARIO-SMOKE"
+name = "冒烟主链路"
+description = "从请求启动、并行子进程到请求完成的最小链路。"
+
+# 领域
 [[domains]]
 id = "DOMAIN-SMOKE"
 name = "冒烟领域"
-application_ids = ["APP-A", "APP-B", "APP-C", "APP-D"]
 
+# 应用
 [[applications]]
 id = "APP-A"
 name = "订单编排应用"
-domain_id = "DOMAIN-SMOKE"
 log_prefix = "A00010"
 
 [[applications]]
 id = "APP-B"
 name = "B 处理应用"
-domain_id = "DOMAIN-SMOKE"
 log_prefix = "B00020"
 
 [[applications]]
 id = "APP-C"
 name = "C 处理应用"
-domain_id = "DOMAIN-SMOKE"
 log_prefix = "C00030"
 
 [[applications]]
 id = "APP-D"
 name = "D 收尾应用"
-domain_id = "DOMAIN-SMOKE"
 log_prefix = "D00040"
 
+# 进程（跨应用，均为 FLOW-SMOKE 平级成员）
 [[processes]]
 id = "PROCESS-A-MAIN"
 name = "A 主流程"
@@ -38,18 +46,23 @@ id = "PROCESS-B-WORKER"
 name = "B 子进程"
 kind = "SUB"
 application_id = "APP-B"
-parent_process_id = "PROCESS-A-MAIN"
 
 [[processes]]
 id = "PROCESS-C-WORKER"
 name = "C 子进程"
 kind = "SUB"
 application_id = "APP-C"
-parent_process_id = "PROCESS-A-MAIN"
 
 [[processes]]
 id = "PROCESS-D-WORKER"
 name = "D 收尾子进程"
 kind = "SUB"
 application_id = "APP-D"
-parent_process_id = "PROCESS-A-MAIN"
+
+# 流程
+[[flows]]
+id = "FLOW-SMOKE"
+name = "冒烟主链路流程"
+domain_id = "DOMAIN-SMOKE"
+root_process_id = "PROCESS-A-MAIN"
+process_ids = ["PROCESS-A-MAIN", "PROCESS-B-WORKER", "PROCESS-C-WORKER", "PROCESS-D-WORKER"]

@@ -33,6 +33,7 @@ import {
 const sampleLatencyViewModel = mapToViewModel(latencyResult)
 const defaultTimeRange = '2026-06-12 10:30:00 ~ 2026-06-12 10:45:00'
 const activeRuleVersionStorageKey = 'log-analystic.active-rule-version'
+const activeScenarioStorageKey = 'log-analystic.active-scenario'
 
 function readActiveRuleVersion(): ActiveRuleVersionDto | null {
   try {
@@ -44,6 +45,15 @@ function readActiveRuleVersion(): ActiveRuleVersionDto | null {
     // 无生效版本或存储损坏时按未生效处理
   }
   return null
+}
+
+function readActiveScenario(): string | null {
+  try {
+    const value = globalThis.localStorage?.getItem(activeScenarioStorageKey)
+    return value ? value : null
+  } catch {
+    return null
+  }
 }
 
 const tabs: WorkbenchTab[] = [
@@ -120,17 +130,19 @@ function projectRuleRecords(versions: RulePackageVersionDto[], active: ActiveRul
         scenarios,
         matchType: layer.id === 'matchers' ? stringField('type') : undefined,
         recordType: layer.id === 'stages' ? 'stage' : 'matcher',
-        stageType: stringField('type'),
         order: typeof fields.order === 'number' ? fields.order : undefined,
         applicationId: stringField('application_id'),
         processId: stringField('process_id'),
-        sourceApplicationId: stringField('source_application_id'),
-        targetApplicationId: stringField('target_application_id'),
         startMatcherId: stringField('start_matcher_id'),
         endMatcherId: stringField('end_matcher_id'),
       } satisfies RuleRecordDto
     }),
   )
+}
+
+function filterRulesByScenario(rules: RuleRecordDto[], scenarioId: string | null): RuleRecordDto[] {
+  if (!scenarioId) return rules
+  return rules.filter((rule) => rule.scenarios.length === 0 || rule.scenarios.includes(scenarioId))
 }
 
 function csvCell(value: string | number | undefined) {
@@ -204,13 +216,27 @@ export default function App() {
   const [latencyAnalysisRunId, setLatencyAnalysisRunId] = useState(0)
   const [latencyAnalysisMessage, setLatencyAnalysisMessage] = useState('等待分析')
   const [latencyAnalysis, setLatencyAnalysis] = useState<LatencyAnalysis | null>(null)
+  const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(() => readActiveScenario())
   const rules = useMemo(() => projectRuleRecords(rulePackages, activeRuleVersion), [rulePackages, activeRuleVersion])
+  const scenarios = useMemo(() => {
+    const version = activeRuleVersion
+      ? rulePackages.find((item) => item.ruleSetId === activeRuleVersion.ruleSetId && item.version === activeRuleVersion.version)
+      : undefined
+    const layer = version?.layers.find((item) => item.id === 'definitions')
+    const scenarioNodes = (layer?.nodes ?? []).filter((node) => node.nodeType === 'scenarios')
+    return scenarioNodes.map((node) => ({ id: node.id, name: node.name }))
+  }, [rulePackages, activeRuleVersion])
+  const effectiveScenarioId = useMemo(() => {
+    if (scenarios.length === 0) return null
+    return scenarios.some((scenario) => scenario.id === selectedScenarioId) ? selectedScenarioId : scenarios[0].id
+  }, [scenarios, selectedScenarioId])
+  const scenarioRules = useMemo(() => filterRulesByScenario(rules, effectiveScenarioId), [rules, effectiveScenarioId])
   const latencyViewModel = useMemo(
     () =>
       latencyAnalysis
-        ? buildLatencyViewModelFromAnalysis(rules, latencyAnalysis, sampleLatencyViewModel)
-        : buildLatencyViewModelFromRules(rules, sampleLatencyViewModel),
-    [rules, latencyAnalysis, latencyAnalysisRunId],
+        ? buildLatencyViewModelFromAnalysis(scenarioRules, latencyAnalysis, sampleLatencyViewModel)
+        : buildLatencyViewModelFromRules(scenarioRules, sampleLatencyViewModel),
+    [scenarioRules, latencyAnalysis, latencyAnalysisRunId],
   )
 
   const runSearch = async (record?: SavedQueryDto) => {
@@ -444,6 +470,13 @@ export default function App() {
     setLatencyAnalysisMessage(next ? `已切换生效版本：${next.ruleSetId} ${next.version}` : '已取消生效版本')
   }
 
+  const changeScenario = (nextId: string) => {
+    setSelectedScenarioId(nextId)
+    window.localStorage.setItem(activeScenarioStorageKey, nextId)
+    setLatencyAnalysis(null)
+    setLatencyAnalysisMessage(`已切换场景：${nextId}`)
+  }
+
   const runLatencyAnalysis = async () => {
     const activeExists =
       activeRuleVersion !== null &&
@@ -460,11 +493,11 @@ export default function App() {
     }
 
     const matchers = new Map(
-      rules
+      scenarioRules
         .filter((rule) => rule.recordType === 'matcher')
         .map((rule) => [rule.id, rule] as const),
     )
-    const stageSpecs: LatencyStageSpec[] = rules
+    const stageSpecs: LatencyStageSpec[] = scenarioRules
       .filter((rule) => rule.enabled && rule.recordType === 'stage')
       .sort((left, right) => (left.order ?? Number.MAX_SAFE_INTEGER) - (right.order ?? Number.MAX_SAFE_INTEGER))
       .map((stage): LatencyStageSpec | null => {
@@ -561,6 +594,9 @@ export default function App() {
         <LatencyAnalysisPanel
           viewModel={latencyViewModel}
           analysisMessage={latencyAnalysisMessage}
+          scenarios={scenarios}
+          selectedScenarioId={effectiveScenarioId}
+          onScenarioChange={changeScenario}
           onAnalyze={() => void runLatencyAnalysis()}
           onExport={exportLatencyCsv}
         />

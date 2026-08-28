@@ -1,12 +1,14 @@
 # 规则包导入说明
 
-这份说明配合“下载导入模板”使用。模板解压后包含 `manifest.toml` 和六层 TOML 文件；修改完成后，把这七个文件直接压缩到 ZIP 根目录，再在规则配置页面导入。
+> 每个 TOML 字段的类型、必填、默认值与语义，见 [rule-package-attribute-reference.md](rule-package-attribute-reference.md)（逐字段属性参考）。
+
+这份说明配合“下载导入模板”使用。模板解压后包含 `manifest.toml` 和三层 TOML 文件；修改完成后，把这四个文件直接压缩到 ZIP 根目录，再在规则配置页面导入。
 
 ## 导入前检查
 
 - 只选择 `.zip` 文件。
 - ZIP 根目录必须包含 `manifest.toml`。
-- ZIP 根目录必须同时包含 `scenarios.toml`、`topology.toml`、`matchers.toml`、`relations.toml`、`stages.toml`、`flow.toml`。
+- ZIP 根目录必须同时包含 `definitions.toml`、`matchers.toml`、`stages.toml`。
 - 文件名以 `manifest.toml` 的 `[package.layers]` 映射为准；不要把文件放进额外目录。
 - 先保留模板中的注释。它们说明字段用途和引用目标。
 
@@ -15,7 +17,7 @@
 1. 在规则配置页下载“导入模板”和本说明。
 2. 解压 ZIP，在每个 TOML 中按注释修改示例值。
 3. 检查 `manifest.toml` 的 `rule_set.id` 与 `package.version`。
-4. 选中七个 TOML 文件本身压缩为 ZIP，不要把外层文件夹一起压缩。
+4. 选中四个 TOML 文件本身压缩为 ZIP，不要把外层文件夹一起压缩。
 5. 点击“导入完整规则包”，选择 ZIP。
 6. 页面显示“已新增”或“已覆盖”即表示导入成功。
 
@@ -25,26 +27,23 @@
 - `package.version` 表示这套规则集的版本。
 - 同版本号会覆盖已导入的完整规则包。
 - 新版本号会新增一个版本，不会改动已有版本。
-- 覆盖始终以 ZIP 内的完整七文件包为准，不支持散装 TOML 导入。
+- 覆盖始终以 ZIP 内的完整四文件包为准，不支持散装 TOML 导入。
 
-## 六层文件说明
+## 三层文件说明
 
-六层必须完整存在，但每层可以只保留当前业务需要的最小内容。
+三层必须完整存在，但每层可以只保留当前业务需要的最小内容。
 
 | 文件 | 作用 | 常见被引用对象 |
 | --- | --- | --- |
-| `scenarios.toml` | 定义分析场景 | 场景 ID |
-| `topology.toml` | 定义领域、应用与进程 | 领域、应用、进程 ID |
+| `definitions.toml` | 定义分析场景、领域、应用、流程与进程 | 场景、领域、应用、流程、进程 ID |
 | `matchers.toml` | 定义日志事件匹配规则 | 匹配器 ID |
-| `relations.toml` | 定义跨进程调用和并行分组 | 关系、分组 ID |
-| `stages.toml` | 定义两个日志事件之间的时延阶段 | 阶段 ID |
-| `flow.toml` | 组合请求边界、结束结果和阶段顺序 | 流程、分支 ID |
+| `stages.toml` | 定义两个日志事件之间的时延阶段（flow 聚合 / RPC 边界 / 进程内部） | 阶段 ID |
 
 ## ID 与引用规则
 
 - 所有 `id` 在整份规则包内必须唯一。
-- `*_id` 表示引用一个已有 ID，例如 `process_id`、`start_matcher_id`。
-- `*_ids` 表示引用多个已有 ID，例如 `application_ids`、`stage_ids`。
+- `*_id` 表示引用一个已有 ID，例如 `process_id`、`application_id`、`start_matcher_id`、`end_matcher_id`。
+- `*_ids` 表示引用多个已有 ID，例如 `process_ids`、`sub_process_ids`、`applicable_scenario_ids`。
 - 修改任意 ID 后，必须同步更新所有引用它的字段。
 - 导入器会检查不存在的引用和重复 ID；检查失败时不会覆盖原有版本。
 
@@ -63,8 +62,8 @@
 
 | 现象 | 请检查 |
 | --- | --- |
-| 不是 ZIP 或无法读取 | 重新压缩七个 TOML 文件，确认选择的是 `.zip`。 |
-| 缺少规则层文件 | 检查 `manifest.toml` 的六层映射和 ZIP 根目录文件名。 |
+| 不是 ZIP 或无法读取 | 重新压缩四个 TOML 文件，确认选择的是 `.zip`。 |
+| 缺少规则层文件 | 检查 `manifest.toml` 的三层映射和 ZIP 根目录文件名。 |
 | 文件路径不合法 | 不要使用子目录、绝对路径或 `..`。 |
-| 重复节点 ID | 在所有六层文件中检查重复的 `id`。 |
+| 重复节点 ID | 在所有三层文件中检查重复的 `id`。 |
 | 引用不存在 | 检查每个 `*_id` 和 `*_ids` 是否指向已定义的 ID。 |

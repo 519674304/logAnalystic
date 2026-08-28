@@ -1,38 +1,98 @@
 # 时延阶段层：计算两个关键日志事件之间的耗时。
-# matcher、关系、进程和应用字段均为跨层引用；修改 ID 时必须同步更新引用位置。
+# start_matcher_id / end_matcher_id 引用 matchers.toml 的 log_matchers.id。
+#
+# owner 归属：
+#   flow 级 stage（flow_id 归属）是自定义起止的时延段，可覆盖一个进程、一个应用多个进程或跨应用，
+#   串起完整业务流程，不限定类别。常见写法：聚合 stage（按 result 拆分支）+ 跨应用 RPC 边界。
+#   flow 只见各进程整体时延，看不到进程内部细节 stage。
+#   进程级 stage（process_id 归属）描述进程内部时延，内部各段应恰好铺满该应用的聚合 span。
+#
+# order 在每个 owner 内独立从 1 编号，仅标记数据：
+#   同 order 的多个 result 分支（SUCCESS / ERROR）在定义上都存在，但实际执行搜索日志时同一 order 只会命中一个。
+# 跨应用 RPC stage 的 start/end matcher 分属不同应用，因此不属于任何单一应用，归属 flow/domain 层。
+
+# ============ FLOW-ORDER-PAYMENT（owner = flow）============
+
+# 应用A（APP-ORDER）完整 PROCESS-ORDER-MAIN 整体，按结果拆分支，同 order=1
+[[stages]]
+id = "STAGE-ORDER-AGG-SUCCESS"
+name = "订单整体成功"
+business_meaning = "订单服务完整进程整体，从入口到发起支付调用。"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-TEMPLATE"]
+flow_id = "FLOW-ORDER-PAYMENT"
+order = 1
+result = "SUCCESS"
+start_matcher_id = "LOG-ORDER-START"
+end_matcher_id = "LOG-PAY-CALL"
 
 [[stages]]
-# 必填：阶段唯一 ID，可被 relations.toml 与 flow.toml 引用。
-id = "STAGE-ORDER-TO-PAYMENT"
-name = "订单到支付调用时延"
+id = "STAGE-ORDER-AGG-ERROR"
+name = "订单整体异常"
+business_meaning = "订单服务完整进程整体，异常结束。"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-TEMPLATE"]
+flow_id = "FLOW-ORDER-PAYMENT"
+order = 1
+result = "ERROR"
+start_matcher_id = "LOG-ORDER-START"
+end_matcher_id = "LOG-ORDER-ERROR"
+
+# 跨应用 RPC 边界：APP-ORDER -> APP-PAYMENT（归属 flow/domain 层）
+[[stages]]
+id = "STAGE-PAY-RPC"
+name = "订单到支付调用"
 business_meaning = "订单服务发起支付到支付服务收到请求的耗时。"
 enabled = true
 export_enabled = true
 applicable_scenario_ids = ["SCENARIO-TEMPLATE"]
-type = "RPC_TRANSFER"
-layer = "business"
+flow_id = "FLOW-ORDER-PAYMENT"
+order = 2
+start_matcher_id = "LOG-PAY-CALL"
+end_matcher_id = "LOG-PAY-RECEIVED"
+
+# 应用B（APP-PAYMENT）完整 PROCESS-PAYMENT 整体
+[[stages]]
+id = "STAGE-PAY-AGG-SUCCESS"
+name = "支付整体成功"
+business_meaning = "支付服务完整进程整体，从收到请求到支付完成。"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-TEMPLATE"]
+flow_id = "FLOW-ORDER-PAYMENT"
+order = 3
+result = "SUCCESS"
+start_matcher_id = "LOG-PAY-RECEIVED"
+end_matcher_id = "LOG-PAY-DONE"
+
+# ============ PROCESS-ORDER-MAIN（owner = process，APP-ORDER）============
+# 内部单段铺满聚合 STAGE-ORDER-AGG-SUCCESS 的整段（LOG-ORDER-START -> LOG-PAY-CALL）。
+
+[[stages]]
+id = "STAGE-ORDER-PROCESS"
+name = "订单主处理"
+business_meaning = "订单服务收到请求到发起支付调用的处理耗时。"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-TEMPLATE"]
+process_id = "PROCESS-ORDER-MAIN"
 order = 1
-# 关联 ID，引用 relations.toml 的 process_relations.id。
-relation_id = "REL-ORDER-CALL-PAYMENT"
-# 源和目标应用 ID，引用 topology.toml 的 applications.id。
-source_application_id = "APP-ORDER"
-target_application_id = "APP-PAYMENT"
-# 起止匹配器 ID，引用 matchers.toml 的 log_matchers.id。
 start_matcher_id = "LOG-ORDER-START"
-end_matcher_id = "LOG-PAYMENT-RECEIVED"
+end_matcher_id = "LOG-PAY-CALL"
+
+# ============ PROCESS-PAYMENT（owner = process，APP-PAYMENT）============
+# 单段铺满聚合 STAGE-PAY-AGG-SUCCESS（LOG-PAY-RECEIVED -> LOG-PAY-DONE）。
 
 [[stages]]
 id = "STAGE-PAYMENT-PROCESS"
-name = "支付处理时延"
+name = "支付处理"
 business_meaning = "支付服务收到请求到支付完成的处理耗时。"
 enabled = true
 export_enabled = true
 applicable_scenario_ids = ["SCENARIO-TEMPLATE"]
-type = "APPLICATION_PROCESSING"
-layer = "business"
-order = 2
-# 所属进程和应用，引用 topology.toml 的对应 ID。
 process_id = "PROCESS-PAYMENT"
-application_id = "APP-PAYMENT"
-start_matcher_id = "LOG-PAYMENT-RECEIVED"
-end_matcher_id = "LOG-PAYMENT-COMPLETED"
+order = 1
+start_matcher_id = "LOG-PAY-RECEIVED"
+end_matcher_id = "LOG-PAY-DONE"

@@ -245,12 +245,6 @@ function buildSampleRequests(dto: LatencyAnalysisResult): LatencyRequestViewMode
 }
 
 function getStageKind(stage: RuleRecordDto): LaneBlockKind {
-  if (stage.stageType === 'RPC_TRANSFER') {
-    return 'rpc'
-  }
-  if (stage.stageType === 'PARALLEL_GROUP') {
-    return 'join'
-  }
   if (stage.processId?.includes('SUB')) {
     return 'subprocess'
   }
@@ -258,9 +252,6 @@ function getStageKind(stage: RuleRecordDto): LaneBlockKind {
 }
 
 function getStageLane(stage: RuleRecordDto) {
-  if (stage.sourceApplicationId && stage.targetApplicationId) {
-    return `${stage.sourceApplicationId} -> ${stage.targetApplicationId}`
-  }
   if (stage.applicationId) {
     return stage.applicationId
   }
@@ -272,7 +263,7 @@ function getStageLane(stage: RuleRecordDto) {
 
 export function buildLatencyViewModelFromRules(rules: RuleRecordDto[], fallback: RequestViewModel): RequestViewModel {
   const stages = rules
-    .filter((rule) => rule.enabled && rule.recordType === 'stage')
+    .filter((rule) => rule.enabled && rule.recordType === 'stage' && (rule.applicationId || rule.processId))
     .sort((left, right) => (left.order ?? Number.MAX_SAFE_INTEGER) - (right.order ?? Number.MAX_SAFE_INTEGER))
 
   if (stages.length === 0) {
@@ -280,24 +271,29 @@ export function buildLatencyViewModelFromRules(rules: RuleRecordDto[], fallback:
   }
 
   const lanes = Array.from(new Set(stages.map(getStageLane)))
-  const laneBlocks = stages.map((stage, index) => {
+  const gapMs = 12
+  let cursor = 0
+  const timings = stages.map((stage, index) => {
     const durationMs = 40 + index * 15
-    const startMs = index * 55
+    const startMs = cursor
     const endMs = startMs + durationMs
-
-    return {
-      id: stage.id,
-      lane: getStageLane(stage),
-      label: stage.description || stage.name,
-      startPercent: Math.min(84, 4 + index * 11),
-      widthPercent: Math.max(8, Math.min(22, durationMs / 4)),
-      kind: getStageKind(stage),
-      duration: `${durationMs}ms`,
-      startTimestamp: stage.startMatcherId ?? '等待日志命中',
-      endTimestamp: stage.endMatcherId ?? '等待日志命中',
-      relativeDuration: `+${startMs}ms ~ +${endMs}ms`,
-    }
+    cursor = endMs + gapMs
+    return { stage, durationMs, startMs, endMs }
   })
+  const totalSpan = Math.max(1, cursor - gapMs)
+
+  const laneBlocks = timings.map(({ stage, durationMs, startMs, endMs }) => ({
+    id: stage.id,
+    lane: getStageLane(stage),
+    label: stage.description || stage.name,
+    startPercent: clampPercent((startMs / totalSpan) * 100),
+    widthPercent: clampPercent((durationMs / totalSpan) * 100),
+    kind: getStageKind(stage),
+    duration: `${durationMs}ms`,
+    startTimestamp: stage.startMatcherId ?? '等待日志命中',
+    endTimestamp: stage.endMatcherId ?? '等待日志命中',
+    relativeDuration: `+${startMs}ms ~ +${endMs}ms`,
+  }))
 
   const slowest = laneBlocks.reduce((current, next) => {
     const currentMs = Number.parseInt(current.duration, 10)
@@ -357,7 +353,7 @@ export function buildLatencyViewModelFromAnalysis(
   fallback: RequestViewModel,
 ): RequestViewModel {
   const stages = rules
-    .filter((rule) => rule.enabled && rule.recordType === 'stage')
+    .filter((rule) => rule.enabled && rule.recordType === 'stage' && (rule.applicationId || rule.processId))
     .sort((left, right) => (left.order ?? Number.MAX_SAFE_INTEGER) - (right.order ?? Number.MAX_SAFE_INTEGER))
 
   if (stages.length === 0 || analysis.requests.length === 0) {

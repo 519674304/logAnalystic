@@ -20,7 +20,7 @@
   <text class="muted" x="44" y="44" font-size="12">RULE CONFIGURATION</text>
   <text class="head" x="44" y="68" font-size="22">规则配置</text>
   <rect class="soft" x="1184" y="36" width="96" height="30" rx="15"/>
-  <text class="muted" x="1204" y="56" font-size="12">6 个层级</text>
+  <text class="muted" x="1204" y="56" font-size="12">5 类</text>
   <rect class="ok" x="1292" y="36" width="102" height="30" rx="15"/>
   <text class="muted" x="1313" y="56" font-size="12">可组装检查</text>
 
@@ -58,17 +58,14 @@
   <text class="head" x="58" y="495" font-size="14">业务拓扑</text>
   <text class="muted" x="264" y="495" font-size="12">8</text>
   <rect class="soft" x="44" y="520" width="260" height="36" rx="6"/>
-  <text class="head" x="58" y="543" font-size="14">进程关系</text>
-  <text class="muted" x="264" y="543" font-size="12">3</text>
+  <text class="head" x="58" y="543" font-size="14">时延阶段</text>
+  <text class="muted" x="264" y="543" font-size="12">11</text>
   <rect class="soft" x="44" y="568" width="260" height="36" rx="6"/>
-  <text class="head" x="58" y="591" font-size="14">时延阶段</text>
-  <text class="muted" x="264" y="591" font-size="12">8</text>
-  <rect class="soft" x="44" y="616" width="260" height="36" rx="6"/>
-  <text class="head" x="58" y="639" font-size="14">业务流程</text>
-  <text class="muted" x="270" y="639" font-size="12">1</text>
-  <rect class="warn" x="44" y="676" width="260" height="56" rx="6"/>
-  <text class="head" x="58" y="700" font-size="13">完整性检查</text>
-  <text class="muted" x="58" y="721" font-size="12">引用完整，可供分析选择</text>
+  <text class="head" x="58" y="591" font-size="14">业务流程</text>
+  <text class="muted" x="270" y="591" font-size="12">1</text>
+  <rect class="warn" x="44" y="628" width="260" height="56" rx="6"/>
+  <text class="head" x="58" y="652" font-size="13">完整性检查</text>
+  <text class="muted" x="58" y="673" font-size="12">引用完整，可供分析选择</text>
 
   <rect class="panel" x="338" y="174" width="640" height="676" rx="8"/>
   <text class="head" x="360" y="206" font-size="16">关键日志</text>
@@ -82,23 +79,23 @@
   <rect class="active" x="360" y="292" width="596" height="40" rx="6"/>
   <text class="head" x="376" y="317" font-size="13">A starts parallel subprocesses</text>
   <text class="ink" x="568" y="317" font-size="12">keyword</text>
-  <text class="ink" x="684" y="317" font-size="12">APP-A / PROCESS-A-MAIN</text>
+  <text class="ink" x="684" y="317" font-size="12">APP-A</text>
   <text class="ink" x="840" y="317" font-size="12">FULL / CORE</text>
   <rect class="soft" x="360" y="342" width="596" height="40" rx="6"/>
   <text class="head" x="376" y="367" font-size="13">B subprocess starts</text>
   <text class="ink" x="568" y="367" font-size="12">regex</text>
-  <text class="ink" x="684" y="367" font-size="12">APP-B / PROCESS-B-HANDLE</text>
+  <text class="ink" x="684" y="367" font-size="12">APP-B</text>
   <text class="ink" x="840" y="367" font-size="12">FULL / CORE</text>
   <rect class="soft" x="360" y="392" width="596" height="40" rx="6"/>
   <text class="head" x="376" y="417" font-size="13">B preparation completed</text>
   <text class="ink" x="568" y="417" font-size="12">keyword</text>
-  <text class="ink" x="684" y="417" font-size="12">APP-B / PROCESS-B-PREPARE</text>
+  <text class="ink" x="684" y="417" font-size="12">APP-B</text>
   <text class="ink" x="840" y="417" font-size="12">FULL</text>
 
   <rect class="soft" x="360" y="458" width="596" height="134" rx="6"/>
   <text class="head" x="378" y="486" font-size="15">规则包导入反馈</text>
   <text class="muted" x="378" y="512" font-size="13">文件: ruleset-a-parallel-1.1.0.zip</text>
-  <text class="muted" x="378" y="538" font-size="13">manifest: 1.1.0，六层文件已组装并完成本地校验。</text>
+  <text class="muted" x="378" y="538" font-size="13">manifest: 1.1.0，五类文件已组装并完成本地校验。</text>
   <text class="muted" x="378" y="564" font-size="13">结果: 新增版本；同版本再次导入时将整体覆盖。</text>
 
   <rect class="panel" x="992" y="174" width="424" height="676" rx="8"/>
@@ -113,7 +110,7 @@
 
   <rect class="warn" x="1014" y="400" width="380" height="148" rx="6"/>
   <text class="head" x="1030" y="428" font-size="15">本地校验</text>
-  <text class="muted" x="1030" y="454" font-size="13">ZIP、manifest 与六层映射已通过。</text>
+  <text class="muted" x="1030" y="454" font-size="13">ZIP、manifest 与五类映射已通过。</text>
   <text class="muted" x="1030" y="480" font-size="13">关键引用完整，未改动其他版本。</text>
   <text class="muted" x="1030" y="506" font-size="13">导入完成后可直接用于分析。</text>
 
@@ -138,15 +135,13 @@
   <text class="muted" x="476" y="346" font-size="12">business_meaning</text>
   <text class="ink" x="606" y="346" font-size="13">A完成准备并进入并行子进程</text>
 
-  <rect class="soft" x="458" y="374" width="524" height="150" rx="6"/>
+  <rect class="soft" x="458" y="374" width="524" height="120" rx="6"/>
   <text class="muted" x="476" y="402" font-size="12">pattern</text>
   <text class="ink" x="606" y="402" font-size="13">start parallel subprocesses</text>
   <text class="muted" x="476" y="432" font-size="12">application_id</text>
   <text class="ink" x="606" y="432" font-size="13">APP-A</text>
-  <text class="muted" x="476" y="462" font-size="12">process_id</text>
-  <text class="ink" x="606" y="462" font-size="13">PROCESS-A-MAIN</text>
-  <text class="muted" x="476" y="492" font-size="12">applicable_scenario_ids</text>
-  <text class="ink" x="606" y="492" font-size="13">SCENARIO-FULL / SCENARIO-CORE</text>
+  <text class="muted" x="476" y="462" font-size="12">applicable_scenario_ids</text>
+  <text class="ink" x="606" y="462" font-size="13">SCENARIO-FULL / SCENARIO-CORE</text>
 
   <rect class="blue" x="804" y="548" width="84" height="34" rx="6"/>
   <text x="832" y="570" font-family="Arial,'Microsoft YaHei',sans-serif" font-size="14" font-weight="700" fill="#fff">编辑</text>

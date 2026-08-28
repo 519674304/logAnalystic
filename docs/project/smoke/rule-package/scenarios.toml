@@ -1,4 +1,0 @@
-[[analysis_scenarios]]
-id = "SCENARIO-SMOKE"
-name = "冒烟主链路"
-description = "从请求启动、并行子进程到请求完成的最小链路。"

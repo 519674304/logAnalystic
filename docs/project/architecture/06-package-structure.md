@@ -81,7 +81,6 @@ crates/log-core/src/
         scenario_validator.rs
         matcher_validator.rs
         stage_validator.rs
-        subprocess_group_validator.rs
     latency_analysis/
       mod.rs
       analysis_scope.rs
@@ -93,7 +92,6 @@ crates/log-core/src/
       request_log_matcher.rs
       stage_latency.rs
       stage_latency_calculator.rs
-      subprocess_group_result.rs
       latency_statistics.rs
       latency_statistics_aggregator.rs
       latency_analysis_result.rs

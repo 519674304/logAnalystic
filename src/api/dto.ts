@@ -55,12 +55,9 @@ export interface RuleRecordDto {
   scenarios: string[]
   matchType?: string
   recordType?: 'matcher' | 'stage' | string
-  stageType?: string
   order?: number
   applicationId?: string
   processId?: string
-  sourceApplicationId?: string
-  targetApplicationId?: string
   startMatcherId?: string
   endMatcherId?: string
 }

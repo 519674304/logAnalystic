@@ -7,6 +7,8 @@ Supersedes:
 
 # 时延分析上下文
 
+> 因「规则集结构收敛（3 层）」而修订：取消 `subprocess_groups`、四类 stage type 与 `role="start"` / `role="end"` 边界 stage；flow 中只有 stage，stage 的 matcher 自带 start/end；stage 以 owner 区分进程级（`process_id`）与流程级（`flow_id`），流程级 stage 是自定义起止段（可覆盖一个或多个进程、可跨应用，串起完整流程），常带 `result` 拆结果分支；同 `order` 的多个结果分支在定义上都存在，执行时同一 `order` 只命中一个；并行由带 `sub_process_ids` 的进程级 stage 表达。
+
 ## 目的
 
 使用 `LogSource` 流式解析条目（时间范围子集）和规则快照，在用户指定时间范围与分析场景下识别 req、匹配关键日志、计算阶段时延并生成统一统计结果。
@@ -25,7 +27,6 @@ LatencyAnalysisRun
 │  ├─ RequestBoundary
 │  ├─ MatcherHit[]
 │  ├─ StageLatency[]
-│  ├─ SubprocessGroupResult[]
 │  └─ RequestResult
 └─ LatencyStatistics
 ```
@@ -37,12 +38,13 @@ LatencyAnalysisRun
 | 类型 | 名称 | 含义 |
 | --- | --- | --- |
 | 值对象 | `AnalysisScope` | 用户选择的起止时间、场景和规则快照 |
-| 实体 | `RecognizedRequest` | 由全局开始标记划分的一次 req |
+| 实体 | `RecognizedRequest` | 由流程级聚合 stage（`order=1`）的开始匹配器命中标记划分的一次 req |
 | 值对象 | `RequestBoundary` | 开始日志引用、结束日志引用或下一开始边界 |
 | 实体 | `MatcherHit` | 某 req 内关键 matcher 命中的日志引用 |
 | 值对象 | `StageLatency` | 阶段、起止日志引用、起止时间和耗时 |
-| 值对象 | `SubprocessGroupResult` | 触发阶段、并行子进程、汇总日志和组总等待时延 |
 | 值对象 | `LatencyStatistics` | 各阶段样本数、平均值、P90 和最大值 |
+
+`StageLatency` 覆盖进程级阶段（进程内部）与流程级阶段（flow 级自定义段，可概括一个或多个进程整体，或跨应用）。跨子进程并行由带 `sub_process_ids` 的进程级 stage 标识，其耗时 = 触发点到汇总点的总等待；子进程内部阶段作为独立 `StageLatency` 各自计算。
 
 ## 不变量
 
@@ -52,14 +54,12 @@ LatencyAnalysisRun
 - 找不到开始日志时不生成请求。
 - 请求范围内未命中 matcher 的日志不进入时延模型，但仍保留在日志工作区。
 - 每个 `MatcherHit` 关联一个已识别请求。
-- 每个阶段的起止命中位于同一次请求内。
+- 每个阶段的起止命中位于同一次请求内；跨应用 RPC 阶段允许起止日志属于不同应用和进程。
 - 请求边界识别不受分析场景影响。
 - 普通 matcher 和 stage 仅在启用且适用于当前场景时参与分析。
 - `export_enabled` 不影响计算结果。
-- 并行子进程在触发阶段完成后进入分析，各自独立匹配，不要求按配置顺序结束。
-- 主进程汇总 matcher 命中表示并行组整体完成；不要求为每个子进程定义返回主进程的日志。
-- 主进程后续阶段只能使用汇总 matcher 或其后的日志作为开始边界。
-- 分析结果携带投影所需的精简有效规则目录；投影层不回读 TOML 或可编辑 RuleSet。
+- 跨子进程并行由带 `sub_process_ids` 的进程级 stage 表达：触发点后进入，各子进程阶段独立计算，汇总点命中表示组整体完成。
+- 请求结果由流程级聚合 stage 的 `result` 分支判定：命中哪个结果分支的 `end_matcher_id`，就取该分支的 `result` 作为结果；同 `order` 多个结果分支都命中时取时间最先者，其余记 Issue。
 
 ## 主生命周期
 
@@ -69,7 +69,8 @@ LatencyAnalysisRun
   -> 解析有效规则
   -> 识别范围内请求
   -> 在每次请求内匹配关键日志
-  -> 计算普通阶段与并行子进程组时延
+  -> 计算进程级与流程级阶段（含跨子进程并行）时延
+  -> 按聚合 stage 的 result 分支判定请求结果
   -> 汇总统计
   -> 生成不可变 LatencyAnalysisRun
 ```
@@ -114,3 +115,4 @@ REQ-REQUEST、REQ-LATENCY。
 - 不保存重复原始日志正文。
 - 不负责页面渲染、CSV 编码或文件保存。
 - 不支持实时流、分布式 req 处理或单 req 独立持久化。
+- 中段分叉不单独建模（由 process 树 + 跨子进程并行 stage 覆盖）；特殊异常 stage 后续单独做业务含义处理。

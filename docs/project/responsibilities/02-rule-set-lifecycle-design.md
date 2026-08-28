@@ -11,7 +11,7 @@ Supersedes: RESP-RULE-LIFECYCLE-DESIGN
 
 | ID | 职责 | 输入 | 输出 |
 | --- | --- | --- | --- |
-| RESP-RULE-PACKAGE-READ | 解压 ZIP、读取 manifest 与六类层级文件 | ZIP 字节 | `RulePackageCandidate` |
+| RESP-RULE-PACKAGE-READ | 解压 ZIP、读取 manifest 与三层层级文件 | ZIP 字节 | `RulePackageCandidate` |
 | RESP-RULE-VALIDATE | 执行最小本地结构校验 | Candidate | 通过或拒绝原因 |
 | RESP-RULE-PACKAGE-STORE | 按版本新增或整体覆盖完整规则包 | 已通过 Candidate | 已保存版本 |
 | RESP-RULE-CATALOG-PROJECT | 从完整规则包生成版本树、节点概要和详情 | 已保存版本 | UI DTO |

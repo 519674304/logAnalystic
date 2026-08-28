@@ -10,12 +10,9 @@ import type {
 } from './dto'
 
 const layerDefinitions = [
-  { id: 'scenarios', label: '分析场景' },
-  { id: 'topology', label: '业务拓扑' },
+  { id: 'definitions', label: '定义' },
   { id: 'matchers', label: '日志匹配器' },
-  { id: 'relations', label: '关系与分组' },
   { id: 'stages', label: '时延阶段' },
-  { id: 'flow', label: '业务流程' },
 ] as const
 
 type ParsedManifest = {

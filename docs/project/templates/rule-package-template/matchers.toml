@@ -1,53 +1,60 @@
 # 日志匹配器层：把原始日志文本映射为业务事件。
-# process_id 引用进程，application_id 引用应用，applicable_scenario_ids 引用分析场景。
+# application_id 引用 definitions.toml 的 applications.id；一个进程的所有 matcher 与应用同属一个应用。
+# 可被多个 stage 复用（例如 LOG-PAY-CALL 同时是 flow 聚合 end 与 PROCESS-ORDER-MAIN 内部 stage 的 end）。
 
+# ---------- 订单服务（APP-ORDER）----------
 [[log_matchers]]
-# 必填：匹配器唯一 ID，阶段、关系和流程会引用它。
 id = "LOG-ORDER-START"
 name = "订单开始"
 business_meaning = "订单服务收到请求并启动主流程。"
 enabled = true
 export_enabled = true
 applicable_scenario_ids = ["SCENARIO-TEMPLATE"]
-# 必填：所属进程 ID，引用 topology.toml 的 processes.id。
-process_id = "PROCESS-ORDER-MAIN"
-# 必填：所属应用 ID，引用 topology.toml 的 applications.id。
 application_id = "APP-ORDER"
 type = "keyword"
 pattern = "order request started"
 
 [[log_matchers]]
-id = "LOG-PAYMENT-RECEIVED"
+id = "LOG-ORDER-ERROR"
+name = "订单异常"
+business_meaning = "订单主流程异常结束。"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-TEMPLATE"]
+application_id = "APP-ORDER"
+type = "keyword"
+pattern = "order request error"
+
+[[log_matchers]]
+id = "LOG-PAY-CALL"
+name = "发起支付调用"
+business_meaning = "订单服务发起对支付服务的跨应用调用。"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-TEMPLATE"]
+application_id = "APP-ORDER"
+type = "keyword"
+pattern = "pay call out"
+
+# ---------- 支付服务（APP-PAYMENT）----------
+[[log_matchers]]
+id = "LOG-PAY-RECEIVED"
 name = "支付开始"
 business_meaning = "支付服务收到订单支付请求。"
 enabled = true
 export_enabled = true
 applicable_scenario_ids = ["SCENARIO-TEMPLATE"]
-process_id = "PROCESS-PAYMENT"
 application_id = "APP-PAYMENT"
 type = "keyword"
 pattern = "payment request received"
 
 [[log_matchers]]
-id = "LOG-PAYMENT-COMPLETED"
+id = "LOG-PAY-DONE"
 name = "支付完成"
 business_meaning = "支付服务完成支付处理。"
 enabled = true
 export_enabled = true
 applicable_scenario_ids = ["SCENARIO-TEMPLATE"]
-process_id = "PROCESS-PAYMENT"
 application_id = "APP-PAYMENT"
 type = "keyword"
 pattern = "payment completed"
-
-[[log_matchers]]
-id = "LOG-ORDER-SUCCESS"
-name = "订单完成"
-business_meaning = "订单主流程结束并返回成功。"
-enabled = true
-export_enabled = true
-applicable_scenario_ids = ["SCENARIO-TEMPLATE"]
-process_id = "PROCESS-ORDER-MAIN"
-application_id = "APP-ORDER"
-type = "keyword"
-pattern = "order completed"

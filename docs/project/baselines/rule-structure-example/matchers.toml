@@ -1,0 +1,131 @@
+# 规则结构示例 —— 匹配器（log_matchers），按 owner 分组
+# 只保留表达「关系与结构」的必要属性，省略 pattern / business_meaning 等非结构属性。
+
+# ============ FLOW-ORDER（owner = flow）============
+# flow 级聚合 stage 与 RPC 边界用到的 matcher。
+[[log_matchers]]
+id = "LOG-ORDER-START"   # APP-A 完整进程的入口
+application_id = "APP-A"
+[[log_matchers]]
+id = "LOG-ORDER-ERROR"   # APP-A 完整进程的异常出口
+application_id = "APP-A"
+[[log_matchers]]
+id = "LOG-PAY-CALL"   # 被 PROCESS-ORDER 的 STAGE-ORDER-END 复用为 end_matcher
+application_id = "APP-A"
+[[log_matchers]]
+id = "LOG-PAY-RECEIVED"   # 被 PROCESS-PAY 的 STAGE-PAY-MAIN 复用为 start_matcher
+application_id = "APP-PAY"
+[[log_matchers]]
+id = "LOG-PAY-ERROR"   # APP-PAY 完整进程的异常出口；被 PROCESS-PAY 复用
+application_id = "APP-PAY"
+
+# ============ 主进程 PROCESS-ORDER ============
+# 主处理段结束 / 向子进程分发 / 全部汇合（p_start / p_end）
+[[log_matchers]]
+id = "LOG-FIRST-PROCESS-END"
+application_id = "APP-A"
+[[log_matchers]]
+id = "LOG-DISPATCH-START"   # p_start
+application_id = "APP-A"
+[[log_matchers]]
+id = "LOG-JOIN"             # p_end
+application_id = "APP-A"
+[[log_matchers]]
+id = "LOG-JOIN-ERROR"       # p_end 异常
+application_id = "APP-A"
+
+# ============ 子进程 PROCESS-A（同属 APP-A）============
+# 子进程是主进程内部的 stage 分组，所有 matcher 与父进程同应用。
+[[log_matchers]]
+id = "LOG-A-START"
+application_id = "APP-A"
+[[log_matchers]]
+id = "LOG-A-END"
+application_id = "APP-A"
+[[log_matchers]]
+id = "LOG-B-START"
+application_id = "APP-A"
+[[log_matchers]]
+id = "LOG-B-END"
+application_id = "APP-A"
+[[log_matchers]]
+id = "LOG-C-START"
+application_id = "APP-A"
+[[log_matchers]]
+id = "LOG-C-END"
+application_id = "APP-A"
+
+# ============ 子进程 PROCESS-A1（同属 APP-A）============
+[[log_matchers]]
+id = "LOG-A1-START"
+application_id = "APP-A"
+[[log_matchers]]
+id = "LOG-A1-END"
+application_id = "APP-A"
+[[log_matchers]]
+id = "LOG-B1-START"
+application_id = "APP-A"
+[[log_matchers]]
+id = "LOG-B1-END"
+application_id = "APP-A"
+[[log_matchers]]
+id = "LOG-C1-START"
+application_id = "APP-A"
+[[log_matchers]]
+id = "LOG-C1-END"
+application_id = "APP-A"
+
+# ============ 主进程 PROCESS-PAY（application = APP-PAY）============
+# 主处理段结束 / 向子进程分发 / 全部汇合（p_start / p_end）
+[[log_matchers]]
+id = "LOG-PAY-DISPATCH-START"   # p_start
+application_id = "APP-PAY"
+[[log_matchers]]
+id = "LOG-PAY-JOIN"             # p_end
+application_id = "APP-PAY"
+[[log_matchers]]
+id = "LOG-PAY-JOIN-ERROR"       # p_end 异常
+application_id = "APP-PAY"
+[[log_matchers]]
+id = "LOG-PAY-DONE"   # 被 flow 级 STAGE-PAY-SUCCESS 复用为 end_matcher
+application_id = "APP-PAY"
+
+# ============ 子进程 PROCESS-PAY-A ============
+[[log_matchers]]
+id = "LOG-PAY-A-START"
+application_id = "APP-PAY"
+[[log_matchers]]
+id = "LOG-PAY-A-END"
+application_id = "APP-PAY"
+[[log_matchers]]
+id = "LOG-PAY-B-START"
+application_id = "APP-PAY"
+[[log_matchers]]
+id = "LOG-PAY-B-END"
+application_id = "APP-PAY"
+[[log_matchers]]
+id = "LOG-PAY-C-START"
+application_id = "APP-PAY"
+[[log_matchers]]
+id = "LOG-PAY-C-END"
+application_id = "APP-PAY"
+
+# ============ 子进程 PROCESS-PAY-A1 ============
+[[log_matchers]]
+id = "LOG-PAY-A1-START"
+application_id = "APP-PAY"
+[[log_matchers]]
+id = "LOG-PAY-A1-END"
+application_id = "APP-PAY"
+[[log_matchers]]
+id = "LOG-PAY-B1-START"
+application_id = "APP-PAY"
+[[log_matchers]]
+id = "LOG-PAY-B1-END"
+application_id = "APP-PAY"
+[[log_matchers]]
+id = "LOG-PAY-C1-START"
+application_id = "APP-PAY"
+[[log_matchers]]
+id = "LOG-PAY-C1-END"
+application_id = "APP-PAY"

@@ -1,0 +1,55 @@
+# 规则结构示例 —— 简单定义（场景 / 领域 / 应用 / 流程 / 进程）
+# 只保留表达「关系与结构」的必要属性，省略 name / pattern / enabled / business_meaning 等非结构属性。
+# matcher 见 matchers.toml，stage 见 stages.toml。
+
+# ============ 场景 ============
+[[scenarios]]
+id = "SCENARIO-FULL"
+
+# ============ 领域 ============
+[[domains]]
+id = "DOMAIN-ORDER"
+
+# ============ 应用 ============
+[[applications]]
+id = "APP-A"
+
+[[applications]]
+id = "APP-A1"
+
+[[applications]]
+id = "APP-PAY"
+
+# ============ 流程 ============
+[[flows]]
+id = "FLOW-ORDER"
+root_process_id = "PROCESS-ORDER"
+process_ids = ["PROCESS-ORDER", "PROCESS-A", "PROCESS-A1", "PROCESS-PAY", "PROCESS-PAY-A", "PROCESS-PAY-A1"]
+
+# ============ 进程 ============
+# APP-A 主进程：第一个应用的主进程
+[[processes]]
+id = "PROCESS-ORDER"
+
+# 子进程：用 parent_process_id 挂到父进程下（多个子进程互为兄弟）
+[[processes]]
+id = "PROCESS-A"
+parent_process_id = "PROCESS-ORDER"
+
+[[processes]]
+id = "PROCESS-A1"
+parent_process_id = "PROCESS-ORDER"
+
+# APP-PAY 主进程：主应用跨应用调用后在其内部处理，非主进程的子进程
+[[processes]]
+id = "PROCESS-PAY"
+application_id = "APP-PAY"
+
+# APP-PAY 内的子进程
+[[processes]]
+id = "PROCESS-PAY-A"
+parent_process_id = "PROCESS-PAY"
+
+[[processes]]
+id = "PROCESS-PAY-A1"
+parent_process_id = "PROCESS-PAY"

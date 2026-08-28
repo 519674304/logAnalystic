@@ -38,14 +38,13 @@ RawRuleConfig
   -> ScenarioValidator
   -> MatcherValidator
   -> StageValidator
-  -> SubprocessGroupValidator
   -> RuleValidationResult
 ```
 
 执行策略：
 
 - TOML 解析失败和基础结构错误短路。
-- 引用、场景、matcher、stage、并行子进程组校验尽量继续执行并汇总 Issue。
+- 引用、场景、matcher、stage（含 role / sub_process_ids）校验尽量继续执行并汇总 Issue。
 - 任一 `EXCEPTION` 存在时不能激活规则。
 - `TIP` 和 `WARNING` 可以随结果返回，由接收方按等级处理。
 
@@ -55,7 +54,6 @@ RawRuleConfig
 MatcherStrategy
   -> KeywordMatcherStrategy
   -> RegexMatcherStrategy
-  -> StructuredFieldMatcherStrategy
 ```
 
 策略输入是标准化日志记录和 matcher 配置，输出是是否命中以及命中上下文。策略不读取文件，不访问 UI，不修改分析状态。

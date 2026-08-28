@@ -1,0 +1,53 @@
+# 简单定义层：场景 / 领域 / 应用 / 流程 / 进程。
+
+# ---------- 分析场景 ----------
+[[scenarios]]
+id = "SCENARIO-FULL"
+name = "完整链路分析"
+description = "展示主流程、并行子进程和所有进程内部阶段。"
+
+[[scenarios]]
+id = "SCENARIO-CORE"
+name = "核心链路分析"
+description = "只关注主流程与并行子进程的核心时延。"
+
+# ---------- 领域 ----------
+[[domains]]
+id = "DOMAIN-ORDER"
+name = "Order domain"
+description = "Handles an order request through parallel downstream processing."
+
+# ---------- 应用 ----------
+# 本基线是单应用并行子进程示例：A 主进程派发到 B/C 两个同应用子进程。
+[[applications]]
+id = "APP-A"
+name = "A orchestration application"
+log_prefix = "A00010"
+
+# ---------- 流程 ----------
+# flow 只有 stage，无开始/结尾边界；请求边界由 stage 的 start/end matcher 表达。
+[[flows]]
+id = "FLOW-A-PARALLEL"
+name = "A parallel subprocess business flow"
+domain_id = "DOMAIN-ORDER"
+root_process_id = "PROCESS-A-MAIN"
+process_ids = ["PROCESS-A-MAIN", "PROCESS-B-HANDLE", "PROCESS-C-HANDLE"]
+
+# ---------- 进程 ----------
+# 一个进程的所有 stage 与 matcher 都归属同一个 application_id。子进程是主进程内部的 stage 分组。
+[[processes]]
+id = "PROCESS-A-MAIN"
+name = "Order processing main process"
+application_id = "APP-A"
+
+[[processes]]
+id = "PROCESS-B-HANDLE"
+name = "B handles request"
+parent_process_id = "PROCESS-A-MAIN"
+application_id = "APP-A"
+
+[[processes]]
+id = "PROCESS-C-HANDLE"
+name = "C handles request"
+parent_process_id = "PROCESS-A-MAIN"
+application_id = "APP-A"

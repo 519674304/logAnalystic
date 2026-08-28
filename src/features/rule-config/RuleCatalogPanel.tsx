@@ -221,7 +221,7 @@ export default function RuleCatalogPanel({
             {versions.length === 0 ? (
               <div className="empty-state rule-package-empty">
                 <strong>还没有规则版本</strong>
-                <span>导入包含 manifest.toml 和六层 TOML 的完整 ZIP 规则包。</span>
+                <span>导入包含 manifest.toml 和三层 TOML 的完整 ZIP 规则包。</span>
               </div>
             ) : null}
           </div>

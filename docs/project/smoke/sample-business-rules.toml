@@ -4,7 +4,7 @@ name = "Smoke test rules"
 schema_version = "1.0"
 business_version = "1.0.0"
 
-[[analysis_scenarios]]
+[[scenarios]]
 id = "SCENARIO-SMOKE"
 name = "Smoke scenario"
 description = "Use the bundled sample log to verify search, request recognition, latency analysis, and CSV export."
@@ -13,24 +13,20 @@ description = "Use the bundled sample log to verify search, request recognition,
 id = "DOMAIN-SMOKE"
 name = "Smoke domain"
 description = "Minimal domain for smoke testing."
-application_ids = ["APP-A", "APP-B", "APP-C"]
 
 [[applications]]
 id = "APP-A"
 name = "A app"
-domain_id = "DOMAIN-SMOKE"
 log_prefix = "A00010"
 
 [[applications]]
 id = "APP-B"
 name = "B app"
-domain_id = "DOMAIN-SMOKE"
 log_prefix = "B00020"
 
 [[applications]]
 id = "APP-C"
 name = "C app"
-domain_id = "DOMAIN-SMOKE"
 log_prefix = "C00030"
 
 [[processes]]
@@ -60,7 +56,6 @@ business_meaning = "Global request start marker"
 enabled = true
 export_enabled = true
 applicable_scenario_ids = ["SCENARIO-SMOKE"]
-process_id = "PROCESS-A-MAIN"
 application_id = "APP-A"
 type = "keyword"
 pattern = "request started"
@@ -72,7 +67,6 @@ business_meaning = "A starts the parallel work"
 enabled = true
 export_enabled = true
 applicable_scenario_ids = ["SCENARIO-SMOKE"]
-process_id = "PROCESS-A-MAIN"
 application_id = "APP-A"
 type = "keyword"
 pattern = "start parallel subprocesses"
@@ -84,7 +78,6 @@ business_meaning = "B subprocess received the request"
 enabled = true
 export_enabled = true
 applicable_scenario_ids = ["SCENARIO-SMOKE"]
-process_id = "PROCESS-B-HANDLE"
 application_id = "APP-B"
 type = "regex"
 pattern = 'B subprocess received, sequence=[0-9]+'
@@ -96,7 +89,6 @@ business_meaning = "C subprocess received the request"
 enabled = true
 export_enabled = true
 applicable_scenario_ids = ["SCENARIO-SMOKE"]
-process_id = "PROCESS-C-HANDLE"
 application_id = "APP-C"
 type = "regex"
 pattern = 'C subprocess received, sequence=[0-9]+'
@@ -108,7 +100,6 @@ business_meaning = "B subprocess completed"
 enabled = true
 export_enabled = true
 applicable_scenario_ids = ["SCENARIO-SMOKE"]
-process_id = "PROCESS-B-HANDLE"
 application_id = "APP-B"
 type = "keyword"
 pattern = "B subprocess completed"
@@ -120,7 +111,6 @@ business_meaning = "C subprocess completed"
 enabled = true
 export_enabled = true
 applicable_scenario_ids = ["SCENARIO-SMOKE"]
-process_id = "PROCESS-C-HANDLE"
 application_id = "APP-C"
 type = "keyword"
 pattern = "C subprocess completed"
@@ -132,7 +122,6 @@ business_meaning = "A checks that all subprocesses completed"
 enabled = true
 export_enabled = true
 applicable_scenario_ids = ["SCENARIO-SMOKE"]
-process_id = "PROCESS-A-MAIN"
 application_id = "APP-A"
 type = "keyword"
 pattern = "all subprocesses completed"
@@ -144,11 +133,25 @@ business_meaning = "Global request completed successfully"
 enabled = true
 export_enabled = true
 applicable_scenario_ids = ["SCENARIO-SMOKE"]
-process_id = "PROCESS-A-MAIN"
 application_id = "APP-A"
 type = "keyword"
 pattern = "request completed successfully"
 
+# 开始边界（owner = flow）
+[[stages]]
+id = "STAGE-REQUEST-START"
+name = "Request start"
+business_meaning = "Global request start marker"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-SMOKE"]
+flow_id = "FLOW-SMOKE"
+role = "start"
+start_matcher_id = "LOG-REQUEST-START"
+end_matcher_id = "LOG-REQUEST-START"
+order = 1
+
+# 普通 stage：A 准备
 [[stages]]
 id = "DEF-A-PREPARE"
 name = "A preparation stage"
@@ -156,14 +159,12 @@ business_meaning = "A starts the request and prepares work"
 enabled = true
 export_enabled = true
 applicable_scenario_ids = ["SCENARIO-SMOKE"]
-type = "APPLICATION_PROCESSING"
-layer = "business"
-order = 1
 process_id = "PROCESS-A-MAIN"
-application_id = "APP-A"
 start_matcher_id = "LOG-REQUEST-START"
 end_matcher_id = "LOG-A-PARALLEL-START"
+order = 2
 
+# 特殊 stage：A 到 B 的 RPC（owner = flow）
 [[stages]]
 id = "DEF-A-TO-B-RPC"
 name = "A to B RPC latency"
@@ -171,14 +172,12 @@ business_meaning = "A starts B and waits for B to receive the request"
 enabled = true
 export_enabled = true
 applicable_scenario_ids = ["SCENARIO-SMOKE"]
-type = "RPC_TRANSFER"
-layer = "business"
-order = 2
-source_application_id = "APP-A"
-target_application_id = "APP-B"
+flow_id = "FLOW-SMOKE"
 start_matcher_id = "LOG-A-PARALLEL-START"
 end_matcher_id = "LOG-B-RECEIVED"
+order = 3
 
+# 特殊 stage：A 到 C 的 RPC（owner = flow，与 A->B 同 order 并发）
 [[stages]]
 id = "DEF-A-TO-C-RPC"
 name = "A to C RPC latency"
@@ -186,14 +185,12 @@ business_meaning = "A starts C and waits for C to receive the request"
 enabled = true
 export_enabled = true
 applicable_scenario_ids = ["SCENARIO-SMOKE"]
-type = "RPC_TRANSFER"
-layer = "business"
-order = 3
-source_application_id = "APP-A"
-target_application_id = "APP-C"
+flow_id = "FLOW-SMOKE"
 start_matcher_id = "LOG-A-PARALLEL-START"
 end_matcher_id = "LOG-C-RECEIVED"
+order = 3
 
+# 普通 stage：B 处理
 [[stages]]
 id = "DEF-B-PROCESS"
 name = "B processing stage"
@@ -201,14 +198,12 @@ business_meaning = "B processing time"
 enabled = true
 export_enabled = true
 applicable_scenario_ids = ["SCENARIO-SMOKE"]
-type = "APPLICATION_PROCESSING"
-layer = "business"
-order = 4
 process_id = "PROCESS-B-HANDLE"
-application_id = "APP-B"
 start_matcher_id = "LOG-B-RECEIVED"
 end_matcher_id = "LOG-B-COMPLETED"
+order = 4
 
+# 普通 stage：C 处理（与 B 处理同 order 并发）
 [[stages]]
 id = "DEF-C-PROCESS"
 name = "C processing stage"
@@ -216,14 +211,12 @@ business_meaning = "C processing time"
 enabled = true
 export_enabled = true
 applicable_scenario_ids = ["SCENARIO-SMOKE"]
-type = "APPLICATION_PROCESSING"
-layer = "business"
-order = 5
 process_id = "PROCESS-C-HANDLE"
-application_id = "APP-C"
 start_matcher_id = "LOG-C-RECEIVED"
 end_matcher_id = "LOG-C-COMPLETED"
+order = 4
 
+# 特殊 stage：跨子进程并行（owner = flow，sub_process_ids 列出跨过的子进程）
 [[stages]]
 id = "DEF-PARALLEL-GROUP"
 name = "Parallel subprocess group"
@@ -231,13 +224,13 @@ business_meaning = "All parallel subprocesses complete"
 enabled = true
 export_enabled = true
 applicable_scenario_ids = ["SCENARIO-SMOKE"]
-type = "PARALLEL_GROUP"
-layer = "business"
-order = 6
-process_id = "PROCESS-A-MAIN"
+flow_id = "FLOW-SMOKE"
+sub_process_ids = ["PROCESS-B-HANDLE", "PROCESS-C-HANDLE"]
 start_matcher_id = "LOG-A-PARALLEL-START"
 end_matcher_id = "LOG-A-ALL-SUBPROCESSES-COMPLETED"
+order = 5
 
+# 普通 stage：A 收尾
 [[stages]]
 id = "DEF-A-FINALIZE"
 name = "A finalization stage"
@@ -245,18 +238,29 @@ business_meaning = "A wraps up after all subprocesses complete"
 enabled = true
 export_enabled = true
 applicable_scenario_ids = ["SCENARIO-SMOKE"]
-type = "APPLICATION_PROCESSING"
-layer = "business"
-order = 7
 process_id = "PROCESS-A-MAIN"
-application_id = "APP-A"
 start_matcher_id = "LOG-A-ALL-SUBPROCESSES-COMPLETED"
 end_matcher_id = "LOG-REQUEST-SUCCESS"
+order = 6
 
-[business_flow]
+# 结束边界（owner = flow）：成功结尾
+[[stages]]
+id = "STAGE-SUCCESS"
+name = "Request success"
+business_meaning = "Global request completed successfully"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-SMOKE"]
+flow_id = "FLOW-SMOKE"
+role = "end"
+result = "SUCCESS"
+start_matcher_id = "LOG-REQUEST-START"
+end_matcher_id = "LOG-REQUEST-SUCCESS"
+order = 7
+
+[[flows]]
 id = "FLOW-SMOKE"
 name = "Smoke flow"
 domain_id = "DOMAIN-SMOKE"
 root_process_id = "PROCESS-A-MAIN"
-request_start_matcher_id = "LOG-REQUEST-START"
 process_ids = ["PROCESS-A-MAIN", "PROCESS-B-HANDLE", "PROCESS-C-HANDLE"]

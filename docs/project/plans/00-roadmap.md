@@ -37,7 +37,7 @@ M0 工程骨架与契约基线（Cargo workspace + web + DTO + 基线样例）
 | `01-project-skeleton-and-contracts-plan.md` | Cargo workspace（log-core + server）、Vite web、DTO、Issue、基线契约。 |
 | `02-rust-log-workspace-plan.md` | `LogSource` 端口、ripgrep 流式读取、固定格式解析、快速单查询、上下文。 |
 | `03-rust-rule-configuration-plan.md` | TOML 规则加载、校验职责链、组装、激活、备份、导出。 |
-| `04-rust-latency-analysis-plan.md` | 请求识别、matcher 命中、阶段时延、并行子进程组、统计、结果组装。 |
+| `04-rust-latency-analysis-plan.md` | 请求识别、matcher 命中、阶段时延、跨子进程并行、统计、结果组装。 |
 | `05-application-services-and-storage-plan.md` | AppState、axum handler、本地文件存储、CSV、Issue 处理。 |
 | `06-frontend-ui-plan.md` | React 页面、搜索、规则、请求列表、SVG 时延泳道、日志钻取、导出交互。 |
 | `07-testing-performance-packaging-plan.md` | 单元/集成/E2E、五档规模烟测、Windows 打包、本地诊断。 |

@@ -5,12 +5,9 @@ name = "冒烟测试规则包（对齐 sample-log 生成器）"
 
 [package]
 version = "1.0.0"
-description = "匹配 docs/project/smoke 下 5MB 示例日志（A00010/B00020/C00030/D00040 四应用 + 16 类消息）的最小时延分析规则包。"
+description = "匹配 docs/project/smoke/fixture/sample-latency.log（A00010/B00020/C00030/D00040 四应用）的最小时延分析规则包。"
 
 [package.layers]
-scenarios = "scenarios.toml"
-topology = "topology.toml"
+definitions = "definitions.toml"
 matchers = "matchers.toml"
-relations = "relations.toml"
 stages = "stages.toml"
-flow = "flow.toml"

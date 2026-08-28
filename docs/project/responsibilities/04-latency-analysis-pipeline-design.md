@@ -30,7 +30,6 @@ AnalysisScope
   -> RecognizedRequest[]
   -> MatcherHit[] per request
   -> StageLatency[] per request
-  -> SubprocessGroupResult[] per request
   -> LatencyStatistics
   -> EffectiveRuleCatalog
   -> LatencyAnalysisRun
@@ -55,10 +54,9 @@ AnalysisScope
 - stage 引用 start_matcher_id 和 end_matcher_id。
 - 起止 MatcherHit 必须属于同一次请求。
 - 时延使用可比较时间值相减，输出毫秒数；原始时间戳文本继续保留在日志引用中。
-- RPC 阶段允许起止日志属于不同应用和不同进程。
-- business 与 internal 层分别按自己的顺序处理，允许复用边界日志。
-- 并行组由触发阶段结束后进入，各子进程阶段独立计算，不按配置顺序串行等待。
-- 并行组总时延使用触发阶段结束 matcher 到主进程 join matcher；join 命中后主进程进入后续阶段。
+- 跨进程传递阶段（flow 层特殊 stage）允许起止日志属于不同应用和不同进程。
+- 跨子进程并行由 flow 层特殊 stage（带 sub_process_ids）表达：触发阶段结束后进入，各子进程阶段独立计算，不按配置顺序串行等待。
+- 跨子进程并行阶段总时延使用触发点 matcher 到主进程汇总 matcher；汇总命中后主进程进入后续阶段。
 - 不要求为每个子进程建模返回主进程的日志。
 
 ## 统计聚合
