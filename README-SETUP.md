@@ -1,47 +1,59 @@
-# 开发环境快速就绪（Windows）
+# 开发环境快速就绪
 
-1) 前置安装（请选择适合你机器的安装方式）
+本项目是「Vite 前端 + Rust 后端服务」的结构，无 Tauri 运行时依赖。
 
-- Node.js (含 npm)：https://nodejs.org/  推荐 LTS
-- Rust + rustup：https://rustup.rs/  推荐默认 stable 工具链
-- Visual Studio Build Tools（Windows，若使用 Tauri）: https://visualstudio.microsoft.com/zh-hans/downloads/
-- Tauri CLI（可选，本地打包/开发）：`cargo install tauri-cli` 或 `npm install -D @tauri-apps/cli`
+## 前置安装
 
-2) 使用仓库内脚本检查并安装依赖（PowerShell 以管理员或普通权限均可）
+- Node.js（含 npm）：https://nodejs.org/  推荐 LTS
+- Rust + rustup：https://rustup.rs/  默认 stable 工具链
+
+> 无需安装 Tauri CLI 或 Visual Studio Build Tools。
+
+## 一键启动（Windows PowerShell）
 
 在项目根运行：
 
 ```powershell
-.\scripts\setup-dev.ps1
+.\scripts\start-dev.ps1
 ```
 
 脚本会：
-- 检查 `node`/`npm`、`rustup`/`cargo`、`tauri` 命令是否可用；
-- 为当前会话临时设置 `RUSTUP` 国内镜像环境变量（若同意）；
-- 在有条件时运行 `npm install` 和 `cargo check`。
 
-3) 常用手动命令
+- 检查 `node` / `npm` / `cargo` 是否可用；
+- 若 `node_modules` 缺失，自动 `npm install`；
+- 分别打开两个窗口：Rust 后端（`cargo run -p server`，http://127.0.0.1:8080）与 Vite 前端（`npm run dev`，http://localhost:1420）。
+
+浏览器访问 http://localhost:1420 ，前端经 HTTP 调用 127.0.0.1:8080 的后端。
+
+## 手动启动
 
 ```powershell
 # 安装前端依赖
 npm install
 
-# 在 src-tauri 进行 Rust 检查
-cd src-tauri
-cargo check
+# 启动后端（监听 127.0.0.1:8080）
+cargo run -p server
 
-# 启动开发（需已正确安装 Tauri & Rust 工具链）
-cd ..
-npm run tauri:dev
+# 另开一个终端启动前端（监听 1420）
+npm run dev
 ```
 
-4) 镜像配置
+## 环境准备（可选）
+
+```powershell
+.\scripts\setup-dev.ps1
+```
+
+脚本会检查工具链并运行 `npm install` 与 `cargo check`。
+
+## 镜像配置
 
 仓库已包含：
-- `.npmrc`：使用 npmmirror（阿里）镜像
-- `.cargo/config.toml`：使用清华 tuna 镜像索引
 
-如果需要为 `rustup` 指定国内镜像，可在 Powershell 中运行（临时）：
+- `.npmrc`：npmmirror（阿里）镜像
+- `.cargo/config.toml`：清华 tuna 镜像索引
+
+如为 `rustup` 指定国内镜像（临时，仅当前会话）：
 
 ```powershell
 $env:RUSTUP_DIST_SERVER = "https://mirrors.ustc.edu.cn/rust-static"

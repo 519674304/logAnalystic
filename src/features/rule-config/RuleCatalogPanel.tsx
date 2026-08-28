@@ -130,7 +130,7 @@ export default function RuleCatalogPanel({
         type="file"
         accept=".zip"
         className="hidden-input"
-        onChange={(event) => void handleImportFile(event)}
+        onChange={(event: React.ChangeEvent<HTMLInputElement>) => void handleImportFile(event)}
       />
 
       <div className="rule-package-workspace">
@@ -257,7 +257,7 @@ export default function RuleCatalogPanel({
             role="dialog"
             aria-modal="true"
             aria-labelledby="rule-node-modal-title"
-            onMouseDown={(event) => event.stopPropagation()}
+            onMouseDown={(event: React.MouseEvent<HTMLDivElement>) => event.stopPropagation()}
           >
             <div className="panel-title-row">
               <div>
@@ -274,7 +274,7 @@ export default function RuleCatalogPanel({
                 <label key={field} className={`field ${Array.isArray(value) ? 'field-wide' : ''}`}>
                   <span>{field}</span>
                   {typeof value === 'boolean' ? (
-                    <select value={String(value)} onChange={(event) => updateDraftField(field, event.target.value === 'true')}>
+                    <select value={String(value)} onChange={(event: React.ChangeEvent<HTMLSelectElement>) => updateDraftField(field, event.target.value === 'true')}>
                       <option value="true">true</option>
                       <option value="false">false</option>
                     </select>
@@ -282,7 +282,7 @@ export default function RuleCatalogPanel({
                     <input
                       value={displayValue(value)}
                       disabled={field === 'id'}
-                      onChange={(event) => updateDraftField(field, updateFieldValue(value, event.target.value))}
+                      onChange={(event: React.ChangeEvent<HTMLInputElement>) => updateDraftField(field, updateFieldValue(value, event.target.value))}
                     />
                   )}
                 </label>

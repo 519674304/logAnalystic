@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "vite",
     "build": "npm run build:rule-package-template && vite build",
-    "build:rule-package-template": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-rule-package-template.ps1",
+    "build:rule-package-template": "node scripts/build-rule-package-template.js",
     "test:ui-contract": "node scripts/check-ui-contract.js",
     "test:rule-package-ui": "node scripts/check-rule-package-ui.js",
     "check:baselines": "node scripts/check-baselines.js"

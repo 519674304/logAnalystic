@@ -57,9 +57,9 @@ if (Command-Exists npm) {
 
 # cargo check
 if (Command-Exists cargo) {
-    Write-Host "开始运行 cargo check (src-tauri)..."
+    Write-Host "开始运行 cargo check..."
     try {
-        Push-Location -Path "$PSScriptRoot\..\src-tauri"
+        Push-Location -Path "$PSScriptRoot\.."
         cargo check
         Pop-Location
         Write-Host "cargo check 完成"

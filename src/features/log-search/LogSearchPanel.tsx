@@ -104,7 +104,7 @@ export default function LogSearchPanel({
                 <span>当前查询</span>
                 <select
                   value={selectValue}
-                  onChange={(event) => {
+                  onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
                     if (event.target.value !== '__draft__') {
                       setContextHit(null)
                       onSelectQuery(event.target.value)
@@ -124,7 +124,7 @@ export default function LogSearchPanel({
                 <span>关键字 / 正则</span>
                 <input
                   value={queryDraft.query}
-                  onChange={(event) => onQueryDraftChange({ ...queryDraft, query: event.target.value })}
+                  onChange={(event: React.ChangeEvent<HTMLInputElement>) => onQueryDraftChange({ ...queryDraft, query: event.target.value })}
                   placeholder="输入关键字或正则"
                 />
               </label>
@@ -133,7 +133,7 @@ export default function LogSearchPanel({
                 <span>匹配模式</span>
                 <select
                   value={queryDraft.mode}
-                  onChange={(event) => onQueryDraftChange({ ...queryDraft, mode: event.target.value as LogSearchMode })}
+                  onChange={(event: React.ChangeEvent<HTMLSelectElement>) => onQueryDraftChange({ ...queryDraft, mode: event.target.value as LogSearchMode })}
                 >
                   <option value="keyword">关键字</option>
                   <option value="regex">正则</option>
@@ -243,7 +243,7 @@ export default function LogSearchPanel({
             role="dialog"
             aria-modal="true"
             aria-labelledby="query-editor-title"
-            onClick={(event) => event.stopPropagation()}
+            onClick={(event: React.MouseEvent<HTMLDivElement>) => event.stopPropagation()}
           >
             <div className="panel-title-row">
               <div>

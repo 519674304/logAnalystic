@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import type * as React from 'react'
 import AppShell, { type WorkbenchTab } from '../components/layout/AppShell'
 import LogSearchPanel from '../features/log-search/LogSearchPanel'
 import RuleCatalogPanel, { type RuleNodeSelection } from '../features/rule-config/RuleCatalogPanel'
@@ -612,7 +613,7 @@ export default function App() {
             <div className="folder-picker compact-folder-picker">
               <input
                 value={logFolderPath}
-                onChange={(event) => setLogFolderPath(event.target.value)}
+                onChange={(event: React.ChangeEvent<HTMLInputElement>) => setLogFolderPath(event.target.value)}
                 placeholder="选择或粘贴日志目录"
               />
               <button type="button" className="ghost-button" onClick={() => void pickLogFolder()}>
@@ -625,7 +626,7 @@ export default function App() {
             <span>时间范围</span>
             <input
               value={queryDraft.timeRange}
-              onChange={(event) => setQueryDraft({ ...queryDraft, timeRange: event.target.value })}
+              onChange={(event: React.ChangeEvent<HTMLInputElement>) => setQueryDraft({ ...queryDraft, timeRange: event.target.value })}
               placeholder="2026-06-12 10:30:00 ~ 2026-06-12 10:45:00"
             />
           </label>

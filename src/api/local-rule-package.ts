@@ -274,7 +274,7 @@ function collectNodes(value: unknown, path: string, nodes: RulePackageNodeDto[])
     nodes.push({
       id: record.id,
       name: typeof record.name === 'string' ? record.name : record.id,
-      nodeType: path.split('.').at(-1) ?? 'node',
+      nodeType: path.split('.').pop() ?? 'node',
       tablePath: path,
       fields,
     })

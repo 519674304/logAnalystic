@@ -15,6 +15,7 @@ declare module 'react' {
     initialState: T | (() => T)
   ): [T, (value: T | ((prev: T) => T)) => void]
   export function useEffect(effect: () => void | (() => void), deps?: readonly unknown[]): void
+  export function useRef<T>(initialValue: T | null): { current: T | null }
   export const StrictMode: any
   const React: any
   export default React
@@ -34,6 +35,10 @@ declare module 'react/jsx-runtime' {
 }
 
 declare namespace JSX {
+  interface IntrinsicAttributes {
+    key?: string | number
+  }
+
   interface ElementChildrenAttribute {
     children: {}
   }
