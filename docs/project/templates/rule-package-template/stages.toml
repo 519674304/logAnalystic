@@ -40,6 +40,20 @@ result = "ERROR"
 start_matcher_id = "LOG-ORDER-START"
 end_matcher_id = "LOG-ORDER-ERROR"
 
+# 拦截 stage：任一拦截 end matcher 命中 → 整个请求丢弃，不进时延统计。
+# 复用请求起点；owner 可为 flow_id 或 process_id。
+[[stages]]
+id = "STAGE-ORDER-INTERCEPT"
+name = "订单请求被拦截"
+business_meaning = "鉴权/限流等拦截，命中的请求整个丢弃。"
+kind = "intercept"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-TEMPLATE"]
+flow_id = "FLOW-ORDER-PAYMENT"
+start_matcher_id = "LOG-ORDER-START"
+end_matcher_ids = ["LOG-REJECT-AUTH", "LOG-REJECT-QUOTA"]
+
 # 跨应用 RPC 边界：APP-ORDER -> APP-PAYMENT（归属 flow/domain 层）
 [[stages]]
 id = "STAGE-PAY-RPC"

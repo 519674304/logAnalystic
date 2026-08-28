@@ -31,6 +31,7 @@ Supersedes: docs/vscode/specs/requirements.md, REQ-LATENCY (2026-07-06)
 - REQ-LATENCY-018: 跨子进程并行由进程级阶段（带 `sub_process_ids`）表达：主进程完成触发后，在同一次 req 内分别匹配组内各子进程日志；子进程可以并行且不要求按配置顺序完成。
 - REQ-LATENCY-019: 跨子进程并行阶段在主进程汇总日志命中时完成；其耗时为触发点到汇总点的时间差，汇总日志之后主进程可以继续后续阶段。
 - REQ-LATENCY-020: 请求开始由流程级聚合阶段（`order=1`）的开始匹配器命中标记并创建一次请求；请求结果由命中的 `result` 分支判定。
+- REQ-LATENCY-021: 拦截过滤——`kind="intercept"` 的拦截 stage 用 `end_matcher_ids`（数组）列出全部拦截结束事件，任一命中即判定该请求被拦截；被拦截请求整个丢弃，不生成任何阶段样本、不进统计，也不单独计数。owner 可为 flow 级或进程级，命中一律丢整个请求。
 
 ## 阶段示例
 

@@ -60,6 +60,7 @@ LatencyAnalysisRun
 - `export_enabled` 不影响计算结果。
 - 跨子进程并行由带 `sub_process_ids` 的进程级 stage 表达：触发点后进入，各子进程阶段独立计算，汇总点命中表示组整体完成。
 - 请求结果由流程级聚合 stage 的 `result` 分支判定：命中哪个结果分支的 `end_matcher_id`，就取该分支的 `result` 作为结果；同 `order` 多个结果分支都命中时取时间最先者，其余记 Issue。
+- 拦截 stage（`kind="intercept"`）命中优先级最高：请求在识别窗口内命中任一 `end_matcher_ids` → 判定被拦截，**整个请求丢弃**——不生成任何 StageLatency 样本、不进 LatencyStatistics、也不单独计数。无论 flow 级还是进程级拦截，命中一律丢整个请求。
 
 ## 主生命周期
 

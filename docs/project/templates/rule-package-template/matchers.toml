@@ -25,6 +25,29 @@ application_id = "APP-ORDER"
 type = "keyword"
 pattern = "order request error"
 
+# 拦截日志：种类很多，各自匹配，被 intercept stage 的 end_matcher_ids 一并引用。
+[[log_matchers]]
+id = "LOG-REJECT-AUTH"
+name = "鉴权拦截"
+business_meaning = "请求因鉴权失败被拦截。"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-TEMPLATE"]
+application_id = "APP-ORDER"
+type = "keyword"
+pattern = "order auth rejected"
+
+[[log_matchers]]
+id = "LOG-REJECT-QUOTA"
+name = "限流拦截"
+business_meaning = "请求因限流/降级被拦截。"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-TEMPLATE"]
+application_id = "APP-ORDER"
+type = "keyword"
+pattern = "order quota rejected"
+
 [[log_matchers]]
 id = "LOG-PAY-CALL"
 name = "发起支付调用"

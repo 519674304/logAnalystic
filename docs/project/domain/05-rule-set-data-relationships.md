@@ -144,6 +144,15 @@ flow 级 stage 是用户自定义起止（`start_matcher_id` → `end_matcher_id
 
 flow 没有 `role="start"/"end"` 边界概念；请求/进程的开始与结尾由 stage 的 start/end matcher 自然表达，不单独建模边界 stage。
 
+### 拦截 stage（`kind = "intercept"`）——过滤被拦截请求
+
+拦截日志种类很多（校验、鉴权、限流、降级、兜底等）。用一个 `kind="intercept"` 的 stage，用 `end_matcher_ids` 数组覆盖全部拦截结束事件，**任一命中**即结束，避免为每种拦截日志各写一个 result 分支：
+
+- `start_matcher_id` 复用请求起点；owner 可为 `flow_id` 或 `process_id`。
+- **语义：拦截命中优先级最高**——请求在识别窗口内命中任意一个拦截 `end_matcher_ids` → 判定被拦截 → **整个请求丢弃**（所有 stage 样本不进时延统计，也不单独计数）。无论 flow 级还是进程级拦截，命中一律丢整个请求。
+- 拦截 stage 不使用 `order` / `result`（只是丢弃标记，不是结果分支）。
+- 普通 stage 保持单个 `end_matcher_id`；只有拦截 stage 用 `end_matcher_ids` 数组。
+
 ## 横向引用关系
 
 ### Scenario 筛选有效规则
@@ -233,6 +242,8 @@ flow 的聚合 stage 覆盖某进程「整体」的整段（从该进程入口�
 - flow 级 stage 起止 matcher 可属于同一应用或多个应用（跨应用合法），规则层不限制。
 - 同 `order` 的多个 `result` 分支 stage 的 `result` 必须互不相同（互斥分支），且 `id` 唯一。
 - `stage.sub_process_ids` 只能出现在进程级并行聚合 stage 上，且引用的进程必须是该 flow 覆盖的子进程。
+- `stage.end_matcher_ids`（数组）只能出现在 `kind="intercept"` 的 stage 上，且每个引用都必须指向启用的 matcher；普通 stage 不得用数组。
+- 拦截命中（任一 `end_matcher_ids`）优先级最高：无论 flow 级还是进程级，命中即整个请求丢弃，不进任何时延统计。
 - 已启用 stage 的起止 matcher 必须覆盖该 stage 的全部适用场景。
 
 ## 易混概念
@@ -246,6 +257,7 @@ flow 的聚合 stage 覆盖某进程「整体」的整段（从该进程入口�
 | `StageDefinition` | 日志搜索规则 | 时延计算定义，使用两个 matcher 作为边界，owner 区分 process/flow，result 表达结果/异常分支。 |
 | `result` 分支 stage | 独立的开始/结尾配置 | 一次请求/进程的一种结果；同 order 的多个 result 分支互为互斥，执行时只命中一个。 |
 | `flow 级 stage` | 进程内部细节 | flow 级 stage 表达自定义的跨应用/多进程流程段，看不到进程内部细节 stage。 |
+| 拦截 stage（`intercept`） | 一个结果分支 | 丢弃标记：`end_matcher_ids` 任一命中即整请求丢弃，不进任何时延统计；不做业务含义。 |
 | `definitions.toml` | 拓扑图的数据源 | 场景/领域/应用/流程/进程的静态定义；拓扑图要根据完整关系渲染。 |
 | `AnalysisScenario` | 独立业务流程 | 对同一流程的分析范围裁剪。 |
 

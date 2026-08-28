@@ -58,8 +58,11 @@ export interface RuleRecordDto {
   order?: number
   applicationId?: string
   processId?: string
+  flowId?: string
+  kind?: string
   startMatcherId?: string
   endMatcherId?: string
+  endMatcherIds?: string[]
 }
 
 export interface RulePackageImportDto {

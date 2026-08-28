@@ -63,7 +63,7 @@ Supersedes:
 - 需求：REQ-LATENCY。
 - 职责：RESP-STAGE-CALCULATE。
 - ADR：ARCH-EXTENSION-PATTERNS。
-- 目标：按 start_matcher_id 和 end_matcher_id 计算阶段时延，区分进程级阶段（process 归属）与流程级阶段（flow 归属，含自定义的跨应用/多进程流程段（常见为进程整体聚合与跨应用 RPC））；聚合 `result` 分支命中即判定请求结果并取 `result`。
+- 目标：按 start_matcher_id 和 end_matcher_id 计算阶段时延，区分进程级阶段（process 归属）与流程级阶段（flow 归属，含自定义的跨应用/多进程流程段（常见为进程整体聚合与跨应用 RPC））；聚合 `result` 分支命中即判定请求结果并取 `result`；拦截 stage（`kind="intercept"`）任一 `end_matcher_ids` 命中即整请求丢弃。
 - 依赖：PLAN-ANALYSIS-003。
 - 文件/模块：`domain/latency_analysis/stage_latency_calculator.rs`。
 - 步骤：
@@ -72,8 +72,9 @@ Supersedes:
   3. RPC 阶段允许跨应用和进程。
   4. 阶段缺失不生成零值样本。
   5. 聚合 `result` 分支命中时判定结果，同 `order` 多个结果分支都命中时取时间最先者、其余记 Issue。
-  6. 时间顺序异常进入 Issue。
-- 测试：应用内部阶段、应用间 RPC、跨进程、缺失起点、缺失终点、时间倒序、多结果分支互斥。
+  6. 拦截 stage（`kind="intercept"`）在识别窗口内命中任一 `end_matcher_ids` → 判定被拦截，整个请求丢弃，不生成任何样本、不进统计（flow/process 级命中一律丢弃）。
+  7. 时间顺序异常进入 Issue。
+- 测试：应用内部阶段、应用间 RPC、跨进程、缺失起点、缺失终点、时间倒序、多结果分支互斥、拦截请求整体丢弃。
 - 完成证据：所有基线阶段时延与预期 CSV 一致。
 
 ## PLAN-ANALYSIS-005 并行子进程组

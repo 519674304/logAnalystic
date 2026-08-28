@@ -13,7 +13,7 @@ import {
   upsertSavedQuery,
 } from '../api/tauri-client'
 import { searchLogs } from '../api/http-client'
-import { analyzeSequentialLatency, type LatencyAnalysis, type LatencyStageSpec } from '../api/latency-analysis-client'
+import { analyzeLatencyStream, type LatencyAnalysis, type LatencyStageSpec, type LogMarker } from '../api/latency-analysis-client'
 import type {
   ActiveRuleVersionDto,
   LogSearchRequestDto,
@@ -133,8 +133,13 @@ function projectRuleRecords(versions: RulePackageVersionDto[], active: ActiveRul
         order: typeof fields.order === 'number' ? fields.order : undefined,
         applicationId: stringField('application_id'),
         processId: stringField('process_id'),
+        flowId: stringField('flow_id'),
+        kind: stringField('kind'),
         startMatcherId: stringField('start_matcher_id'),
         endMatcherId: stringField('end_matcher_id'),
+        endMatcherIds: Array.isArray(fields.end_matcher_ids)
+          ? fields.end_matcher_ids.filter((value): value is string => typeof value === 'string')
+          : undefined,
       } satisfies RuleRecordDto
     }),
   )
@@ -497,31 +502,48 @@ export default function App() {
         .filter((rule) => rule.recordType === 'matcher')
         .map((rule) => [rule.id, rule] as const),
     )
-    const stageSpecs: LatencyStageSpec[] = scenarioRules
-      .filter((rule) => rule.enabled && rule.recordType === 'stage')
-      .sort((left, right) => (left.order ?? Number.MAX_SAFE_INTEGER) - (right.order ?? Number.MAX_SAFE_INTEGER))
-      .map((stage): LatencyStageSpec | null => {
-        const start = stage.startMatcherId ? matchers.get(stage.startMatcherId) : undefined
-        const end = stage.endMatcherId ? matchers.get(stage.endMatcherId) : undefined
-        if (!start?.pattern || !end?.pattern) return null
-        return {
-          id: stage.id,
-          startPattern: start.pattern,
-          endPattern: end.pattern,
-          startMode: start.matchType === 'regex' ? 'regex' : 'keyword',
-          endMode: end.matchType === 'regex' ? 'regex' : 'keyword',
-        }
-      })
-      .filter((spec): spec is LatencyStageSpec => spec !== null)
+    const enabledStages = scenarioRules.filter((rule) => rule.enabled && rule.recordType === 'stage')
+    const toMarker = (id: string): LogMarker | undefined => {
+      const matcher = matchers.get(id)
+      return matcher?.pattern
+        ? { pattern: matcher.pattern, mode: matcher.matchType === 'regex' ? 'regex' : 'keyword' }
+        : undefined
+    }
 
-    if (stageSpecs.length === 0) {
-      setLatencyAnalysisMessage('未导入带 start/end 匹配器的 stage 规则')
+    // 拆分点：flow 级 order=1 聚合分支（非拦截）的起点 matcher。
+    const requestStartStage = enabledStages.find(
+      (stage) => stage.flowId && stage.order === 1 && stage.kind !== 'intercept' && !!stage.startMatcherId,
+    )
+    const requestStart = requestStartStage?.startMatcherId ? toMarker(requestStartStage.startMatcherId) : undefined
+
+    // 拦截 ends：kind=intercept 的 end_matcher_ids 逐条展开。
+    const interceptEnds: LogMarker[] = []
+    for (const stage of enabledStages) {
+      if (stage.kind !== 'intercept' || !stage.endMatcherIds) continue
+      for (const id of stage.endMatcherIds) {
+        const marker = toMarker(id)
+        if (marker) interceptEnds.push(marker)
+      }
+    }
+
+    // process 级 stage：产真实时延样本，每个 stage 只取第一对 start/end。
+    const processStages: LatencyStageSpec[] = []
+    for (const stage of enabledStages) {
+      if (!stage.processId || !stage.startMatcherId || !stage.endMatcherId) continue
+      const start = toMarker(stage.startMatcherId)
+      const end = toMarker(stage.endMatcherId)
+      if (!start || !end) continue
+      processStages.push({ id: stage.id, startPattern: start.pattern, endPattern: end.pattern, startMode: start.mode, endMode: end.mode })
+    }
+
+    if (!requestStart || processStages.length === 0) {
+      setLatencyAnalysisMessage('未找到 flow 级请求拆分点或 process 级 stage 规则')
       return
     }
 
     setLatencyAnalysisMessage('正在分析…')
     try {
-      const result = await analyzeSequentialLatency(logFolderPath, stageSpecs)
+      const result = await analyzeLatencyStream(logFolderPath, { requestStart, interceptEnds, processStages })
       setLatencyAnalysis(result)
       setLatencyAnalysisRunId((value) => value + 1)
       setLatencyAnalysisMessage(`已分析 ${result.requests.length} 个请求 · ${result.stats.sampleCount} 个阶段样本`)
