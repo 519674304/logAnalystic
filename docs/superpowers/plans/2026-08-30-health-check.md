@@ -295,6 +295,7 @@ use crate::domain::latency_analysis::result::RequestAnalysis;
 use crate::domain::log_workspace::log_entry::LogEntry;
 use crate::domain::log_workspace::log_extension::LogExtension;
 use crate::domain::request_split::sequential_stack::SequentialStackSplitter;
+use crate::domain::request_split::RequestSplitter;
 
 fn clean_line(raw: &str) -> &str {
     raw.trim_end_matches(|c: char| c == '\n' || c == '\r')
@@ -932,9 +933,10 @@ interface Props {
   report: HealthReport | null
   message: string
   onCheck: () => void
+  stageNameById: Map<string, string>
 }
 
-export default function HealthCheckPanel({ report, message, onCheck }: Props) {
+export default function HealthCheckPanel({ report, message, onCheck, stageNameById }: Props) {
   return (
     <section className="panel">
       <div className="panel-title-row">
@@ -985,7 +987,7 @@ export default function HealthCheckPanel({ report, message, onCheck }: Props) {
                   </div>
                   {request.slowStages.map((stage) => (
                     <p key={stage.stageId}>
-                      {stage.stageId}：{stage.durationMs}ms（阈值 {stage.thresholdMs}ms）
+                      {stageNameById.get(stage.stageId) ?? stage.stageId}：{stage.durationMs}ms（阈值 {stage.thresholdMs}ms）
                     </p>
                   ))}
                 </div>
@@ -1023,6 +1025,15 @@ import { analyzeHealthCheck, type HealthReport } from '../api/health-check-clien
 ```ts
   const [healthReport, setHealthReport] = useState<HealthReport | null>(null)
   const [healthMessage, setHealthMessage] = useState('等待体检')
+  const stageNameById = useMemo(
+    () =>
+      new Map(
+        scenarioRules
+          .filter((rule) => rule.recordType === 'stage')
+          .map((rule) => [rule.id, rule.description || rule.name] as const),
+      ),
+    [scenarioRules],
+  )
 ```
 
 4. 新增 `runHealthCheck`（在 `runLatencyAnalysis` 之后、`exportLatencyCsv` 之前）：
@@ -1076,7 +1087,12 @@ import { analyzeHealthCheck, type HealthReport } from '../api/health-check-clien
 
 ```tsx
       {activeTabId === 'issue-tips' ? (
-        <HealthCheckPanel report={healthReport} message={healthMessage} onCheck={() => void runHealthCheck()} />
+        <HealthCheckPanel
+          report={healthReport}
+          message={healthMessage}
+          stageNameById={stageNameById}
+          onCheck={() => void runHealthCheck()}
+        />
       ) : null}
 ```
 
