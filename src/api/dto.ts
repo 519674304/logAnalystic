@@ -79,6 +79,10 @@ export interface RuleRecordDto {
   startMatcherIds?: string[]
   endMatcherId?: string
   endMatcherIds?: string[]
+  /** 健康体检：matcher_role === "error" 时该 matcher 是错误过滤器。 */
+  matcherRole?: string
+  /** 健康体检：该 stage 的慢阈值（毫秒）。 */
+  thresholdMs?: number
 }
 
 export interface RulePackageImportDto {

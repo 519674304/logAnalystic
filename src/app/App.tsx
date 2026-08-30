@@ -224,6 +224,8 @@ function projectRuleRecords(versions: RulePackageVersionDto[], active: ActiveRul
         endMatcherIds: Array.isArray(fields.end_matcher_ids)
           ? fields.end_matcher_ids.filter((value): value is string => typeof value === 'string')
           : undefined,
+        matcherRole: stringField(fields, 'matcher_role'),
+        thresholdMs: typeof fields.threshold_ms === 'number' ? fields.threshold_ms : undefined,
       } satisfies RuleRecordDto
     })
   })
