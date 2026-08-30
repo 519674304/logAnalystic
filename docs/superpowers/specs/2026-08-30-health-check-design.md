@@ -25,7 +25,7 @@ HealthCheckSpec { errorFilters, latency, slowThresholdByStage }
    ▼
 后端：读一次 entries（复用 LogSource.entries）
    │  ① 错误扫描：遍历 entries 匹配 errorFilters → 系统异常清单
-   │  ② 时延分析：LatencyAnalyzer::analyze(latency, entries) → requests
+   │  ② 时延分析：SequentialStackSplitter.split(entries) → requests → LatencyAnalyzer::analyze(stages, requests)
    │  ③ 慢判定：对每个 stage 样本，duration_ms > 该 stage 阈值 → 慢阶段，按请求聚合
    ▼
 HealthReport { summary, systemErrors, slowRequests }
@@ -59,18 +59,13 @@ HealthReport { summary, systemErrors, slowRequests }
 ### 输入契约 `spec.rs`
 
 ```rust
-pub struct ErrorFilter {
-    pub pattern: String,
-    pub mode: MarkerMode,   // 复用 latency_analysis::spec::MarkerMode
-}
-
 pub struct StageThreshold {
     pub stage_id: String,
     pub threshold_ms: i64,
 }
 
 pub struct HealthCheckSpec {
-    pub error_filters: Vec<ErrorFilter>,
+    pub error_filters: Vec<Marker>,           // 复用 latency_analysis::spec::Marker
     pub latency: LatencyAnalysisSpec,          // 复用现有时延分析输入
     pub stage_thresholds: Vec<StageThreshold>, // 空向量 = 不判慢
 }
@@ -118,8 +113,8 @@ pub struct HealthReport {
 
 `HealthCheckAnalyzer::check(spec: &HealthCheckSpec, entries: &[LogEntry]) -> Result<HealthReport, String>`：
 
-1. **错误扫描**：遍历 entries，对每条 entry 依次匹配 `spec.error_filters`，命中即 `SystemError { timestamp, level, tag, message }`。错误过滤器为空则错误清单为空（不做默认 level 扫描；系统异常的判定完全由规则集驱动）。
-2. **时延分析**：内部调 `LatencyAnalyzer::analyze(&spec.latency, entries)`，复用现有栈式拆分与统计。
+1. **错误扫描**：遍历 entries，对每条 entry 用 `MarkerMatcher`（复用 `latency_analysis::marker`）依次匹配 `spec.error_filters` 的 `raw` 行，命中即 `SystemError { timestamp, level, tag, message }`；`tag` 取自 `entry.ext`（`LogExtension::Edge(EdgeExt.tag)`）。错误过滤器为空则错误清单为空（不做默认 level 扫描；系统异常的判定完全由规则集驱动）。
+2. **时延分析**：复用现有 `SequentialStackSplitter`（`request_split` 端侧实现，入参 `spec.latency.request_starts` + `spec.latency.intercept_ends`）拆出请求队列，再 `LatencyAnalyzer::analyze(&spec.latency.process_stages, &requests)` 做 stage 匹配与统计。
 3. **慢判定**：对每个 request 的每个 stage 样本，若其 `stage_id` 命中某条 `StageThreshold` 且 `duration_ms > threshold_ms`，记入该请求的 `slow_stages`。含 `slow_stages` 的请求纳入 `slow_requests`。
 4. 汇总 `summary`。
 
