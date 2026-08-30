@@ -9,6 +9,10 @@ function hasEndMatcher(rule: RuleRecordDto) {
   return !!rule.endMatcherId || (rule.endMatcherIds?.length ?? 0) > 0
 }
 
+function hasStartMatcher(rule: RuleRecordDto) {
+  return !!rule.startMatcherId || (rule.startMatcherIds?.length ?? 0) > 0
+}
+
 export type RequestGroup = 'slow' | 'abnormal' | 'normal' | 'unfinished'
 export type LaneBlockKind = 'main' | 'rpc' | 'subprocess' | 'join'
 
@@ -382,7 +386,7 @@ export function buildLatencyViewModelFromRules(rules: RuleRecordDto[], fallback:
       duration: laneBlocks.find((block) => block.id === stage.id)?.duration ?? '-',
       blockId: stage.id,
     })),
-    intervalStepOptions: uniqueDefinedValues(stages.flatMap((stage) => [stage.startMatcherId, stage.endMatcherId, ...(stage.endMatcherIds ?? [])])),
+    intervalStepOptions: uniqueDefinedValues(stages.flatMap((stage) => [stage.startMatcherId, ...(stage.startMatcherIds ?? []), stage.endMatcherId, ...(stage.endMatcherIds ?? [])])),
     stats: {
       sampleCount: stages.length,
       averageMs: 0,
@@ -412,7 +416,7 @@ function buildLatencyTableViewModel(rules: RuleRecordDto[], analysis: LatencyAna
   )
 
   const flowStages = stageRules
-    .filter((rule) => rule.flowId && rule.kind !== 'intercept' && rule.startMatcherId && hasEndMatcher(rule))
+    .filter((rule) => rule.flowId && rule.kind !== 'intercept' && hasStartMatcher(rule) && hasEndMatcher(rule))
     .sort((left, right) => (left.order ?? Number.MAX_SAFE_INTEGER) - (right.order ?? Number.MAX_SAFE_INTEGER))
 
   // process 组顺序：按 stage 在规则里的首次出现顺序（对应 flow 的 process_ids 顺序）。
@@ -431,7 +435,7 @@ function buildLatencyTableViewModel(rules: RuleRecordDto[], analysis: LatencyAna
 
   for (const processId of processGroupOrder) {
     const processStages = stageRules
-      .filter((rule) => rule.processId === processId && rule.startMatcherId && hasEndMatcher(rule))
+      .filter((rule) => rule.processId === processId && hasStartMatcher(rule) && hasEndMatcher(rule))
       .sort((left, right) => (left.order ?? Number.MAX_SAFE_INTEGER) - (right.order ?? Number.MAX_SAFE_INTEGER))
     const processName = context.processNameById.get(processId) ?? processId
     const applicationId = context.processApplicationId.get(processId)

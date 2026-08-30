@@ -121,7 +121,10 @@ function truncate(text: string, max: number) {
 function stageTooltip(stage: RuleTopologyStageViewModel) {
   const lines = [stage.name]
   if (stage.businessMeaning) lines.push(`业务含义: ${stage.businessMeaning}`)
-  const start = stage.startMatcherName ?? stage.startMatcherId ?? '-'
+  const start =
+    stage.startMatcherNames.length > 0
+      ? stage.startMatcherNames.join(', ')
+      : stage.startMatcherName ?? stage.startMatcherId ?? '-'
   const end =
     stage.endMatcherNames.length > 0
       ? stage.endMatcherNames.join(', ')

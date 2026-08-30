@@ -115,7 +115,7 @@
 
 | 字段 | 类型 | 必填 | 默认 | 引用 | 语义 |
 | --- | --- | --- | --- | --- | --- |
-| `id` | string | 是 | — | — | 匹配器唯一 ID，被 `stages.start_matcher_id` / `end_matcher_id` 引用。 |
+| `id` | string | 是 | — | — | 匹配器唯一 ID，被 `stages.start_matcher_id` / `start_matcher_ids` / `end_matcher_id` / `end_matcher_ids` 引用。 |
 | `name` | string | 是 | — | — | 匹配器名称。 |
 | `business_meaning` | string | 否 | — | — | 人读的业务含义注释（该日志代表什么业务事件）。 |
 | `enabled` | boolean | 否 | `true` | — | 是否启用。未启用则不参与匹配与分析。 |
@@ -145,9 +145,10 @@
 | `process_id` | string | 二选一 | — | `processes.id` | 归属进程（进程级 stage）。 |
 | `order` | integer | 是 | — | — | 每个 owner 内独立从 1 编号，**仅标记数据**。同 `order` 的多个 `result` 分支 stage 有唯一 `id`、共享 `order`，互为互斥结尾。 |
 | `result` | string | 否 | — | — | 结果/异常分支（如 `SUCCESS`/`ERROR`/`TIMEOUT`）。仅 flow 级聚合 stage 用；同 `order` 的多个 `result` 分支在定义上都存在，执行时同一 `order` 只命中一个。 |
-| `start_matcher_id` | string | 是 | — | `log_matchers.id` | 阶段起点事件。拦截 stage 复用请求起点。 |
+| `start_matcher_id` | string | 是 | — | `log_matchers.id` | 阶段起点事件。单个 start 的简写，等价于只有一个元素的 `start_matcher_ids`。拦截 stage 复用请求起点。 |
+| `start_matcher_ids` | string[] | 否 | — | `log_matchers.id[]` | 多个起点事件，**按数组顺序优先**（首个命中的 matcher 决定阶段开始；端侧日志可能丢失，配多个 start 减少阶段丢失）。 |
 | `end_matcher_id` | string | 否 | — | `log_matchers.id` | 阶段终点事件。单个 end 的简写，等价于只有一个元素的 `end_matcher_ids`。 |
-| `end_matcher_ids` | string[] | 否 | — | `log_matchers.id[]` | 多个结束事件，**任一命中**即判定该 stage 结束（端侧日志可能丢失，配多个 end 减少阶段丢失）。拦截 stage 用它覆盖全部拦截结束事件。 |
+| `end_matcher_ids` | string[] | 否 | — | `log_matchers.id[]` | 多个结束事件，**按数组顺序优先**（首个命中的 matcher 决定阶段结束；端侧日志可能丢失，配多个 end 减少阶段丢失）。拦截 stage 用它覆盖全部拦截结束事件。 |
 | `kind` | string | 否 | 普通 | — | 阶段类型：省略为普通 stage；`intercept` 为拦截 stage（用 `end_matcher_ids`，任一命中即丢弃整请求）。 |
 | `sub_process_ids` | string[] | 否 | — | `processes.id[]` | **仅进程级 stage 使用**：同进程内并行子进程分组。触发点后进入，各子进程阶段独立计算，汇总点命中表示组整体完成。 |
 
@@ -190,7 +191,8 @@ end_matcher_ids = ["LOG-REJECT-1", "LOG-REJECT-2", "LOG-REJECT-3"]
 - `start_matcher_id` 复用请求起点；owner 可为 `flow_id`（flow 级）或 `process_id`（进程级）。
 - **语义：拦截命中优先级最高**——请求在识别窗口内命中任意一个拦截 `end_matcher_ids` → 判定被拦截 → **整个请求丢弃**（它的所有 stage 样本都不进时延统计，也不单独计数）。无论 flow 级还是进程级拦截，命中一律丢整个请求。
 - 拦截 stage 不使用 `order` / `result`（它不是结果分支，只是丢弃标记）。
-- 所有 stage 都可用 `end_matcher_ids` 数组（**任一命中**即结束）；`end_matcher_id` 是单元素简写。拦截 stage 用它覆盖全部拦截结束事件。
+- 所有 stage 都可用 `end_matcher_ids` 数组（**按数组顺序优先**，首个命中的决定结束）；`end_matcher_id` 是单元素简写。拦截 stage 用它覆盖全部拦截结束事件。
+- 同理，所有 stage 的 `start_matcher_ids` 也支持数组（**按数组顺序优先**）；`start_matcher_id` 是单元素简写。请求拆分点（flow 级 `order=1` 聚合起点）例外：其多个 start 是「**任一命中即压栈开新请求**」，而非数组顺序优先。
 
 ---
 

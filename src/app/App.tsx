@@ -217,6 +217,9 @@ function projectRuleRecords(versions: RulePackageVersionDto[], active: ActiveRul
         flowId: stringField(fields, 'flow_id'),
         kind: stringField(fields, 'kind'),
         startMatcherId: stringField(fields, 'start_matcher_id'),
+        startMatcherIds: Array.isArray(fields.start_matcher_ids)
+          ? fields.start_matcher_ids.filter((value): value is string => typeof value === 'string')
+          : undefined,
         endMatcherId: stringField(fields, 'end_matcher_id'),
         endMatcherIds: Array.isArray(fields.end_matcher_ids)
           ? fields.end_matcher_ids.filter((value): value is string => typeof value === 'string')
@@ -777,11 +780,35 @@ export default function App() {
         : undefined
     }
 
+    // start/end 均支持多个 matcher：把单个 id（简写）与数组 id 合并去重，
+    // 保持「单个在前、数组在后」的书写顺序，作为数组顺序优先的判据。
+    const startMatcherIdsOf = (stage: RuleRecordDto): string[] => {
+      const ids: string[] = []
+      if (stage.startMatcherId) ids.push(stage.startMatcherId)
+      for (const id of stage.startMatcherIds ?? []) {
+        if (id && !ids.includes(id)) ids.push(id)
+      }
+      return ids
+    }
+    const endMatcherIdsOf = (stage: RuleRecordDto): string[] => {
+      const ids: string[] = []
+      if (stage.endMatcherId) ids.push(stage.endMatcherId)
+      for (const id of stage.endMatcherIds ?? []) {
+        if (id && !ids.includes(id)) ids.push(id)
+      }
+      return ids
+    }
+
     // 拆分点：flow 级 order=1 聚合分支（非拦截）的起点 matcher。
+    // start 支持多个 matcher，任一命中即压栈开新请求。
     const requestStartStage = enabledStages.find(
-      (stage) => stage.flowId && stage.order === 1 && stage.kind !== 'intercept' && !!stage.startMatcherId,
+      (stage) => stage.flowId && stage.order === 1 && stage.kind !== 'intercept' && startMatcherIdsOf(stage).length > 0,
     )
-    const requestStart = requestStartStage?.startMatcherId ? toMarker(requestStartStage.startMatcherId) : undefined
+    const requestStarts = requestStartStage
+      ? startMatcherIdsOf(requestStartStage)
+          .map(toMarker)
+          .filter((marker): marker is LogMarker => marker !== undefined)
+      : []
 
     // 拦截 ends：kind=intercept 的 end_matcher_ids 逐条展开。
     const interceptEnds: LogMarker[] = []
@@ -794,39 +821,30 @@ export default function App() {
     }
 
     // process 级 + flow 级 stage：产真实时延样本，每个 stage 只取第一对 start/end。
-    // 一个 stage 可配多个 end matcher（端侧日志可能丢失），命中任一即结束；
-    // flow 级聚合 stage（result 分支）仍按不同 stage 表达，天然互斥。
-    const endMatcherIdsOf = (stage: RuleRecordDto): string[] => {
-      const ids: string[] = []
-      if (stage.endMatcherId) ids.push(stage.endMatcherId)
-      for (const id of stage.endMatcherIds ?? []) {
-        if (id && !ids.includes(id)) ids.push(id)
-      }
-      return ids
-    }
-
+    // start 与 end 均支持多个 matcher（端侧日志可能丢失），按数组顺序优先（首个命中的决定起止）。
     const stageSpecs: LatencyStageSpec[] = []
     for (const stage of enabledStages) {
       if (stage.kind === 'intercept') continue
       if (!stage.processId && !stage.flowId) continue
-      if (!stage.startMatcherId) continue
-      const start = toMarker(stage.startMatcherId)
-      if (!start) continue
+      const startMarkers = startMatcherIdsOf(stage)
+        .map(toMarker)
+        .filter((marker): marker is LogMarker => marker !== undefined)
+      if (startMarkers.length === 0) continue
       const endMarkers = endMatcherIdsOf(stage)
         .map(toMarker)
         .filter((marker): marker is LogMarker => marker !== undefined)
       if (endMarkers.length === 0) continue
-      stageSpecs.push({ id: stage.id, startPattern: start.pattern, startMode: start.mode, endMarkers })
+      stageSpecs.push({ id: stage.id, startMarkers, endMarkers })
     }
 
-    if (!requestStart || stageSpecs.length === 0) {
+    if (requestStarts.length === 0 || stageSpecs.length === 0) {
       setLatencyAnalysisMessage('未找到 flow 级请求拆分点或 stage 规则')
       return
     }
 
     setLatencyAnalysisMessage('正在分析…')
     try {
-      const result = await analyzeLatencyStream(logFolderPath, { requestStart, interceptEnds, processStages: stageSpecs })
+      const result = await analyzeLatencyStream(logFolderPath, { requestStarts, interceptEnds, processStages: stageSpecs })
       setLatencyAnalysis(result)
       setLatencyAnalysisRunId((value) => value + 1)
       setLatencyAnalysisMessage(`已分析 ${result.requests.length} 个请求 · ${result.stats.sampleCount} 个阶段样本`)

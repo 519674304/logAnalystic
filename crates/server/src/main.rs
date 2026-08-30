@@ -90,14 +90,12 @@ fn default_context_lines() -> usize {
     1
 }
 
-/// 前端扁平 stage 形状：`{ id, startPattern, startMode?, endMarkers }`。
+/// 前端扁平 stage 形状：`{ id, startMarkers, endMarkers }`。
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct StageSpecDto {
     id: String,
-    start_pattern: String,
-    #[serde(default)]
-    start_mode: Option<String>,
+    start_markers: Vec<MarkerDto>,
     end_markers: Vec<MarkerDto>,
 }
 
@@ -118,7 +116,8 @@ struct AnalyzeRequest {
     start_time: Option<String>,
     #[serde(default)]
     end_time: Option<String>,
-    request_start: MarkerDto,
+    #[serde(default)]
+    request_starts: Vec<MarkerDto>,
     #[serde(default)]
     intercept_ends: Vec<MarkerDto>,
     process_stages: Vec<StageSpecDto>,
@@ -156,7 +155,11 @@ fn to_marker(dto: &MarkerDto, request_id: &str, operation: &str) -> Marker {
 fn to_spec(req: &AnalyzeRequest, request_id: &str) -> LatencyAnalysisSpec {
     const OPERATION: &str = "latency.analyze";
     LatencyAnalysisSpec {
-        request_start: to_marker(&req.request_start, request_id, OPERATION),
+        request_starts: req
+            .request_starts
+            .iter()
+            .map(|marker| to_marker(marker, request_id, OPERATION))
+            .collect(),
         intercept_ends: req
             .intercept_ends
             .iter()
@@ -167,14 +170,11 @@ fn to_spec(req: &AnalyzeRequest, request_id: &str) -> LatencyAnalysisSpec {
             .iter()
             .map(|s| StageSpec {
                 id: s.id.clone(),
-                start: Marker {
-                    pattern: s.start_pattern.clone(),
-                    mode: marker_mode(
-                        s.start_mode.as_deref().unwrap_or("keyword"),
-                        request_id,
-                        OPERATION,
-                    ),
-                },
+                starts: s
+                    .start_markers
+                    .iter()
+                    .map(|marker| to_marker(marker, request_id, OPERATION))
+                    .collect(),
                 ends: s
                     .end_markers
                     .iter()
@@ -183,14 +183,6 @@ fn to_spec(req: &AnalyzeRequest, request_id: &str) -> LatencyAnalysisSpec {
             })
             .collect(),
     }
-}
-
-fn marker_mode(mode: &str, request_id: &str, operation: &str) -> MarkerMode {
-    let (marker_mode, fell_back) = parse_mode_with_fallback(mode);
-    if fell_back {
-        log_mode_fallback(request_id, operation, mode);
-    }
-    marker_mode
 }
 
 fn failure_category(_error: &str) -> &'static str {

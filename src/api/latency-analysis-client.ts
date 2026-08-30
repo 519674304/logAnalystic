@@ -2,9 +2,9 @@ import { postJson } from './http-client'
 
 export interface LatencyStageSpec {
   id: string
-  startPattern: string
-  startMode?: 'keyword' | 'regex'
-  /** 多个 end matcher（端侧日志可能丢失），任一命中即判定该 stage 结束。 */
+  /** 多个 start matcher，按数组顺序优先（首个命中的决定阶段开始）。 */
+  startMarkers: LogMarker[]
+  /** 多个 end matcher，按数组顺序优先（首个命中的决定阶段结束）。 */
   endMarkers: LogMarker[]
 }
 
@@ -39,8 +39,8 @@ export interface LogMarker {
 
 /** 一次时延分析的全部输入：请求拆分、拦截与产样本的 process 级 stage。 */
 export interface LatencyAnalysisSpec {
-  /** 请求拆分点（flow 级 order=1 聚合起点），命中即压栈开新请求。 */
-  requestStart: LogMarker
+  /** 请求拆分点（flow 级 order=1 聚合起点），任一命中即压栈开新请求。 */
+  requestStarts: LogMarker[]
   /** 拦截 stage（kind=intercept）的结束 matcher 集合，任一命中即弹出栈顶请求并整体丢弃。 */
   interceptEnds: LogMarker[]
   /** process 级 stage，产时延样本。 */
@@ -51,7 +51,7 @@ interface AnalyzeRequestBody {
   path: string
   startTime?: string
   endTime?: string
-  requestStart: LogMarker
+  requestStarts: LogMarker[]
   interceptEnds: LogMarker[]
   processStages: LatencyStageSpec[]
 }
@@ -66,7 +66,7 @@ export async function analyzeLatencyStream(
 ): Promise<LatencyAnalysis> {
   const body: AnalyzeRequestBody = {
     path,
-    requestStart: spec.requestStart,
+    requestStarts: spec.requestStarts,
     interceptEnds: spec.interceptEnds,
     processStages: spec.processStages,
   }

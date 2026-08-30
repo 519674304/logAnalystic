@@ -20,10 +20,12 @@ export interface RuleTopologyStageViewModel {
   enabled: boolean
   exportEnabled: boolean
   startMatcherId?: string
+  startMatcherIds: string[]
   endMatcherId?: string
   endMatcherIds: string[]
   subProcessIds: string[]
   startMatcherName?: string
+  startMatcherNames: string[]
   endMatcherName?: string
   endMatcherNames: string[]
 }
@@ -120,6 +122,7 @@ interface StageDefinition {
   flowId?: string
   processId?: string
   startMatcherId?: string
+  startMatcherIds: string[]
   endMatcherId?: string
   endMatcherIds: string[]
   subProcessIds: string[]
@@ -186,6 +189,7 @@ function collectStagesAndMatchers(version: RulePackageVersionDto) {
           flowId: fieldString(node, 'flow_id'),
           processId: fieldString(node, 'process_id'),
           startMatcherId: fieldString(node, 'start_matcher_id'),
+          startMatcherIds: fieldStringArray(node, 'start_matcher_ids'),
           endMatcherId: fieldString(node, 'end_matcher_id'),
           endMatcherIds: fieldStringArray(node, 'end_matcher_ids'),
           subProcessIds: fieldStringArray(node, 'sub_process_ids'),
@@ -234,10 +238,12 @@ function toStageViewModel(stage: StageDefinition, context: TopologyContext): Rul
     enabled: stage.enabled,
     exportEnabled: stage.exportEnabled,
     startMatcherId: stage.startMatcherId,
+    startMatcherIds: stage.startMatcherIds,
     endMatcherId: stage.endMatcherId,
     endMatcherIds: stage.endMatcherIds,
     subProcessIds: stage.subProcessIds,
     startMatcherName: stage.startMatcherId ? context.matcherNameById.get(stage.startMatcherId) : undefined,
+    startMatcherNames: stage.startMatcherIds.map((id) => context.matcherNameById.get(id) ?? id),
     endMatcherName: stage.endMatcherId ? context.matcherNameById.get(stage.endMatcherId) : undefined,
     endMatcherNames: stage.endMatcherIds.map((id) => context.matcherNameById.get(id) ?? id),
   }

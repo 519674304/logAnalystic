@@ -15,19 +15,19 @@ pub struct Marker {
 }
 
 /// process 级 stage：产真实时延样本，每个 stage 只取第一对 start/end。
-/// 支持多个 end matcher（端侧日志可能丢失），任一命中即判定该 stage 结束。
+/// start 与 end 都支持多个 matcher（端侧日志可能丢失），按数组顺序优先（首个命中的 matcher 决定起止）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StageSpec {
     pub id: String,
-    pub start: Marker,
+    pub starts: Vec<Marker>,
     pub ends: Vec<Marker>,
 }
 
 /// 一次时延分析的全部输入：请求拆分、拦截与产样本的 process 级 stage。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LatencyAnalysisSpec {
-    /// 请求拆分点（flow 级 order=1 非拦截聚合起点），命中即压栈开新请求。
-    pub request_start: Marker,
+    /// 请求拆分点（flow 级 order=1 非拦截聚合起点），任一命中即压栈开新请求。
+    pub request_starts: Vec<Marker>,
     /// 拦截 stage（kind=intercept）的结束 matcher 集合，任一命中即弹出栈顶请求并整体丢弃。
     pub intercept_ends: Vec<Marker>,
     /// process 级 stage，产时延样本。

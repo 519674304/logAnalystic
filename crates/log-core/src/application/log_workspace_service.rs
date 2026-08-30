@@ -59,7 +59,7 @@ impl LogWorkspaceService {
     ) -> Result<LatencyAnalysis, String> {
         let entries = self.source.entries(dir, range)?;
         let splitter = SequentialStackSplitter::new(
-            spec.request_start.clone(),
+            spec.request_starts.clone(),
             spec.intercept_ends.clone(),
         )?;
         let requests = splitter.split(&entries);

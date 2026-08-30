@@ -76,6 +76,7 @@ export interface RuleRecordDto {
   flowId?: string
   kind?: string
   startMatcherId?: string
+  startMatcherIds?: string[]
   endMatcherId?: string
   endMatcherIds?: string[]
 }

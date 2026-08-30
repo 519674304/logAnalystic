@@ -6,6 +6,7 @@ use crate::domain::latency_analysis::result::{
 };
 use crate::domain::latency_analysis::spec::StageSpec;
 use crate::domain::latency_analysis::timestamp::timestamp_to_ms;
+use crate::domain::log_workspace::log_entry::LogEntry;
 use crate::domain::request_split::Request;
 
 fn clean_line(raw: &str) -> &str {
@@ -14,8 +15,26 @@ fn clean_line(raw: &str) -> &str {
 
 struct StageRule {
     stage_id: String,
-    start: MarkerMatcher,
+    starts: Vec<MarkerMatcher>,
     ends: Vec<MarkerMatcher>,
+}
+
+/// 数组顺序优先：依次检查 matchers，返回第一个有命中的 matcher 的首次命中位置（时间戳 + 原始时间串）。
+fn find_priority_match(
+    matchers: &[MarkerMatcher],
+    entries: &[LogEntry],
+) -> Option<(i64, String)> {
+    for matcher in matchers {
+        for entry in entries {
+            let line = clean_line(&entry.raw);
+            if let Some(ts_ms) = timestamp_to_ms(&entry.timestamp) {
+                if matcher.matches(line) {
+                    return Some((ts_ms, entry.timestamp.clone()));
+                }
+            }
+        }
+    }
+    None
 }
 
 fn analyze_request(rules: &[StageRule], req: &Request) -> RequestAnalysis {
@@ -23,23 +42,8 @@ fn analyze_request(rules: &[StageRule], req: &Request) -> RequestAnalysis {
     let mut timestamps: Vec<i64> = Vec::new();
 
     for rule in rules {
-        let mut start_ts: Option<(i64, String)> = None;
-        let mut end_ts: Option<(i64, String)> = None;
-        for entry in &req.entries {
-            let line = clean_line(&entry.raw);
-            let Some(ts_ms) = timestamp_to_ms(&entry.timestamp) else {
-                continue;
-            };
-            if start_ts.is_none() && rule.start.matches(line) {
-                start_ts = Some((ts_ms, entry.timestamp.clone()));
-            }
-            if end_ts.is_none() && rule.ends.iter().any(|m| m.matches(line)) {
-                end_ts = Some((ts_ms, entry.timestamp.clone()));
-            }
-            if start_ts.is_some() && end_ts.is_some() {
-                break;
-            }
-        }
+        let start_ts = find_priority_match(&rule.starts, &req.entries);
+        let end_ts = find_priority_match(&rule.ends, &req.entries);
         if let (Some(start), Some(end)) = (start_ts, end_ts) {
             let duration_ms = (end.0 - start.0).max(0);
             samples.push(StageSample {
@@ -99,7 +103,11 @@ impl LatencyAnalyzer {
         let rules: Vec<StageRule> = stages
             .iter()
             .map(|s| {
-                let start = MarkerMatcher::build(&s.start)?;
+                let starts = s
+                    .starts
+                    .iter()
+                    .map(MarkerMatcher::build)
+                    .collect::<Result<Vec<_>, _>>()?;
                 let ends = s
                     .ends
                     .iter()
@@ -107,7 +115,7 @@ impl LatencyAnalyzer {
                     .collect::<Result<Vec<_>, _>>()?;
                 Ok(StageRule {
                     stage_id: s.id.clone(),
-                    start,
+                    starts,
                     ends,
                 })
             })
@@ -170,12 +178,12 @@ mod tests {
         vec![
             StageSpec {
                 id: "STAGE-A".to_string(),
-                start: kw("request started"),
+                starts: vec![kw("request started")],
                 ends: vec![kw("start parallel subprocesses")],
             },
             StageSpec {
                 id: "STAGE-D".to_string(),
-                start: kw("all subprocesses completed"),
+                starts: vec![kw("all subprocesses completed")],
                 ends: vec![kw("request completed successfully")],
             },
         ]
@@ -221,12 +229,94 @@ mod tests {
         )];
         let stages = vec![StageSpec {
             id: "STAGE-X".to_string(),
-            start: kw("step begin"),
+            starts: vec![kw("step begin")],
             ends: vec![kw("step end")],
         }];
         let result = LatencyAnalyzer::analyze(&stages, &requests).unwrap();
         assert_eq!(result.requests[0].samples.len(), 1);
         assert_eq!(result.requests[0].samples[0].duration_ms, 10);
+    }
+
+    #[test]
+    fn stage_multiple_ends_priority_order() {
+        let requests = vec![req(
+            "r1",
+            vec![
+                entry(1, "2026-07-05 10:00:00.000", "step begin"),
+                entry(2, "2026-07-05 10:00:00.010", "alt end B"),
+                entry(3, "2026-07-05 10:00:00.050", "alt end A"),
+            ],
+        )];
+        // 数组顺序优先：end A 靠前，即使它在日志里更晚（50ms）也用它，而非更早的 B（10ms）。
+        let stages = vec![StageSpec {
+            id: "STAGE-X".to_string(),
+            starts: vec![kw("step begin")],
+            ends: vec![kw("alt end A"), kw("alt end B")],
+        }];
+        let result = LatencyAnalyzer::analyze(&stages, &requests).unwrap();
+        assert_eq!(result.requests[0].samples.len(), 1);
+        assert_eq!(result.requests[0].samples[0].duration_ms, 50);
+    }
+
+    #[test]
+    fn stage_multiple_ends_hit_any_one() {
+        let requests = vec![req(
+            "r1",
+            vec![
+                entry(1, "2026-07-05 10:00:00.000", "step begin"),
+                entry(2, "2026-07-05 10:00:00.040", "alt end B"),
+            ],
+        )];
+        // 只有 end B 出现，end A 未出现；任一命中即结束。
+        let stages = vec![StageSpec {
+            id: "STAGE-X".to_string(),
+            starts: vec![kw("step begin")],
+            ends: vec![kw("alt end A"), kw("alt end B")],
+        }];
+        let result = LatencyAnalyzer::analyze(&stages, &requests).unwrap();
+        assert_eq!(result.requests[0].samples.len(), 1);
+        assert_eq!(result.requests[0].samples[0].duration_ms, 40);
+    }
+
+    #[test]
+    fn stage_multiple_starts_priority_order() {
+        let requests = vec![req(
+            "r1",
+            vec![
+                entry(1, "2026-07-05 10:00:00.000", "step begin B"),
+                entry(2, "2026-07-05 10:00:00.040", "step begin A"),
+                entry(3, "2026-07-05 10:00:00.050", "step end"),
+            ],
+        )];
+        // 数组顺序优先：start A 靠前，即使它在日志里更晚（40ms）也用它，而非更早的 B（0ms）。
+        let stages = vec![StageSpec {
+            id: "STAGE-X".to_string(),
+            starts: vec![kw("step begin A"), kw("step begin B")],
+            ends: vec![kw("step end")],
+        }];
+        let result = LatencyAnalyzer::analyze(&stages, &requests).unwrap();
+        assert_eq!(result.requests[0].samples.len(), 1);
+        assert_eq!(result.requests[0].samples[0].duration_ms, 10);
+    }
+
+    #[test]
+    fn stage_start_fallback_when_first_missing() {
+        let requests = vec![req(
+            "r1",
+            vec![
+                entry(1, "2026-07-05 10:00:00.000", "step begin B"),
+                entry(2, "2026-07-05 10:00:00.050", "step end"),
+            ],
+        )];
+        // 首选 start A 未出现，fallback 到数组第二个 start B。
+        let stages = vec![StageSpec {
+            id: "STAGE-X".to_string(),
+            starts: vec![kw("step begin A"), kw("step begin B")],
+            ends: vec![kw("step end")],
+        }];
+        let result = LatencyAnalyzer::analyze(&stages, &requests).unwrap();
+        assert_eq!(result.requests[0].samples.len(), 1);
+        assert_eq!(result.requests[0].samples[0].duration_ms, 50);
     }
 
     #[test]

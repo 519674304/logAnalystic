@@ -14,19 +14,22 @@ fn clean_line(raw: &str) -> &str {
 }
 
 pub struct SequentialStackSplitter {
-    request_start: MarkerMatcher,
+    request_starts: Vec<MarkerMatcher>,
     intercept_ends: Vec<MarkerMatcher>,
 }
 
 impl SequentialStackSplitter {
-    pub fn new(request_start: Marker, intercept_ends: Vec<Marker>) -> Result<Self, String> {
-        let request_start = MarkerMatcher::build(&request_start)?;
+    pub fn new(request_starts: Vec<Marker>, intercept_ends: Vec<Marker>) -> Result<Self, String> {
+        let request_starts = request_starts
+            .iter()
+            .map(MarkerMatcher::build)
+            .collect::<Result<Vec<_>, _>>()?;
         let intercept_ends = intercept_ends
             .iter()
             .map(MarkerMatcher::build)
             .collect::<Result<Vec<_>, _>>()?;
         Ok(Self {
-            request_start,
+            request_starts,
             intercept_ends,
         })
     }
@@ -52,7 +55,7 @@ impl RequestSplitter for SequentialStackSplitter {
                 current = None;
                 continue;
             }
-            if self.request_start.matches(line) {
+            if self.request_starts.iter().any(|m| m.matches(line)) {
                 if let Some((id, entries)) = current.take() {
                     requests.push(Request { id, entries });
                 }
@@ -101,7 +104,7 @@ mod tests {
 
     #[test]
     fn splits_two_requests_by_start_marker() {
-        let splitter = SequentialStackSplitter::new(kw("request started"), vec![]).unwrap();
+        let splitter = SequentialStackSplitter::new(vec![kw("request started")], vec![]).unwrap();
         let entries = vec![
             entry(1, "2026-07-05 10:00:00.000", "request started"),
             entry(2, "2026-07-05 10:00:00.040", "step begin"),
@@ -120,7 +123,7 @@ mod tests {
     #[test]
     fn intercept_drops_current_request() {
         let splitter =
-            SequentialStackSplitter::new(kw("request started"), vec![kw("timeout waiting")])
+            SequentialStackSplitter::new(vec![kw("request started")], vec![kw("timeout waiting")])
                 .unwrap();
         let entries = vec![
             entry(1, "2026-07-05 10:00:00.000", "request started"),
@@ -132,5 +135,24 @@ mod tests {
         let requests = splitter.split(&entries);
         assert_eq!(requests.len(), 1);
         assert_eq!(requests[0].id, "2026-07-05 10:00:01.000");
+    }
+
+    #[test]
+    fn multiple_request_starts_any_hit_opens_request() {
+        let splitter = SequentialStackSplitter::new(
+            vec![kw("request started"), kw("request begin")],
+            vec![],
+        )
+        .unwrap();
+        let entries = vec![
+            entry(1, "2026-07-05 10:00:00.000", "request begin"),
+            entry(2, "2026-07-05 10:00:00.040", "step begin"),
+            entry(3, "2026-07-05 10:00:01.000", "request started"),
+            entry(4, "2026-07-05 10:00:01.040", "step begin"),
+        ];
+        let requests = splitter.split(&entries);
+        assert_eq!(requests.len(), 2);
+        assert_eq!(requests[0].id, "2026-07-05 10:00:00.000");
+        assert_eq!(requests[1].id, "2026-07-05 10:00:01.000");
     }
 }
