@@ -27,6 +27,7 @@ import type {
 } from '../api/dto'
 import { mapLogSearchToViewModel } from '../view-model/log-search-view-model'
 import type { LogSearchViewModel } from '../view-model/log-search-view-model'
+import { buildMatcherSearchRegex } from '../view-model/matcher-search-view-model'
 import {
   buildLatencyViewModelFromAnalysis,
   buildLatencyViewModelFromRules,
@@ -35,8 +36,18 @@ import {
 } from '../view-model/latency-view-model'
 
 const sampleLatencyViewModel = mapToViewModel(latencyResult)
-const defaultTimeRange = '2026-06-12 10:30:00 ~ 2026-06-12 10:45:00'
+
+// 默认时间范围动态取当天全天，避免写死演示日期。
+function buildDefaultTimeRange(): string {
+  const now = new Date()
+  const pad = (value: number) => String(value).padStart(2, '0')
+  const date = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+  return `${date} 00:00:00 ~ ${date} 23:59:59`
+}
 const activeScenarioStorageKey = 'log-analystic.active-scenario'
+const selectedMatcherIdsStorageKey = 'log-analystic.selected-matcher-ids'
+const recentFoldersStorageKey = 'log-analystic.recent-folders'
+const MAX_RECENT_FOLDERS = 5
 
 function readActiveScenario(): string | null {
   try {
@@ -47,9 +58,57 @@ function readActiveScenario(): string | null {
   }
 }
 
+// matcher 勾选是独立、自动持久化的偏好：选中即保存，不绑定保存查询。
+function readPersistedMatcherIds(): string[] {
+  try {
+    const value = globalThis.localStorage?.getItem(selectedMatcherIdsStorageKey)
+    if (!value) return []
+    const parsed = JSON.parse(value)
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+function writePersistedMatcherIds(ids: string[]) {
+  try {
+    globalThis.localStorage?.setItem(selectedMatcherIdsStorageKey, JSON.stringify(ids))
+  } catch {
+    // 忽略 localStorage 不可用的情况。
+  }
+}
+
+// 最近搜索过的日志文件夹：最近优先、去重、最多保留 MAX_RECENT_FOLDERS 个。
+function readRecentFolders(): string[] {
+  try {
+    const value = globalThis.localStorage?.getItem(recentFoldersStorageKey)
+    if (!value) return []
+    const parsed = JSON.parse(value)
+    return Array.isArray(parsed)
+      ? parsed.filter((item): item is string => typeof item === 'string' && item.trim() !== '')
+      : []
+  } catch {
+    return []
+  }
+}
+
+function writeRecentFolders(folders: string[]) {
+  try {
+    globalThis.localStorage?.setItem(recentFoldersStorageKey, JSON.stringify(folders))
+  } catch {
+    // 忽略 localStorage 不可用的情况。
+  }
+}
+
+function pushRecentFolder(current: string[], path: string): string[] {
+  const trimmed = path.trim()
+  if (!trimmed) return current
+  return [trimmed, ...current.filter((item) => item !== trimmed)].slice(0, MAX_RECENT_FOLDERS)
+}
+
 const tabs: WorkbenchTab[] = [
   { id: 'log-search', label: '日志搜索' },
-  { id: 'latency-analysis', label: '时延分析', badge: '核心' },
+  { id: 'latency-analysis', label: '时延分析' },
   { id: 'rule-config', label: '规则配置' },
   { id: 'issue-tips', label: '问题提示' },
 ]
@@ -68,7 +127,8 @@ function createEmptySavedQuery(): SavedQueryDto {
     query: '',
     mode: 'keyword',
     caseSensitive: false,
-    timeRange: defaultTimeRange,
+    timeRange: buildDefaultTimeRange(),
+    matcherIds: [],
   }
 }
 
@@ -90,7 +150,8 @@ function normalizeSavedQuery(draft: SavedQueryDto): SavedQueryDto {
     group: draft.group.trim() || 'core',
     tags: draft.tags.map((tag) => tag.trim()).filter(Boolean),
     query: draft.query.trim(),
-    timeRange: draft.timeRange.trim() || defaultTimeRange,
+    timeRange: draft.timeRange.trim() || buildDefaultTimeRange(),
+    matcherIds: draft.matcherIds ?? [],
   }
 }
 
@@ -108,10 +169,10 @@ function projectRuleRecords(versions: RulePackageVersionDto[], active: ActiveRul
       return typeof value === 'string' ? value : undefined
     }
 
-    // definitions 层只投影应用与进程，供泳道把 stage 的 process_id 映射到应用名 / 进程名。
+    // definitions 层投影应用、进程与流程，供泳道把 stage 的 process_id / flow_id 映射到应用名 / 进程名 / 流程名。
     if (layer.id === 'definitions') {
       return layer.nodes
-        .filter((node) => node.nodeType === 'applications' || node.nodeType === 'processes')
+        .filter((node) => node.nodeType === 'applications' || node.nodeType === 'processes' || node.nodeType === 'flows')
         .map(
           (node) =>
             ({
@@ -122,7 +183,8 @@ function projectRuleRecords(versions: RulePackageVersionDto[], active: ActiveRul
               enabled: true,
               exportEnabled: true,
               scenarios: [],
-              recordType: node.nodeType === 'applications' ? 'application' : 'process',
+              recordType:
+                node.nodeType === 'applications' ? 'application' : node.nodeType === 'flows' ? 'flow' : 'process',
               applicationId: node.nodeType === 'processes' ? stringField(node.fields, 'application_id') : undefined,
             }) satisfies RuleRecordDto,
         )
@@ -172,30 +234,43 @@ function csvCell(value: string | number | undefined) {
   return `"${text.replace(/"/g, '""')}"`
 }
 
+// 时间戳字段加前导单引号，让 Excel/WPS 按文本处理，
+// 否则会被识别成日期时间，只显示到秒而丢掉毫秒（.000）。
+function csvTimestampCell(value: string | number | undefined) {
+  const text = String(value ?? '')
+  if (text === '') return '""'
+  return `"'${text.replace(/"/g, '""')}"`
+}
+
 function csvRow(values: Array<string | number | undefined>) {
   return values.map(csvCell).join(',')
 }
 
-function buildLatencyExportCsv(viewModel: RequestViewModel) {
+// 导出明细表的 CSV 快照：跟随列选择器（隐藏列不导出），导出全部请求行（上限与明细表一致 100 行）。
+// 所有耗时单位统一为毫秒，单位标注在表头。
+const MAX_TABLE_ROWS = 100
+
+function buildLatencyExportCsv(viewModel: RequestViewModel, hiddenColumns: Set<string>) {
+  const table = viewModel.table
+  const columns = table ? table.columns.filter((column) => !hiddenColumns.has(column.id)) : []
   const rows: string[] = []
 
-  rows.push('时延明细')
-  rows.push(csvRow(['业务含义', '泳道/应用', '起始时间戳', '结束时间戳', '相对时延', '耗时']))
-  viewModel.laneBlocks.forEach((block) => {
-    rows.push(csvRow([block.label, block.lane, block.startTimestamp, block.endTimestamp, block.relativeDuration, block.duration]))
-  })
-
-  rows.push('')
-  rows.push('步骤树')
-  rows.push(csvRow(['业务含义', '层级', '耗时']))
-  viewModel.stepTree.forEach((step) => {
-    rows.push(csvRow([step.name, step.level, step.duration]))
-  })
-
-  rows.push('')
-  rows.push('时延统计')
-  rows.push(csvRow(['样本数', '平均值(ms)', 'P90(ms)', '最大值(ms)']))
-  rows.push(csvRow([viewModel.stats.sampleCount, viewModel.stats.averageMs, viewModel.stats.p90Ms, viewModel.stats.maxMs]))
+  // 表头第一行：分组名；请求标识 / 总耗时(ms) 各占一列，stage 列按分组重复分组名。
+  rows.push(csvRow(['请求标识', '总耗时(ms)', ...columns.map((column) => column.group)]))
+  // 表头第二行：列名；请求标识 / 总耗时 与页面 rowSpan 对应留空，stage 列加 (ms)。
+  rows.push(csvRow(['', '', ...columns.map((column) => `${column.name}(ms)`)]))
+  if (table) {
+    const rowCount = Math.min(table.rows.length, MAX_TABLE_ROWS)
+    for (const row of table.rows.slice(0, rowCount)) {
+      rows.push(
+        [
+          csvTimestampCell(row.requestId),
+          csvCell(row.totalMs),
+          ...columns.map((column) => csvCell(row.cells[column.id])),
+        ].join(','),
+      )
+    }
+  }
 
   return `\uFEFF${rows.join('\r\n')}`
 }
@@ -222,10 +297,13 @@ export default function App() {
   const [activeTabId, setActiveTabId] = useState('latency-analysis')
   const [savedQueries, setSavedQueries] = useState<SavedQueryDto[]>([])
   const [logFolderPath, setLogFolderPath] = useState('')
+  const [recentFolders, setRecentFolders] = useState<string[]>(() => readRecentFolders())
   const [activeQueryId, setActiveQueryId] = useState('')
   const [queryDraft, setQueryDraft] = useState<SavedQueryDto>(createEmptySavedQuery())
   const [queryEditorOpen, setQueryEditorOpen] = useState(false)
   const [queryEditorDraft, setQueryEditorDraft] = useState<SavedQueryDto>(createEmptySavedQuery())
+  const [searchSource, setSearchSource] = useState<'manual' | 'matcher'>('manual')
+  const [selectedMatcherIds, setSelectedMatcherIds] = useState<string[]>(() => readPersistedMatcherIds())
   const [rulePackages, setRulePackages] = useState<RulePackageVersionDto[]>([])
   const [activeRuleVersion, setActiveRuleVersion] = useState<ActiveRuleVersionDto | null>(null)
   const [activeRuleNodeKey, setActiveRuleNodeKey] = useState('')
@@ -240,6 +318,8 @@ export default function App() {
   const [latencyAnalysis, setLatencyAnalysis] = useState<LatencyAnalysis | null>(null)
   const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(() => readActiveScenario())
   const rules = useMemo(() => projectRuleRecords(rulePackages, activeRuleVersion), [rulePackages, activeRuleVersion])
+  const matcherRecords = useMemo(() => rules.filter((rule) => rule.recordType === 'matcher'), [rules])
+  const matcherById = useMemo(() => new Map(matcherRecords.map((matcher) => [matcher.id, matcher])), [matcherRecords])
   const scenarios = useMemo(() => {
     const version = activeRuleVersion
       ? rulePackages.find((item) => item.ruleSetId === activeRuleVersion.ruleSetId && item.version === activeRuleVersion.version)
@@ -261,26 +341,62 @@ export default function App() {
     [scenarioRules, latencyAnalysis, latencyAnalysisRunId],
   )
 
-  const runSearch = async (record?: SavedQueryDto) => {
-    const source = record ?? queryDraft
-    const { startTime, endTime } = parseTimeRange(source.timeRange)
-    const request: LogSearchRequestDto = {
-      path: logFolderPath,
-      query: source.query,
-      mode: source.mode,
-      caseSensitive: source.caseSensitive,
-      contextLines: 1,
-      startTime,
-      endTime,
-    }
+  // 记录一个真正被搜索过的文件夹到最近列表（最近优先、去重、上限 5 个）。
+  const rememberFolder = (path: string) => {
+    const next = pushRecentFolder(recentFolders, path)
+    setRecentFolders(next)
+    writeRecentFolders(next)
+  }
 
-    if (!request.path.trim()) {
+  const runSearch = async (input?: {
+    record?: SavedQueryDto
+    source?: 'manual' | 'matcher'
+    matcherIds?: string[]
+  }) => {
+    const record = input?.record ?? queryDraft
+    const source = input?.source ?? searchSource
+    const matcherIds = input?.matcherIds ?? selectedMatcherIds
+    const { startTime, endTime } = parseTimeRange(record.timeRange)
+
+    if (!logFolderPath.trim()) {
       setErrorMessage('请先选择日志文件夹')
       return
     }
-    if (!request.query.trim()) {
-      setErrorMessage('请输入搜索内容')
-      return
+    rememberFolder(logFolderPath)
+
+    let request: LogSearchRequestDto
+    if (source === 'matcher') {
+      const matchers = matcherIds
+        .map((id) => matcherById.get(id))
+        .filter((matcher): matcher is RuleRecordDto => Boolean(matcher))
+      const regex = buildMatcherSearchRegex(matchers)
+      if (!regex) {
+        setErrorMessage('请选择至少一个 matcher')
+        return
+      }
+      request = {
+        path: logFolderPath,
+        query: regex,
+        mode: 'regex',
+        caseSensitive: false,
+        contextLines: 1,
+        startTime,
+        endTime,
+      }
+    } else {
+      if (!record.query.trim()) {
+        setErrorMessage('请输入搜索内容')
+        return
+      }
+      request = {
+        path: logFolderPath,
+        query: record.query,
+        mode: record.mode,
+        caseSensitive: record.caseSensitive,
+        contextLines: 1,
+        startTime,
+        endTime,
+      }
     }
 
     setIsSearching(true)
@@ -294,6 +410,22 @@ export default function App() {
     } finally {
       setIsSearching(false)
     }
+  }
+
+  // 选中/加载一条保存查询时，恢复 queryDraft + 搜索来源。
+  // matcher 勾选是独立持久化的偏好：手动查询不清空它，matcher 查询才回填并落盘。
+  const applyQuery = (query: SavedQueryDto) => {
+    const hasMatcherIds = query.matcherIds && query.matcherIds.length > 0
+    const source: 'manual' | 'matcher' = hasMatcherIds ? 'matcher' : 'manual'
+    const matcherIds = query.matcherIds ?? []
+    setActiveQueryId(query.id)
+    setQueryDraft(query)
+    setSearchSource(source)
+    if (hasMatcherIds) {
+      setSelectedMatcherIds(matcherIds)
+      writePersistedMatcherIds(matcherIds)
+    }
+    return { source, matcherIds }
   }
 
   const loadFolderPathFromBrowser = () => {
@@ -348,17 +480,41 @@ export default function App() {
         }
 
         setSavedQueries(loadedQueries)
-        const firstQuery = loadedQueries[0] ?? createEmptySavedQuery()
-        setActiveQueryId(firstQuery.id)
-        setQueryDraft(firstQuery)
         setLogFolderPath(window.localStorage.getItem('log-analystic.log-folder-path') ?? '')
+
+        // 迁移：旧版本只存单个文件夹路径，首次升级时把它并入最近列表。
+        const persistedFolder = window.localStorage.getItem('log-analystic.log-folder-path') ?? ''
+        const loadedRecentFolders = readRecentFolders()
+        if (loadedRecentFolders.length === 0 && persistedFolder.trim()) {
+          const seeded = pushRecentFolder([], persistedFolder)
+          setRecentFolders(seeded)
+          writeRecentFolders(seeded)
+        }
 
         setRulePackages(loadedRulePackages)
         setActiveRuleVersion(loadedActiveRuleVersion)
         setRulePackageStatus(loadedRulePackages.length > 0 ? '已加载规则包' : '等待导入')
 
-        if (loadedQueries[0]) {
-          void runSearch(loadedQueries[0])
+        // matcher 勾选独立持久化：读回并过滤掉当前规则集中已不存在的 id；非空则恢复到 matcher 模式。
+        const loadedRules = projectRuleRecords(loadedRulePackages, loadedActiveRuleVersion)
+        const loadedMatcherIds = new Set(
+          loadedRules.filter((rule) => rule.recordType === 'matcher').map((rule) => rule.id),
+        )
+        const persistedMatcherIds = readPersistedMatcherIds().filter((id) => loadedMatcherIds.has(id))
+
+        if (persistedMatcherIds.length > 0) {
+          setActiveQueryId('')
+          setQueryDraft(createEmptySavedQuery())
+          setSearchSource('matcher')
+          setSelectedMatcherIds(persistedMatcherIds)
+        } else if (loadedQueries[0]) {
+          const { source, matcherIds } = applyQuery(loadedQueries[0])
+          void runSearch({ record: loadedQueries[0], source, matcherIds })
+        } else {
+          setActiveQueryId('')
+          setQueryDraft(createEmptySavedQuery())
+          setSearchSource('manual')
+          setSelectedMatcherIds([])
         }
       } catch (error) {
         if (!cancelled) {
@@ -380,13 +536,27 @@ export default function App() {
       return
     }
 
-    setActiveQueryId(queryId)
-    setQueryDraft(next)
-    void runSearch(next)
+    const { source, matcherIds } = applyQuery(next)
+    void runSearch({ record: next, source, matcherIds })
+  }
+
+  // 回到未保存的「当前草稿」：清空 active 查询、恢复手动模式。matcher 勾选独立持久化，不清空。
+  const resetToDraft = () => {
+    setActiveQueryId('')
+    setQueryDraft(createEmptySavedQuery())
+    setSearchSource('manual')
+    setResult(null)
+  }
+
+  // matcher 勾选变化：即时落盘，选中即保存。
+  const changeSelectedMatcherIds = (next: string[]) => {
+    setSelectedMatcherIds(next)
+    writePersistedMatcherIds(next)
   }
 
   const saveCurrentQuery = async () => {
-    const next = normalizeSavedQuery(queryDraft)
+    const matcherIds = searchSource === 'matcher' ? selectedMatcherIds : []
+    const next = normalizeSavedQuery({ ...queryDraft, matcherIds })
     const updated = await upsertSavedQuery(next)
     setSavedQueries(updated)
     setActiveQueryId(next.id)
@@ -409,11 +579,10 @@ export default function App() {
     const updated = await upsertSavedQuery(next)
     const nextDraft = { ...next, timeRange: queryDraft.timeRange }
     setSavedQueries(updated)
-    setActiveQueryId(next.id)
-    setQueryDraft(nextDraft)
     setQueryEditorDraft(next)
     setQueryEditorOpen(false)
-    void runSearch(nextDraft)
+    const { source, matcherIds } = applyQuery(nextDraft)
+    void runSearch({ record: nextDraft, source, matcherIds })
   }
 
   const removeQuery = async (queryId: string) => {
@@ -421,12 +590,13 @@ export default function App() {
     setSavedQueries(updated)
 
     const next = updated[0] ?? createEmptySavedQuery()
-    setActiveQueryId(next.id)
-    setQueryDraft(next)
-
     if (updated.length > 0) {
-      void runSearch(next)
+      const { source, matcherIds } = applyQuery(next)
+      void runSearch({ record: next, source, matcherIds })
     } else {
+      setActiveQueryId(next.id)
+      setQueryDraft(next)
+      setSearchSource('manual')
       setResult(null)
     }
   }
@@ -514,6 +684,12 @@ export default function App() {
   const activateRuleVersion = (next: ActiveRuleVersionDto | null) => {
     setActiveRuleVersion(next)
     void saveActiveRuleVersion(next)
+    // 级联：切换生效版本后重置场景选择，避免残留上一版本的场景 id
+    setSelectedScenarioId(null)
+    window.localStorage.removeItem(activeScenarioStorageKey)
+    // matcher 勾选绑定的 id 随规则集整体变化而失效，切换生效版本时清空。
+    setSelectedMatcherIds([])
+    writePersistedMatcherIds([])
     setLatencyAnalysis(null)
     setLatencyAnalysisMessage(next ? `已切换生效版本：${next.ruleSetId} ${next.version}` : '已取消生效版本')
   }
@@ -539,6 +715,7 @@ export default function App() {
       setLatencyAnalysisMessage('请先选择日志文件夹')
       return
     }
+    rememberFolder(logFolderPath)
 
     const matchers = new Map(
       scenarioRules
@@ -569,24 +746,27 @@ export default function App() {
       }
     }
 
-    // process 级 stage：产真实时延样本，每个 stage 只取第一对 start/end。
-    const processStages: LatencyStageSpec[] = []
+    // process 级 + flow 级 stage：产真实时延样本，每个 stage 只取第一对 start/end。
+    // flow 级聚合 stage（result 分支）天然互斥：同一请求只会命中其中一个结尾，另一个无 end 不产样本。
+    const stageSpecs: LatencyStageSpec[] = []
     for (const stage of enabledStages) {
-      if (!stage.processId || !stage.startMatcherId || !stage.endMatcherId) continue
+      if (stage.kind === 'intercept') continue
+      if (!stage.processId && !stage.flowId) continue
+      if (!stage.startMatcherId || !stage.endMatcherId) continue
       const start = toMarker(stage.startMatcherId)
       const end = toMarker(stage.endMatcherId)
       if (!start || !end) continue
-      processStages.push({ id: stage.id, startPattern: start.pattern, endPattern: end.pattern, startMode: start.mode, endMode: end.mode })
+      stageSpecs.push({ id: stage.id, startPattern: start.pattern, endPattern: end.pattern, startMode: start.mode, endMode: end.mode })
     }
 
-    if (!requestStart || processStages.length === 0) {
-      setLatencyAnalysisMessage('未找到 flow 级请求拆分点或 process 级 stage 规则')
+    if (!requestStart || stageSpecs.length === 0) {
+      setLatencyAnalysisMessage('未找到 flow 级请求拆分点或 stage 规则')
       return
     }
 
     setLatencyAnalysisMessage('正在分析…')
     try {
-      const result = await analyzeLatencyStream(logFolderPath, { requestStart, interceptEnds, processStages })
+      const result = await analyzeLatencyStream(logFolderPath, { requestStart, interceptEnds, processStages: stageSpecs })
       setLatencyAnalysis(result)
       setLatencyAnalysisRunId((value) => value + 1)
       setLatencyAnalysisMessage(`已分析 ${result.requests.length} 个请求 · ${result.stats.sampleCount} 个阶段样本`)
@@ -595,9 +775,9 @@ export default function App() {
     }
   }
 
-  const exportLatencyCsv = () => {
+  const exportLatencyCsv = (hiddenColumns: Set<string>) => {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-    downloadCsv(`latency-analysis-${timestamp}.csv`, buildLatencyExportCsv(latencyViewModel))
+    downloadCsv(`latency-analysis-${timestamp}.csv`, buildLatencyExportCsv(latencyViewModel, hiddenColumns))
     setLatencyAnalysisMessage('已导出时延 CSV')
   }
 
@@ -615,7 +795,13 @@ export default function App() {
                 value={logFolderPath}
                 onChange={(event: React.ChangeEvent<HTMLInputElement>) => setLogFolderPath(event.target.value)}
                 placeholder="选择或粘贴日志目录"
+                list="recent-folders-list"
               />
+              <datalist id="recent-folders-list">
+                {recentFolders.map((folder) => (
+                  <option key={folder} value={folder} />
+                ))}
+              </datalist>
               <button type="button" className="ghost-button" onClick={() => void pickLogFolder()}>
                 选择
               </button>
@@ -644,6 +830,7 @@ export default function App() {
           queryEditorOpen={queryEditorOpen}
           queryEditorDraft={queryEditorDraft}
           onSelectQuery={selectQuery}
+          onSelectDraft={resetToDraft}
           onOpenQueryEditor={openExistingQueryEditor}
           onQueryDraftChange={setQueryDraft}
           onSaveCurrentQuery={saveCurrentQuery}
@@ -652,6 +839,12 @@ export default function App() {
           onQueryEditorChange={setQueryEditorDraft}
           onSaveQueryEditor={saveQueryFromEditor}
           onDeleteQuery={removeQuery}
+          searchSource={searchSource}
+          matcherScenarios={scenarios}
+          matcherRecords={matcherRecords}
+          selectedMatcherIds={selectedMatcherIds}
+          onSearchSourceChange={setSearchSource}
+          onSelectedMatcherIdsChange={changeSelectedMatcherIds}
         />
       ) : null}
 
@@ -671,6 +864,9 @@ export default function App() {
         <RuleCatalogPanel
           versions={rulePackages}
           activeRuleVersion={activeRuleVersion}
+          selectedScenarioId={effectiveScenarioId}
+          scenarios={scenarios}
+          onScenarioChange={changeScenario}
           activeNodeKey={activeRuleNodeKey}
           detailOpen={ruleDetailOpen}
           detailDraft={ruleDetailDraft}

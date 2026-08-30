@@ -380,6 +380,46 @@ mod tests {
     }
 
     #[test]
+    fn flow_aggregation_branches_are_mutually_exclusive() {
+        // flow 级聚合 stage 的 result 分支：同一起点、不同结尾，互斥命中。
+        // 成功请求只产 SUCCESS 样本，超时请求只产 TIMEOUT 样本。
+        let spec = LatencyAnalysisSpec {
+            request_start: kw("request started"),
+            intercept_ends: vec![],
+            process_stages: vec![
+                StageSpec {
+                    id: "FLOW-AGG-SUCCESS".to_string(),
+                    start: kw("request started"),
+                    end: kw("request completed successfully"),
+                },
+                StageSpec {
+                    id: "FLOW-AGG-TIMEOUT".to_string(),
+                    start: kw("request started"),
+                    end: kw("timeout waiting for subprocess"),
+                },
+            ],
+        };
+        let entries = vec![
+            entry(1, "2026-07-05 10:00:00.000", "request started"),
+            entry(2, "2026-07-05 10:00:00.100", "request completed successfully"),
+            entry(3, "2026-07-05 10:00:01.000", "request started"),
+            entry(4, "2026-07-05 10:00:01.500", "timeout waiting for subprocess"),
+        ];
+        let result = LatencyAnalyzer::analyze(&spec, &entries).unwrap();
+        assert_eq!(result.requests.len(), 2);
+
+        let success = &result.requests[0];
+        assert_eq!(success.samples.len(), 1);
+        assert_eq!(success.samples[0].stage_id, "FLOW-AGG-SUCCESS");
+        assert_eq!(success.samples[0].duration_ms, 100);
+
+        let timeout = &result.requests[1];
+        assert_eq!(timeout.samples.len(), 1);
+        assert_eq!(timeout.samples[0].stage_id, "FLOW-AGG-TIMEOUT");
+        assert_eq!(timeout.samples[0].duration_ms, 500);
+    }
+
+    #[test]
     fn stage_takes_first_pair_only() {
         let spec = LatencyAnalysisSpec {
             request_start: kw("request started"),

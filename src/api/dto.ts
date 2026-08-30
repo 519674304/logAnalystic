@@ -33,6 +33,19 @@ export interface LogSearchResponseDto {
   truncated?: boolean
 }
 
+export interface LogContextRequestDto {
+  filePath: string
+  lineNumber: number
+  contextLines: number
+}
+
+export interface LogContextDto {
+  filePath: string
+  lineNumber: number
+  before: string[]
+  after: string[]
+}
+
 export interface SavedQueryDto {
   id: string
   name: string
@@ -43,6 +56,8 @@ export interface SavedQueryDto {
   mode: LogSearchMode
   caseSensitive: boolean
   timeRange: string
+  /** 规则模式下勾选的 matcher id（手动模式为空）。用于恢复树勾选并关联规则 matcher。 */
+  matcherIds?: string[]
 }
 
 export interface RuleRecordDto {

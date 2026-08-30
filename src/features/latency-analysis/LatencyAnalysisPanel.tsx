@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type * as React from 'react'
 import type { RequestGroup, RequestViewModel } from '../../view-model/latency-view-model'
+import LatencyDetailTable from './LatencyDetailTable'
 
 type LatencyAnalysisPanelProps = {
   viewModel: RequestViewModel
@@ -9,7 +10,7 @@ type LatencyAnalysisPanelProps = {
   selectedScenarioId: string | null
   onScenarioChange: (nextId: string) => void
   onAnalyze: () => void
-  onExport: () => void
+  onExport: (hiddenColumns: Set<string>) => void
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -17,9 +18,11 @@ function clamp(value: number, min: number, max: number) {
 }
 
 function formatLaneBlockTooltip(block: RequestViewModel['laneBlocks'][number]) {
+  const startTimestamp = block.startTimestamp || '未分析'
+  const endTimestamp = block.endTimestamp || '未分析'
   return `${block.label}
-开始: ${block.startTimestamp}
-结束: ${block.endTimestamp}
+开始: ${startTimestamp}
+结束: ${endTimestamp}
 相对时延: ${block.relativeDuration}
 阶段时延: ${block.duration}`
 }
@@ -39,6 +42,7 @@ export default function LatencyAnalysisPanel({
 }: LatencyAnalysisPanelProps) {
   const [leftHidden, setLeftHidden] = useState(false)
   const [bottomHidden, setBottomHidden] = useState(false)
+  const [viewMode, setViewMode] = useState<'swimlane' | 'table'>('swimlane')
   const [leftWidth, setLeftWidth] = useState(270)
   const [activeRequestId, setActiveRequestId] = useState(
     viewModel.requests.find((request) => request.group === 'slow')?.id ?? viewModel.requests[0]?.id ?? viewModel.requestId,
@@ -49,6 +53,7 @@ export default function LatencyAnalysisPanel({
   const [intervalStart, setIntervalStart] = useState(viewModel.intervalStepOptions[0] ?? '')
   const [intervalEnd, setIntervalEnd] = useState(viewModel.intervalStepOptions[1] ?? viewModel.intervalStepOptions[0] ?? '')
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({ normal: true, unfinished: true })
+  const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set())
 
   const activeRequest = useMemo(
     () => viewModel.requests.find((request) => request.id === activeRequestId) ?? viewModel.requests[0],
@@ -95,6 +100,34 @@ export default function LatencyAnalysisPanel({
     setCollapsedGroups((prev) => ({ ...prev, [groupId]: !prev[groupId] }))
   }
 
+  const toggleColumn = (id: string) => {
+    setHiddenColumns((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  const toggleColumnGroup = (group: string) => {
+    const columns = (viewModel.table?.columns ?? []).filter((column) => column.group === group)
+    const allVisible = columns.every((column) => !hiddenColumns.has(column.id))
+    setHiddenColumns((prev) => {
+      const next = new Set(prev)
+      for (const column of columns) {
+        if (allVisible) {
+          next.add(column.id)
+        } else {
+          next.delete(column.id)
+        }
+      }
+      return next
+    })
+  }
+
   const startResize = (startEvent: React.MouseEvent<HTMLButtonElement>) => {
     startEvent.preventDefault()
     const startX = startEvent.clientX
@@ -114,18 +147,37 @@ export default function LatencyAnalysisPanel({
   }
 
   return (
-    <section className="tab-page latency-page">
+    <section className={`tab-page latency-page ${viewMode === 'table' ? 'table-mode' : ''}`}>
       <div
-        className={`latency-workspace ${leftHidden ? 'left-hidden' : ''}`}
+        className={`latency-workspace ${leftHidden ? 'left-hidden' : ''} ${bottomHidden ? 'bottom-hidden' : ''}`}
         style={{
-          gridTemplateColumns: `${leftHidden ? 0 : leftWidth}px minmax(0, 1fr)`,
+          gridTemplateColumns: `${leftHidden ? 40 : leftWidth}px minmax(0, 1fr)`,
         }}
       >
+        {leftHidden ? (
+          <aside className="side-panel request-panel">
+            <button type="button" className="sidebar-expand-button" onClick={() => setLeftHidden(false)} title="展开请求资源管理器" aria-label="展开请求资源管理器">
+              »
+            </button>
+          </aside>
+        ) : (
         <aside className="side-panel request-panel">
           <div className="panel-title-row">
             <h2>请求资源管理器</h2>
-            <button type="button" className="icon-button" onClick={() => setLeftHidden(true)}>
-              收起
+            <label className="view-mode-select">
+              <span className="visually-hidden">视图切换</span>
+              <select
+                value={viewMode}
+                onChange={(event: React.ChangeEvent<HTMLSelectElement>) =>
+                  setViewMode(event.target.value as 'swimlane' | 'table')
+                }
+              >
+                <option value="swimlane">泳道图</option>
+                <option value="table">明细表</option>
+              </select>
+            </label>
+            <button type="button" className="sidebar-collapse-button" onClick={() => setLeftHidden(true)} title="隐藏请求资源管理器" aria-label="隐藏请求资源管理器">
+              «
             </button>
           </div>
 
@@ -149,9 +201,6 @@ export default function LatencyAnalysisPanel({
             <div className="analysis-actions">
               <button type="button" className="primary-button" onClick={onAnalyze}>
                 分析
-              </button>
-              <button type="button" className="ghost-button strong" onClick={onExport}>
-                导出 CSV
               </button>
             </div>
 
@@ -223,69 +272,87 @@ export default function LatencyAnalysisPanel({
             onMouseDown={startResize}
           />
         </aside>
+        )}
 
-        <section className="main-panel swimlane-panel">
-          <div className="panel-title-row">
-            <div>
-              <h2>当前请求泳道图</h2>
-              <span className="muted">请求标识使用开始日志时间戳: {activeRequestId}</span>
-            </div>
-            <div className="panel-actions">
-              {leftHidden ? (
-                <button type="button" className="ghost-button" onClick={() => setLeftHidden(false)}>
-                  显示请求
-                </button>
-              ) : null}
-              {bottomHidden ? (
-                <button type="button" className="ghost-button" onClick={() => setBottomHidden(false)}>
-                  显示区间统计
-                </button>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="time-axis">
-            <span>0ms</span>
-            <span>100ms</span>
-            <span>200ms</span>
-            <span>300ms</span>
-          </div>
-
-          <div className="swimlane-board">
-            {viewModel.lanes.map((lane) => (
-              <div className="swimlane-row" key={lane}>
-                <div className="swimlane-label">{lane}</div>
-                <div className="swimlane-track">
-                  {viewModel.laneBlocks
-                    .filter((block) => block.lane === lane && (!block.requestId || block.requestId === activeRequestId))
-                    .map((block) => (
-                      <button
-                        key={block.id}
-                        type="button"
-                        className={`lane-block ${block.kind} ${block.id === activeBlock?.id ? 'active' : ''} ${
-                          block.id === activeRequest?.slowPointBlockId ? 'bottleneck' : ''
-                        }`}
-                        title={formatLaneBlockTooltip(block)}
-                        aria-label={formatLaneBlockTooltip(block)}
-                        style={{
-                          left: `${block.startPercent}%`,
-                          width: `${block.widthPercent}%`,
-                        }}
-                        onClick={() => setActiveBlockId(block.id)}
-                      >
-                        <span className="lane-block-start">{formatRelativeStart(block.relativeDuration)}</span>
-                        <strong>{block.label}</strong>
-                        <span className="lane-block-meta">{block.duration}</span>
-                      </button>
-                    ))}
-                </div>
+        {viewMode === 'swimlane' ? (
+          <section className="main-panel swimlane-panel">
+            <div className="panel-title-row">
+              <div>
+                <h2>当前请求泳道图</h2>
+                <span className="muted">请求标识使用开始日志时间戳: {activeRequestId}</span>
               </div>
-            ))}
-          </div>
-        </section>
+              <div className="panel-actions">
+                {bottomHidden ? (
+                  <button type="button" className="icon-button" onClick={() => setBottomHidden(false)} title="显示区间统计" aria-label="显示区间统计">
+                    ▴
+                  </button>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="time-axis">
+              <span>0ms</span>
+              <span>100ms</span>
+              <span>200ms</span>
+              <span>300ms</span>
+            </div>
+
+            <div className="swimlane-board">
+              {viewModel.lanes.map((lane) => (
+                <div className="swimlane-row" key={lane}>
+                  <div className="swimlane-label">{lane}</div>
+                  <div className="swimlane-track">
+                    {viewModel.laneBlocks
+                      .filter((block) => block.lane === lane && (!block.requestId || block.requestId === activeRequestId))
+                      .map((block) => (
+                        <button
+                          key={block.id}
+                          type="button"
+                          className={`lane-block ${block.kind} ${block.id === activeBlock?.id ? 'active' : ''} ${
+                            block.id === activeRequest?.slowPointBlockId ? 'bottleneck' : ''
+                          }`}
+                          title={formatLaneBlockTooltip(block)}
+                          aria-label={formatLaneBlockTooltip(block)}
+                          style={{
+                            left: `${block.startPercent}%`,
+                            width: `${block.widthPercent}%`,
+                          }}
+                          onClick={() => setActiveBlockId(block.id)}
+                        >
+                          <span className="lane-block-start">{formatRelativeStart(block.relativeDuration)}</span>
+                          <strong>{block.label}</strong>
+                          <span className="lane-block-meta">{block.duration}</span>
+                        </button>
+                      ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : (
+          <section className="main-panel latency-table-panel">
+            <div className="panel-title-row">
+              <div>
+                <h2>请求明细表</h2>
+                <span className="muted">每个请求一行，flow stage 在前、各 process 细节 stage 按时序排列</span>
+              </div>
+              <div className="panel-actions">
+                <button type="button" className="ghost-button strong" onClick={() => onExport(hiddenColumns)}>
+                  导出 CSV
+                </button>
+              </div>
+            </div>
+            <LatencyDetailTable
+              table={viewModel.table ?? { columns: [], rows: [] }}
+              hiddenColumns={hiddenColumns}
+              onToggleColumn={toggleColumn}
+              onToggleGroup={toggleColumnGroup}
+            />
+          </section>
+        )}
       </div>
 
-      {!bottomHidden ? (
+      {!bottomHidden && viewMode === 'swimlane' ? (
         <section className="interval-panel">
           <div className="panel-title-row">
             <h2>区间统计</h2>
@@ -313,8 +380,8 @@ export default function LatencyAnalysisPanel({
                   </select>
                 </label>
               </div>
-              <button type="button" className="icon-button" onClick={() => setBottomHidden(true)}>
-                收起
+              <button type="button" className="icon-button" onClick={() => setBottomHidden(true)} title="隐藏区间统计" aria-label="隐藏区间统计">
+                ▾
               </button>
             </div>
           </div>

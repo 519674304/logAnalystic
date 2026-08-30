@@ -1,0 +1,162 @@
+# 时延阶段层：计算两个关键日志事件（start/end matcher）之间的耗时。
+# owner 归属（二选一，不能同时为空或同时存在）：
+#   flow 级 stage（flow_id）：自定义起止的时延段，可覆盖一个进程、一个应用多个进程或跨应用，
+#     串起完整流程。常见写法：聚合 stage（按 result 拆分支）+ 跨应用 RPC 边界。
+#   进程级 stage（process_id）：描述进程内部时延，进泳道图；可含 sub_process_ids（并行子进程组）。
+#
+# 场景联动核心：applicable_scenario_ids 为空 = 适用全部场景；否则只在该列表里的场景显示。
+# 本样例用三个场景让 stage 在切换时增减，便于观察拓扑图变化。
+
+# ============ FLOW-ORDER（owner = flow，不进泳道图）============
+
+# 聚合：主进程整体，结果 SUCCESS（仅正常链路）。
+[[stages]]
+id = "STAGE-AGG-A-SUCCESS"
+name = "A 进程整体成功"
+business_meaning = "主进程从启动到请求成功完成的整体时延。"
+enabled = true
+export_enabled = false
+applicable_scenario_ids = ["SCENARIO-NORMAL"]
+flow_id = "FLOW-ORDER"
+order = 1
+result = "SUCCESS"
+start_matcher_id = "LOG-REQUEST-START"
+end_matcher_id = "LOG-REQUEST-SUCCESS"
+
+# 聚合：主进程整体，异常结尾（REQ-START -> TIMEOUT），仅超时重试场景。
+[[stages]]
+id = "STAGE-AGG-A-TIMEOUT"
+name = "A 进程整体超时"
+business_meaning = "等待子进程超时的异常整体。"
+enabled = true
+export_enabled = false
+applicable_scenario_ids = ["SCENARIO-TIMEOUT"]
+flow_id = "FLOW-ORDER"
+order = 1
+result = "TIMEOUT"
+start_matcher_id = "LOG-REQUEST-START"
+end_matcher_id = "LOG-TIMEOUT"
+
+# 聚合：B 进程整体（正常 + 超时重试共用）。
+[[stages]]
+id = "STAGE-AGG-B"
+name = "B 进程整体"
+business_meaning = "B 子进程整体处理时延。"
+enabled = true
+export_enabled = false
+applicable_scenario_ids = ["SCENARIO-NORMAL", "SCENARIO-TIMEOUT"]
+flow_id = "FLOW-ORDER"
+order = 2
+start_matcher_id = "LOG-SUBPROCESS-RECEIVED"
+end_matcher_id = "LOG-SUBPROCESS-COMPLETED"
+
+# 聚合：D 进程整体（仅正常链路）。
+[[stages]]
+id = "STAGE-AGG-D"
+name = "D 进程整体"
+business_meaning = "D 收尾进程整体时延。"
+enabled = true
+export_enabled = false
+applicable_scenario_ids = ["SCENARIO-NORMAL"]
+flow_id = "FLOW-ORDER"
+order = 3
+start_matcher_id = "LOG-ALL-COMPLETED"
+end_matcher_id = "LOG-REQUEST-SUCCESS"
+
+# rpc 调用：A 并行段内发起 → B 应用收到（跨应用，适用全部场景）。
+[[stages]]
+id = "STAGE-RPC-DISPATCH"
+name = "A 调度 B"
+business_meaning = "A 发起并行调度到 B 收到请求的跨应用时延。"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = []
+flow_id = "FLOW-ORDER"
+order = 4
+start_matcher_id = "LOG-PARALLEL-START"
+end_matcher_id = "LOG-SUBPROCESS-RECEIVED"
+
+# ============ PROCESS-A-MAIN（owner = process，APP-A）============
+
+# 适用全部场景。
+[[stages]]
+id = "STAGE-A-PREP"
+name = "A 准备阶段"
+business_meaning = "主流程收到请求到启动并行子进程的准备时延。"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = []
+process_id = "PROCESS-A-MAIN"
+order = 1
+start_matcher_id = "LOG-REQUEST-START"
+end_matcher_id = "LOG-PARALLEL-START"
+
+# 并行子进程组：A 扇出到 B/C/D 并等待全部完成（适用全部场景，结构性）。
+[[stages]]
+id = "STAGE-A-PARALLEL"
+name = "A 并行子进程组"
+business_meaning = "A 并行调度到全部子进程完成的等待时延。"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = []
+process_id = "PROCESS-A-MAIN"
+order = 2
+sub_process_ids = ["PROCESS-B-WORKER", "PROCESS-C-WORKER", "PROCESS-D-WORKER"]
+start_matcher_id = "LOG-PARALLEL-START"
+end_matcher_id = "LOG-ALL-COMPLETED"
+
+# ============ PROCESS-B-WORKER（owner = process，APP-B）============
+
+# 正常 + 超时重试共用。
+[[stages]]
+id = "STAGE-B-PROCESS"
+name = "B 子进程处理"
+business_meaning = "子进程收到请求到处理完成的耗时。"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-NORMAL", "SCENARIO-TIMEOUT"]
+process_id = "PROCESS-B-WORKER"
+order = 1
+start_matcher_id = "LOG-SUBPROCESS-RECEIVED"
+end_matcher_id = "LOG-SUBPROCESS-COMPLETED"
+
+# 仅超时重试场景。
+[[stages]]
+id = "STAGE-B-RETRY"
+name = "B 超时重试"
+business_meaning = "子进程超时后重试直到完成的耗时。"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-TIMEOUT"]
+process_id = "PROCESS-B-WORKER"
+order = 2
+start_matcher_id = "LOG-TIMEOUT"
+end_matcher_id = "LOG-RETRY"
+
+# ============ PROCESS-D-WORKER（owner = process，APP-D）============
+
+# 仅正常链路。
+[[stages]]
+id = "STAGE-D-FINISH"
+name = "D 收尾"
+business_meaning = "全部子进程完成到请求成功的收尾时延。"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-NORMAL"]
+process_id = "PROCESS-D-WORKER"
+order = 1
+start_matcher_id = "LOG-ALL-COMPLETED"
+end_matcher_id = "LOG-REQUEST-SUCCESS"
+
+# 仅降级链路。
+[[stages]]
+id = "STAGE-D-FALLBACK"
+name = "D 降级收尾"
+business_meaning = "主链路失败后走降级收尾的耗时。"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-FALLBACK"]
+process_id = "PROCESS-D-WORKER"
+order = 1
+start_matcher_id = "LOG-ALL-COMPLETED"
+end_matcher_id = "LOG-FALLBACK-SUCCESS"

@@ -56,6 +56,24 @@ export interface RequestViewModel {
   stepTree: StepTreeRowViewModel[]
   intervalStepOptions: string[]
   stats: LatencyAnalysisResult['stats']
+  table?: LatencyTableViewModel
+}
+
+export interface LatencyTableColumnViewModel {
+  id: string
+  group: string
+  name: string
+}
+
+export interface LatencyTableRowViewModel {
+  requestId: string
+  totalMs: number
+  cells: Record<string, number>
+}
+
+export interface LatencyTableViewModel {
+  columns: LatencyTableColumnViewModel[]
+  rows: LatencyTableRowViewModel[]
 }
 
 const requestGroups: RequestGroupViewModel[] = [
@@ -255,12 +273,14 @@ interface DefinitionContext {
   applicationNameById: Map<string, string>
   processNameById: Map<string, string>
   processApplicationId: Map<string, string>
+  flowNameById: Map<string, string>
 }
 
 function buildDefinitionContext(rules: RuleRecordDto[]): DefinitionContext {
   const applicationNameById = new Map<string, string>()
   const processNameById = new Map<string, string>()
   const processApplicationId = new Map<string, string>()
+  const flowNameById = new Map<string, string>()
 
   for (const rule of rules) {
     if (rule.recordType === 'application') {
@@ -270,10 +290,12 @@ function buildDefinitionContext(rules: RuleRecordDto[]): DefinitionContext {
       if (rule.applicationId) {
         processApplicationId.set(rule.id, rule.applicationId)
       }
+    } else if (rule.recordType === 'flow') {
+      flowNameById.set(rule.id, rule.name)
     }
   }
 
-  return { applicationNameById, processNameById, processApplicationId }
+  return { applicationNameById, processNameById, processApplicationId, flowNameById }
 }
 
 function getStageLane(stage: RuleRecordDto, context: DefinitionContext) {
@@ -322,8 +344,8 @@ export function buildLatencyViewModelFromRules(rules: RuleRecordDto[], fallback:
     widthPercent: clampPercent((durationMs / totalSpan) * 100),
     kind: getStageKind(stage),
     duration: `${durationMs}ms`,
-    startTimestamp: stage.startMatcherId ?? '等待日志命中',
-    endTimestamp: stage.endMatcherId ?? '等待日志命中',
+    startTimestamp: '',
+    endTimestamp: '',
     relativeDuration: `+${startMs}ms ~ +${endMs}ms`,
   }))
 
@@ -372,6 +394,59 @@ function msOf(timestamp: string): number {
 
 function clampPercent(value: number) {
   return Math.min(100, Math.max(0, value))
+}
+
+/**
+ * 构建明细表视图：每请求一行、stage 一列。
+ * 列顺序 = 静态规则顺序：flow 级 stage（按 order）最左，随后各 process 级 stage
+ * （process 顺序取规则首次出现顺序，组内按 order）。
+ */
+function buildLatencyTableViewModel(rules: RuleRecordDto[], analysis: LatencyAnalysis): LatencyTableViewModel {
+  const context = buildDefinitionContext(rules)
+  const stageRules = rules.filter(
+    (rule) => rule.enabled && rule.recordType === 'stage' && (rule.flowId || rule.processId),
+  )
+
+  const flowStages = stageRules
+    .filter((rule) => rule.flowId && rule.kind !== 'intercept' && rule.startMatcherId && rule.endMatcherId)
+    .sort((left, right) => (left.order ?? Number.MAX_SAFE_INTEGER) - (right.order ?? Number.MAX_SAFE_INTEGER))
+
+  // process 组顺序：按 stage 在规则里的首次出现顺序（对应 flow 的 process_ids 顺序）。
+  const processGroupOrder: string[] = []
+  for (const rule of stageRules) {
+    if (rule.processId && !processGroupOrder.includes(rule.processId)) {
+      processGroupOrder.push(rule.processId)
+    }
+  }
+
+  const columns: LatencyTableColumnViewModel[] = flowStages.map((stage) => ({
+    id: stage.id,
+    group: stage.flowId ? context.flowNameById.get(stage.flowId) ?? '流程' : '流程',
+    name: stage.name,
+  }))
+
+  for (const processId of processGroupOrder) {
+    const processStages = stageRules
+      .filter((rule) => rule.processId === processId && rule.startMatcherId && rule.endMatcherId)
+      .sort((left, right) => (left.order ?? Number.MAX_SAFE_INTEGER) - (right.order ?? Number.MAX_SAFE_INTEGER))
+    const processName = context.processNameById.get(processId) ?? processId
+    const applicationId = context.processApplicationId.get(processId)
+    const applicationName = applicationId ? context.applicationNameById.get(applicationId) : undefined
+    const processGroupName = applicationName ? `${applicationName} · ${processName}` : processName
+    for (const stage of processStages) {
+      columns.push({ id: stage.id, group: processGroupName, name: stage.name })
+    }
+  }
+
+  const rows: LatencyTableRowViewModel[] = analysis.requests.map((request) => {
+    const cells: Record<string, number> = {}
+    for (const sample of request.samples) {
+      cells[sample.stageId] = sample.durationMs
+    }
+    return { requestId: request.id, totalMs: request.totalMs, cells }
+  })
+
+  return { columns, rows }
 }
 
 /**
@@ -473,6 +548,7 @@ export function buildLatencyViewModelFromAnalysis(
     stepTree,
     intervalStepOptions: uniqueDefinedValues(stages.map((stage) => stage.description || stage.name)),
     stats: analysis.stats,
+    table: buildLatencyTableViewModel(rules, analysis),
   }
 }
 

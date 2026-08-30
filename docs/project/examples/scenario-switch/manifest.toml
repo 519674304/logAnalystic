@@ -1,0 +1,19 @@
+# 规则包入口文件。
+# package.version 是导入目标版本：同版本号会覆盖已导入的完整规则包；新版本号会新增版本目录。
+# 三个 layer 文件必须都位于 ZIP 根目录，并且文件名需要与下方映射一致。
+
+[rule_set]
+# 必填：规则集稳定标识。修改它会创建另一套规则集。
+id = "RULESET-SCENARIO-SWITCH"
+name = "多场景切换演示规则包"
+
+[package]
+# 必填：版本号。导入器以 rule_set.id + version 判断新增或覆盖。
+version = "1.0.0"
+description = "三个场景（正常/超时重试/降级）演示拓扑图的场景联动：切换场景时 stage 会增减。"
+
+[package.layers]
+# 必填：三层文件名。不要填写目录、绝对路径或 ..。
+definitions = "definitions.toml"
+matchers = "matchers.toml"
+stages = "stages.toml"

@@ -1,4 +1,4 @@
-import type { LogSearchRequestDto, LogSearchResponseDto } from './dto'
+import type { LogContextDto, LogContextRequestDto, LogSearchRequestDto, LogSearchResponseDto } from './dto'
 
 const BASE_URL = 'http://127.0.0.1:8080'
 
@@ -50,4 +50,8 @@ export function postJson<T>(path: string, body: unknown): Promise<T> {
 
 export function searchLogs(request: LogSearchRequestDto): Promise<LogSearchResponseDto> {
   return postJson<LogSearchResponseDto>('/api/search', request)
+}
+
+export function fetchLogContext(request: LogContextRequestDto): Promise<LogContextDto> {
+  return postJson<LogContextDto>('/api/context', request)
 }
