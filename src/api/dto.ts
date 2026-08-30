@@ -134,6 +134,13 @@ export interface RulePackageNodeUpdateDto {
   fields: Record<string, RulePackageFieldValue>
 }
 
+export interface RulePackageLayerTomlUpdateDto {
+  ruleSetId: string
+  version: string
+  layerId: string
+  tomlText: string
+}
+
 export interface LogMatcherDto {
   id: string
   name: string

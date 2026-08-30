@@ -146,8 +146,8 @@
 | `order` | integer | 是 | — | — | 每个 owner 内独立从 1 编号，**仅标记数据**。同 `order` 的多个 `result` 分支 stage 有唯一 `id`、共享 `order`，互为互斥结尾。 |
 | `result` | string | 否 | — | — | 结果/异常分支（如 `SUCCESS`/`ERROR`/`TIMEOUT`）。仅 flow 级聚合 stage 用；同 `order` 的多个 `result` 分支在定义上都存在，执行时同一 `order` 只命中一个。 |
 | `start_matcher_id` | string | 是 | — | `log_matchers.id` | 阶段起点事件。拦截 stage 复用请求起点。 |
-| `end_matcher_id` | string | 普通必填 | — | `log_matchers.id` | 阶段终点事件。普通 stage 用单个 end。 |
-| `end_matcher_ids` | string[] | 拦截必填 | — | `log_matchers.id[]` | **仅 `kind="intercept"` 用**：多个拦截结束事件，**任一命中**即判定该请求被拦截、整个丢弃。 |
+| `end_matcher_id` | string | 否 | — | `log_matchers.id` | 阶段终点事件。单个 end 的简写，等价于只有一个元素的 `end_matcher_ids`。 |
+| `end_matcher_ids` | string[] | 否 | — | `log_matchers.id[]` | 多个结束事件，**任一命中**即判定该 stage 结束（端侧日志可能丢失，配多个 end 减少阶段丢失）。拦截 stage 用它覆盖全部拦截结束事件。 |
 | `kind` | string | 否 | 普通 | — | 阶段类型：省略为普通 stage；`intercept` 为拦截 stage（用 `end_matcher_ids`，任一命中即丢弃整请求）。 |
 | `sub_process_ids` | string[] | 否 | — | `processes.id[]` | **仅进程级 stage 使用**：同进程内并行子进程分组。触发点后进入，各子进程阶段独立计算，汇总点命中表示组整体完成。 |
 
@@ -190,11 +190,11 @@ end_matcher_ids = ["LOG-REJECT-1", "LOG-REJECT-2", "LOG-REJECT-3"]
 - `start_matcher_id` 复用请求起点；owner 可为 `flow_id`（flow 级）或 `process_id`（进程级）。
 - **语义：拦截命中优先级最高**——请求在识别窗口内命中任意一个拦截 `end_matcher_ids` → 判定被拦截 → **整个请求丢弃**（它的所有 stage 样本都不进时延统计，也不单独计数）。无论 flow 级还是进程级拦截，命中一律丢整个请求。
 - 拦截 stage 不使用 `order` / `result`（它不是结果分支，只是丢弃标记）。
-- 普通 stage 保持单个 `end_matcher_id`；只有拦截 stage 用 `end_matcher_ids` 数组。
+- 所有 stage 都可用 `end_matcher_ids` 数组（**任一命中**即结束）；`end_matcher_id` 是单元素简写。拦截 stage 用它覆盖全部拦截结束事件。
 
 ---
 
 ## 与现有 fixture 的一致性
 
 - `templates/rule-package-template/`：三层最小示例，覆盖场景/领域/应用/流程/进程、匹配器与 flow 聚合 / 跨应用 RPC / 进程内 stage / 拦截 stage（`kind="intercept"` + `end_matcher_ids`）；演示 `processes.kind`（MAIN）与 `applications.log_prefix`。未用到 `stage.sub_process_ids`。
-- `smoke/rule-package/`：冒烟规则包，覆盖 `kind`（MAIN/SUB）、matcher `type`（keyword/regex）、flow 级聚合（`export_enabled=false` 保留冒烟 25 样本标准）、rpc 调用 stage，以及进程级 `sub_process_ids` 并行聚合（`STAGE-P`）。
+- `smoke/rule-package/`：冒烟规则包，覆盖 `kind`（MAIN/SUB）、matcher `type`（keyword/regex）、flow 级聚合（`export_enabled=false` 保留冒烟 25 样本标准）、rpc 调用 stage，进程级 `sub_process_ids` 并行聚合（`STAGE-P`），以及普通 stage 多 end（`STAGE-B` 的 `end_matcher_ids`，fixture 第 4 个请求用冗余结束日志演示命中其一即闭合）。

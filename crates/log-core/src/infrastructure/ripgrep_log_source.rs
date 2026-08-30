@@ -4,7 +4,7 @@ use std::io::Read;
 use std::path::Path;
 
 use crate::domain::log_workspace::log_entry::LogEntry;
-use crate::domain::log_workspace::log_parser::parse_line;
+use crate::domain::log_workspace::log_parser::{LogParser, LogcatParser};
 use crate::domain::log_workspace::port::{
     LogContextData, LogSource, SearchCondition, SearchHit, SearchMode, SearchResult, TimeRange,
 };
@@ -26,8 +26,7 @@ struct LineReader {
 
 impl LineReader {
     fn new(path: &Path) -> Result<Self, String> {
-        let file =
-            File::open(path).map_err(|e| format!("无法读取文件 {}: {e}", path.display()))?;
+        let file = File::open(path).map_err(|e| format!("无法读取文件 {}: {e}", path.display()))?;
         Ok(Self {
             file,
             carry: Vec::new(),
@@ -252,7 +251,7 @@ impl LogSource for RipgrepLogSource {
                 pending = still_pending;
 
                 // B. 判定当前行是否命中（解析失败行不参与搜索）
-                let entry = parse_line(&line);
+                let entry = LogcatParser.parse_line(&line);
                 let is_match = match &entry {
                     Some(e) => in_range(&e.timestamp, range) && matcher.matches(&line),
                     None => false,
@@ -272,12 +271,10 @@ impl LogSource for RipgrepLogSource {
                                 .unwrap_or_default(),
                             app: entry
                                 .as_ref()
-                                .map(|e| e.app_prefix.clone())
+                                .and_then(|e| e.app())
+                                .map(String::from)
                                 .unwrap_or_default(),
-                            level: entry
-                                .as_ref()
-                                .map(|e| e.level.clone())
-                                .unwrap_or_default(),
+                            level: entry.as_ref().map(|e| e.level.clone()).unwrap_or_default(),
                             before: before.iter().cloned().collect(),
                             after: Vec::new(),
                         };
@@ -326,7 +323,7 @@ impl LogSource for RipgrepLogSource {
 
         while let Some(raw) = reader.next_line()? {
             let line = strip_newline(&raw);
-            let entry = parse_line(&line);
+            let entry = LogcatParser.parse_line(&line);
             let no = entry.as_ref().map(|e| e.line_no).unwrap_or(0);
 
             if target_found {
@@ -368,7 +365,7 @@ impl LogSource for RipgrepLogSource {
             let mut reader = LineReader::new(Path::new(&file.path))?;
             while let Some(raw) = reader.next_line()? {
                 let line = strip_newline(&raw);
-                if let Some(entry) = parse_line(&line) {
+                if let Some(entry) = LogcatParser.parse_line(&line) {
                     if in_range(&entry.timestamp, range) {
                         entries.push(entry);
                     }

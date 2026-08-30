@@ -15,11 +15,12 @@ pub struct Marker {
 }
 
 /// process 级 stage：产真实时延样本，每个 stage 只取第一对 start/end。
+/// 支持多个 end matcher（端侧日志可能丢失），任一命中即判定该 stage 结束。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StageSpec {
     pub id: String,
     pub start: Marker,
-    pub end: Marker,
+    pub ends: Vec<Marker>,
 }
 
 /// 一次时延分析的全部输入：请求拆分、拦截与产样本的 process 级 stage。

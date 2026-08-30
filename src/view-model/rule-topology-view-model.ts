@@ -25,6 +25,7 @@ export interface RuleTopologyStageViewModel {
   subProcessIds: string[]
   startMatcherName?: string
   endMatcherName?: string
+  endMatcherNames: string[]
 }
 
 export interface RuleTopologyNode {
@@ -238,6 +239,7 @@ function toStageViewModel(stage: StageDefinition, context: TopologyContext): Rul
     subProcessIds: stage.subProcessIds,
     startMatcherName: stage.startMatcherId ? context.matcherNameById.get(stage.startMatcherId) : undefined,
     endMatcherName: stage.endMatcherId ? context.matcherNameById.get(stage.endMatcherId) : undefined,
+    endMatcherNames: stage.endMatcherIds.map((id) => context.matcherNameById.get(id) ?? id),
   }
 }
 

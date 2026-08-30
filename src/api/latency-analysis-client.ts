@@ -3,9 +3,9 @@ import { postJson } from './http-client'
 export interface LatencyStageSpec {
   id: string
   startPattern: string
-  endPattern: string
   startMode?: 'keyword' | 'regex'
-  endMode?: 'keyword' | 'regex'
+  /** 多个 end matcher（端侧日志可能丢失），任一命中即判定该 stage 结束。 */
+  endMarkers: LogMarker[]
 }
 
 export interface StageSample {

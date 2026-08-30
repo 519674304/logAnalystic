@@ -7,6 +7,7 @@
 //! 输入为已投影的 [`spec::LatencyAnalysisSpec`]，由规则配置层投影；本模块不读 TOML。
 
 pub mod analyzer;
+pub mod marker;
 pub mod result;
 pub mod spec;
 pub mod timestamp;

@@ -123,8 +123,8 @@ function stageTooltip(stage: RuleTopologyStageViewModel) {
   if (stage.businessMeaning) lines.push(`业务含义: ${stage.businessMeaning}`)
   const start = stage.startMatcherName ?? stage.startMatcherId ?? '-'
   const end =
-    stage.kind === 'intercept'
-      ? stage.endMatcherIds.join(', ') || '-'
+    stage.endMatcherNames.length > 0
+      ? stage.endMatcherNames.join(', ')
       : stage.endMatcherName ?? stage.endMatcherId ?? '-'
   lines.push(`起止: ${start} → ${end}`)
   lines.push(`order=${stage.order}${stage.result ? ` · result=${stage.result}` : ''} · kind=${stage.kind}`)

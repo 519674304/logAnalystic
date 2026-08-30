@@ -151,7 +151,7 @@ flow 没有 `role="start"/"end"` 边界概念；请求/进程的开始与结尾�
 - `start_matcher_id` 复用请求起点；owner 可为 `flow_id` 或 `process_id`。
 - **语义：拦截命中优先级最高**——请求在识别窗口内命中任意一个拦截 `end_matcher_ids` → 判定被拦截 → **整个请求丢弃**（所有 stage 样本不进时延统计，也不单独计数）。无论 flow 级还是进程级拦截，命中一律丢整个请求。
 - 拦截 stage 不使用 `order` / `result`（只是丢弃标记，不是结果分支）。
-- 普通 stage 保持单个 `end_matcher_id`；只有拦截 stage 用 `end_matcher_ids` 数组。
+- 所有 stage 都可用 `end_matcher_ids` 数组（**任一命中**即结束）；`end_matcher_id` 是单元素简写。拦截 stage 用它覆盖全部拦截结束事件。
 
 ## 横向引用关系
 
@@ -242,7 +242,7 @@ flow 的聚合 stage 覆盖某进程「整体」的整段（从该进程入口�
 - flow 级 stage 起止 matcher 可属于同一应用或多个应用（跨应用合法），规则层不限制。
 - 同 `order` 的多个 `result` 分支 stage 的 `result` 必须互不相同（互斥分支），且 `id` 唯一。
 - `stage.sub_process_ids` 只能出现在进程级并行聚合 stage 上，且引用的进程必须是该 flow 覆盖的子进程。
-- `stage.end_matcher_ids`（数组）只能出现在 `kind="intercept"` 的 stage 上，且每个引用都必须指向启用的 matcher；普通 stage 不得用数组。
+- `stage.end_matcher_ids`（数组）可用于任意 stage（**任一命中**即结束），每个引用都必须指向启用的 matcher；`end_matcher_id` 是单元素简写。
 - 拦截命中（任一 `end_matcher_ids`）优先级最高：无论 flow 级还是进程级，命中即整个请求丢弃，不进任何时延统计。
 - 已启用 stage 的起止 matcher 必须覆盖该 stage 的全部适用场景。
 

@@ -1,6 +1,6 @@
 const fs = require('fs')
 const path = require('path')
-const toml = require('toml')
+const toml = require('smol-toml')
 
 const repoRoot = path.resolve(__dirname, '..')
 const baselines = [

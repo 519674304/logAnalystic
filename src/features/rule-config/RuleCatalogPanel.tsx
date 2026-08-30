@@ -20,6 +20,21 @@ export type RuleNodeSelection = {
   node: RulePackageNodeDto
 }
 
+export type RuleLayerTomlSelection = {
+  ruleSetId: string
+  version: string
+  layerId: string
+  layerLabel: string
+  fileName: string
+  tomlText: string
+}
+
+export type RuleLayerTomlTarget = {
+  ruleSetId: string
+  version: string
+  layer: RulePackageLayerDto
+}
+
 type RuleCatalogPanelProps = {
   versions: RulePackageVersionDto[]
   activeRuleVersion: ActiveRuleVersionDto | null
@@ -38,6 +53,12 @@ type RuleCatalogPanelProps = {
   onDeleteVersion: (ruleSetId: string, version: string) => void
   onDetailDraftChange: (next: RuleNodeSelection) => void
   onSaveNode: () => Promise<void>
+  tomlOpen: boolean
+  tomlDraft: RuleLayerTomlSelection | null
+  onOpenLayerToml: (target: RuleLayerTomlTarget) => void
+  onCloseToml: () => void
+  onTomlDraftChange: (next: RuleLayerTomlSelection) => void
+  onSaveToml: () => Promise<void>
 }
 
 function nodeKey(ruleSetId: string, version: string, layerId: string, node: RulePackageNodeDto) {
@@ -100,6 +121,12 @@ export default function RuleCatalogPanel({
   onDeleteVersion,
   onDetailDraftChange,
   onSaveNode,
+  tomlOpen,
+  tomlDraft,
+  onOpenLayerToml,
+  onCloseToml,
+  onTomlDraftChange,
+  onSaveToml,
 }: RuleCatalogPanelProps) {
   const importInputRef = useRef<HTMLInputElement>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -427,6 +454,18 @@ export default function RuleCatalogPanel({
                         <span className="tree-disclosure" aria-hidden="true">▾</span>
                         <strong>{layer.label}</strong>
                         <em>{layer.nodes.length}</em>
+                        <button
+                          type="button"
+                          className="layer-toml-edit-button"
+                          title="编辑该层 TOML 文件"
+                          onClick={(event: React.MouseEvent<HTMLButtonElement>) => {
+                            event.preventDefault()
+                            event.stopPropagation()
+                            onOpenLayerToml({ ruleSetId: version.ruleSetId, version: version.version, layer })
+                          }}
+                        >
+                          编辑 TOML
+                        </button>
                       </summary>
                       {renderLayerNodes(layer, version.ruleSetId, version.version)}
                     </details>
@@ -502,6 +541,37 @@ export default function RuleCatalogPanel({
                 </label>
               ))}
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {tomlOpen && tomlDraft ? (
+        <div className="modal-backdrop" role="presentation" onMouseDown={onCloseToml}>
+          <div
+            className="modal-card rule-node-modal rule-toml-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="rule-toml-modal-title"
+            onMouseDown={(event: React.MouseEvent<HTMLDivElement>) => event.stopPropagation()}
+          >
+            <div className="panel-title-row">
+              <div>
+                <h2 id="rule-toml-modal-title">编辑 TOML</h2>
+                <span>{tomlDraft.version} / {tomlDraft.layerLabel} / {tomlDraft.fileName}</span>
+              </div>
+              <div className="panel-actions">
+                <button type="button" className="ghost-button" onClick={onCloseToml}>取消</button>
+                <button type="button" className="primary-button" onClick={() => void onSaveToml()}>保存</button>
+              </div>
+            </div>
+            <textarea
+              className="rule-toml-textarea"
+              value={tomlDraft.tomlText}
+              onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) =>
+                onTomlDraftChange({ ...tomlDraft, tomlText: event.target.value })
+              }
+              spellCheck={false}
+            />
           </div>
         </div>
       ) : null}

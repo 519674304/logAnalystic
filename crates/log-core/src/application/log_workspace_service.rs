@@ -2,6 +2,8 @@ use crate::domain::latency_analysis::analyzer::LatencyAnalyzer;
 use crate::domain::latency_analysis::result::LatencyAnalysis;
 use crate::domain::latency_analysis::spec::LatencyAnalysisSpec;
 use crate::domain::log_workspace::log_entry::LogEntry;
+use crate::domain::request_split::sequential_stack::SequentialStackSplitter;
+use crate::domain::request_split::RequestSplitter;
 use crate::domain::log_workspace::port::{
     LogContextData, LogSource, SearchCondition, SearchResult, TimeRange,
 };
@@ -40,14 +42,15 @@ impl LogWorkspaceService {
         line_number: u64,
         context_lines: usize,
     ) -> Result<LogContextData, String> {
-        self.source.read_context(file_path, line_number, context_lines)
+        self.source
+            .read_context(file_path, line_number, context_lines)
     }
 
     pub fn entries(&self, dir: &str, range: &TimeRange) -> Result<Vec<LogEntry>, String> {
         self.source.entries(dir, range)
     }
 
-    /// 时延分析：单遍解析条目 + 栈式拆分，返回请求样本与全局统计。
+    /// 时延分析：解析条目 → 端侧拆分请求队列 → 请求队列上做 stage 匹配与统计。
     pub fn analyze(
         &self,
         dir: &str,
@@ -55,7 +58,12 @@ impl LogWorkspaceService {
         spec: &LatencyAnalysisSpec,
     ) -> Result<LatencyAnalysis, String> {
         let entries = self.source.entries(dir, range)?;
-        LatencyAnalyzer::analyze(spec, &entries)
+        let splitter = SequentialStackSplitter::new(
+            spec.request_start.clone(),
+            spec.intercept_ends.clone(),
+        )?;
+        let requests = splitter.split(&entries);
+        LatencyAnalyzer::analyze(&spec.process_stages, &requests)
     }
 }
 

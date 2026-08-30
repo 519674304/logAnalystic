@@ -84,7 +84,8 @@ mod tests {
 
     fn temp_dir() -> PathBuf {
         let index = COUNTER.fetch_add(1, Ordering::Relaxed);
-        let dir = std::env::temp_dir().join(format!("log-analystic-rule-config-store-test-{index}"));
+        let dir =
+            std::env::temp_dir().join(format!("log-analystic-rule-config-store-test-{index}"));
         let _ = fs::remove_dir_all(&dir);
         dir
     }

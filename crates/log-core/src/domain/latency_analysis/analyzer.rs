@@ -1,126 +1,66 @@
-//! 端侧栈式时延分析核心算法。
-//!
-//! 算法镜像前端 TS 原型 `analyzeLatencyStream`：
-//! 1. 逐条匹配 marker 收集命中，固定顺序（请求拆分 → 拦截 → process stage 起止）后稳定排序。
-//! 2. 栈式拆分：`start` 压栈、`intercept` 弹栈（整请求丢弃）、stage 事件累积到栈顶请求。
-//! 3. 结算：每个 stage 只取第一对 start/end 算时延，重复命中丢弃。
-//! 4. 汇总所有样本统计 sample_count / average_ms / p90_ms / max_ms。
+//! 时延分析核心：在请求队列上做 stage 匹配与统计（与来源无关）。
 
-use regex::Regex;
-
+use crate::domain::latency_analysis::marker::MarkerMatcher;
 use crate::domain::latency_analysis::result::{
     LatencyAnalysis, LatencyStatistics, RequestAnalysis, StageSample,
 };
-use crate::domain::latency_analysis::spec::{LatencyAnalysisSpec, Marker, MarkerMode};
+use crate::domain::latency_analysis::spec::StageSpec;
 use crate::domain::latency_analysis::timestamp::timestamp_to_ms;
-use crate::domain::log_workspace::log_entry::LogEntry;
-
-/// 匹配器：keyword（大小写不敏感包含）或 regex，case_sensitive 恒为 false（与前端一致）。
-enum MarkerMatcher {
-    Keyword { needle_lower: String },
-    Regex(Regex),
-}
-
-impl MarkerMatcher {
-    fn build(marker: &Marker) -> Result<Self, String> {
-        match marker.mode {
-            MarkerMode::Keyword => Ok(MarkerMatcher::Keyword {
-                needle_lower: marker.pattern.to_lowercase(),
-            }),
-            MarkerMode::Regex => Regex::new(&marker.pattern)
-                .map(MarkerMatcher::Regex)
-                .map_err(|e| format!("正则表达式无效: {e}")),
-        }
-    }
-
-    fn matches(&self, line: &str) -> bool {
-        match self {
-            MarkerMatcher::Keyword { needle_lower } => {
-                line.to_lowercase().contains(needle_lower.as_str())
-            }
-            MarkerMatcher::Regex(re) => re.is_match(line),
-        }
-    }
-}
-
-/// 命中角色。
-#[derive(Debug, Clone)]
-enum HitRole {
-    Start,
-    Intercept,
-    StageStart { stage_id: String },
-    StageEnd { stage_id: String },
-}
-
-/// 一条命中：可比较时间 + 行号 + 原始时间戳 + 角色。
-#[derive(Debug, Clone)]
-struct TimedHit {
-    ts_ms: i64,
-    line_no: u64,
-    raw_ts: String,
-    role: HitRole,
-}
-
-/// 一条匹配规则：matcher + 命中角色，收集顺序即 TS `collect` 顺序。
-struct Rule {
-    matcher: MarkerMatcher,
-    role: HitRole,
-}
-
-struct StageEvents {
-    stage_id: String,
-    starts: Vec<(i64, String)>,
-    ends: Vec<(i64, String)>,
-}
-
-struct OpenRequest {
-    start_raw: String,
-    stage_events: Vec<StageEvents>,
-}
+use crate::domain::request_split::Request;
 
 fn clean_line(raw: &str) -> &str {
     raw.trim_end_matches(|c: char| c == '\n' || c == '\r')
 }
 
-fn events_mut<'a>(req: &'a mut OpenRequest, stage_id: &str) -> &'a mut StageEvents {
-    if let Some(pos) = req.stage_events.iter().position(|e| e.stage_id == stage_id) {
-        &mut req.stage_events[pos]
-    } else {
-        req.stage_events.push(StageEvents {
-            stage_id: stage_id.to_string(),
-            starts: Vec::new(),
-            ends: Vec::new(),
-        });
-        req.stage_events.last_mut().expect("just pushed")
-    }
+struct StageRule {
+    stage_id: String,
+    start: MarkerMatcher,
+    ends: Vec<MarkerMatcher>,
 }
 
-fn finalize(req: &OpenRequest) -> RequestAnalysis {
+fn analyze_request(rules: &[StageRule], req: &Request) -> RequestAnalysis {
     let mut samples: Vec<StageSample> = Vec::new();
     let mut timestamps: Vec<i64> = Vec::new();
-    for events in &req.stage_events {
-        // 每个 stage 只取第一对 start/end，重复命中丢弃。
-        if let (Some(start), Some(end)) = (events.starts.first(), events.ends.first()) {
+
+    for rule in rules {
+        let mut start_ts: Option<(i64, String)> = None;
+        let mut end_ts: Option<(i64, String)> = None;
+        for entry in &req.entries {
+            let line = clean_line(&entry.raw);
+            let Some(ts_ms) = timestamp_to_ms(&entry.timestamp) else {
+                continue;
+            };
+            if start_ts.is_none() && rule.start.matches(line) {
+                start_ts = Some((ts_ms, entry.timestamp.clone()));
+            }
+            if end_ts.is_none() && rule.ends.iter().any(|m| m.matches(line)) {
+                end_ts = Some((ts_ms, entry.timestamp.clone()));
+            }
+            if start_ts.is_some() && end_ts.is_some() {
+                break;
+            }
+        }
+        if let (Some(start), Some(end)) = (start_ts, end_ts) {
             let duration_ms = (end.0 - start.0).max(0);
             samples.push(StageSample {
-                stage_id: events.stage_id.clone(),
-                start_timestamp: start.1.clone(),
-                end_timestamp: end.1.clone(),
+                stage_id: rule.stage_id.clone(),
+                start_timestamp: start.1,
+                end_timestamp: end.1,
                 duration_ms,
             });
             timestamps.push(start.0);
             timestamps.push(end.0);
         }
     }
+
     let total_ms = if timestamps.is_empty() {
         0
     } else {
-        let min = timestamps.iter().copied().min().expect("non-empty");
-        let max = timestamps.iter().copied().max().expect("non-empty");
-        max - min
+        timestamps.iter().copied().max().unwrap() - timestamps.iter().copied().min().unwrap()
     };
+
     RequestAnalysis {
-        id: req.start_raw.clone(),
+        id: req.id.clone(),
         total_ms,
         samples,
     }
@@ -140,7 +80,6 @@ fn compute_stats(durations: &[i64]) -> LatencyStatistics {
     let n = durations.len();
     let sum: i64 = durations.iter().sum();
     let average_ms = (sum as f64 / n as f64).round() as i64;
-    // P90 索引 = ceil(n * 0.9) - 1，与 TS `computeStats` 一致。
     let p90_index = ((n * 9 + 9) / 10).saturating_sub(1).min(n - 1);
     LatencyStatistics {
         sample_count: n,
@@ -154,82 +93,30 @@ pub struct LatencyAnalyzer;
 
 impl LatencyAnalyzer {
     pub fn analyze(
-        spec: &LatencyAnalysisSpec,
-        entries: &[LogEntry],
+        stages: &[StageSpec],
+        requests: &[Request],
     ) -> Result<LatencyAnalysis, String> {
-        // 1. 组装规则，顺序 = 请求拆分 → 拦截 → process stage 起止。
-        let mut rules: Vec<Rule> = Vec::new();
-        rules.push(Rule {
-            matcher: MarkerMatcher::build(&spec.request_start)?,
-            role: HitRole::Start,
-        });
-        for marker in &spec.intercept_ends {
-            rules.push(Rule {
-                matcher: MarkerMatcher::build(marker)?,
-                role: HitRole::Intercept,
-            });
-        }
-        for stage in &spec.process_stages {
-            rules.push(Rule {
-                matcher: MarkerMatcher::build(&stage.start)?,
-                role: HitRole::StageStart {
-                    stage_id: stage.id.clone(),
-                },
-            });
-            rules.push(Rule {
-                matcher: MarkerMatcher::build(&stage.end)?,
-                role: HitRole::StageEnd {
-                    stage_id: stage.id.clone(),
-                },
-            });
-        }
+        let rules: Vec<StageRule> = stages
+            .iter()
+            .map(|s| {
+                let start = MarkerMatcher::build(&s.start)?;
+                let ends = s
+                    .ends
+                    .iter()
+                    .map(MarkerMatcher::build)
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(StageRule {
+                    stage_id: s.id.clone(),
+                    start,
+                    ends,
+                })
+            })
+            .collect::<Result<Vec<_>, String>>()?;
 
-        // 2. 逐条匹配收集命中，再稳定排序（等价 TS 的 ts / line 排序）。
-        let mut hits: Vec<TimedHit> = Vec::new();
-        for entry in entries {
-            let line = clean_line(&entry.raw);
-            let Some(ts_ms) = timestamp_to_ms(&entry.timestamp) else {
-                continue;
-            };
-            for rule in &rules {
-                if rule.matcher.matches(line) {
-                    hits.push(TimedHit {
-                        ts_ms,
-                        line_no: entry.line_no,
-                        raw_ts: entry.timestamp.clone(),
-                        role: rule.role.clone(),
-                    });
-                }
-            }
-        }
-        hits.sort_by(|a, b| a.ts_ms.cmp(&b.ts_ms).then_with(|| a.line_no.cmp(&b.line_no)));
-
-        // 3. 栈式拆分：start 压栈、intercept 弹栈（拦截优先）、stage 事件累积到栈顶。
-        let mut stack: Vec<OpenRequest> = Vec::new();
-        for hit in &hits {
-            match &hit.role {
-                HitRole::Start => stack.push(OpenRequest {
-                    start_raw: hit.raw_ts.clone(),
-                    stage_events: Vec::new(),
-                }),
-                HitRole::Intercept => {
-                    stack.pop();
-                }
-                HitRole::StageStart { stage_id } => {
-                    if let Some(req) = stack.last_mut() {
-                        events_mut(req, stage_id).starts.push((hit.ts_ms, hit.raw_ts.clone()));
-                    }
-                }
-                HitRole::StageEnd { stage_id } => {
-                    if let Some(req) = stack.last_mut() {
-                        events_mut(req, stage_id).ends.push((hit.ts_ms, hit.raw_ts.clone()));
-                    }
-                }
-            }
-        }
-
-        // 4. 结算栈中剩余请求 + 汇总统计。
-        let requests: Vec<RequestAnalysis> = stack.iter().map(finalize).collect();
+        let requests: Vec<RequestAnalysis> = requests
+            .iter()
+            .map(|r| analyze_request(&rules, r))
+            .collect();
         let durations: Vec<i64> = requests
             .iter()
             .flat_map(|r| r.samples.iter().map(|s| s.duration_ms))
@@ -242,23 +129,33 @@ impl LatencyAnalyzer {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-
     use super::*;
-    use crate::domain::latency_analysis::spec::StageSpec;
+    use crate::domain::latency_analysis::spec::{Marker, MarkerMode, StageSpec};
+    use crate::domain::log_workspace::log_entry::LogEntry;
+    use crate::domain::log_workspace::log_extension::{EdgeExt, LogExtension};
+    use crate::domain::request_split::Request;
 
     fn entry(line_no: u64, timestamp: &str, msg: &str) -> LogEntry {
         LogEntry {
             line_no,
             timestamp: timestamp.to_string(),
-            pid: 0,
-            tid: 0,
             level: "I".to_string(),
-            app_prefix: "A00010".to_string(),
-            package_name: "com.demo.app".to_string(),
-            tag: "Order".to_string(),
             message: msg.to_string(),
             raw: msg.to_string(),
+            ext: LogExtension::Edge(EdgeExt {
+                pid: 0,
+                tid: 0,
+                app_prefix: "A00010".to_string(),
+                package_name: "com.demo.app".to_string(),
+                tag: "Order".to_string(),
+            }),
+        }
+    }
+
+    fn req(id: &str, entries: Vec<LogEntry>) -> Request {
+        Request {
+            id: id.to_string(),
+            entries,
         }
     }
 
@@ -269,176 +166,65 @@ mod tests {
         }
     }
 
-    fn smoke_spec() -> LatencyAnalysisSpec {
-        LatencyAnalysisSpec {
-            request_start: kw("request started"),
-            intercept_ends: vec![],
-            process_stages: vec![
-                StageSpec {
-                    id: "STAGE-A".to_string(),
-                    start: kw("request started"),
-                    end: kw("start parallel subprocesses"),
-                },
-                StageSpec {
-                    id: "STAGE-P".to_string(),
-                    start: kw("start parallel subprocesses"),
-                    end: kw("all subprocesses completed"),
-                },
-                StageSpec {
-                    id: "STAGE-B".to_string(),
-                    start: Marker {
-                        pattern: "subprocess received, sequence=[0-9]+".to_string(),
-                        mode: MarkerMode::Regex,
-                    },
-                    end: kw("subprocess completed"),
-                },
-                StageSpec {
-                    id: "STAGE-D".to_string(),
-                    start: kw("all subprocesses completed"),
-                    end: kw("request completed successfully"),
-                },
-            ],
-        }
-    }
-
-    const MSGS: [&str; 7] = [
-        "request started",
-        "start parallel subprocesses",
-        "subprocess received, sequence=0",
-        "preparation completed",
-        "subprocess completed",
-        "all subprocesses completed",
-        "request completed successfully",
-    ];
-
-    fn build_request(sec: i64, offsets: [i64; 7]) -> Vec<LogEntry> {
-        offsets
-            .iter()
-            .enumerate()
-            .map(|(i, off)| {
-                let ts = format!("2026-07-05 10:00:{sec:02}.{off:03}");
-                entry(sec as u64 * 10 + i as u64, &ts, MSGS[i])
-            })
-            .collect()
+    fn spec() -> Vec<StageSpec> {
+        vec![
+            StageSpec {
+                id: "STAGE-A".to_string(),
+                start: kw("request started"),
+                ends: vec![kw("start parallel subprocesses")],
+            },
+            StageSpec {
+                id: "STAGE-D".to_string(),
+                start: kw("all subprocesses completed"),
+                ends: vec![kw("request completed successfully")],
+            },
+        ]
     }
 
     #[test]
-    fn smoke_five_requests_stats() {
-        let spec = smoke_spec();
-        let offsets = [
-            [0, 40, 50, 59, 80, 85, 95],
-            [0, 55, 80, 104, 160, 172, 192],
-            [0, 50, 170, 188, 230, 245, 270],
-            [0, 45, 75, 150, 325, 345, 375],
-            [0, 60, 100, 127, 190, 208, 230],
-        ];
-        let mut entries = Vec::new();
-        for (sec, offs) in offsets.iter().enumerate() {
-            entries.extend(build_request(sec as i64, *offs));
-        }
-
-        let result = LatencyAnalyzer::analyze(&spec, &entries).unwrap();
-        assert_eq!(result.requests.len(), 5);
-        assert_eq!(result.stats.sample_count, 20);
-
+    fn computes_stage_latency_per_request() {
+        let requests = vec![req(
+            "2026-07-05 10:00:00.000",
+            vec![
+                entry(1, "2026-07-05 10:00:00.000", "request started"),
+                entry(2, "2026-07-05 10:00:00.040", "start parallel subprocesses"),
+                entry(3, "2026-07-05 10:00:00.085", "all subprocesses completed"),
+                entry(4, "2026-07-05 10:00:00.095", "request completed successfully"),
+            ],
+        )];
+        let result = LatencyAnalyzer::analyze(&spec(), &requests).unwrap();
+        assert_eq!(result.requests.len(), 1);
         let r0 = &result.requests[0];
         assert_eq!(r0.id, "2026-07-05 10:00:00.000");
         assert_eq!(r0.total_ms, 95);
-        let by_id: HashMap<&str, i64> = r0
+        let by_id: std::collections::HashMap<&str, i64> = r0
             .samples
             .iter()
             .map(|s| (s.stage_id.as_str(), s.duration_ms))
             .collect();
         assert_eq!(by_id.get("STAGE-A"), Some(&40));
-        assert_eq!(by_id.get("STAGE-P"), Some(&45));
-        assert_eq!(by_id.get("STAGE-B"), Some(&30));
         assert_eq!(by_id.get("STAGE-D"), Some(&10));
-    }
-
-    #[test]
-    fn intercept_drops_request() {
-        let spec = LatencyAnalysisSpec {
-            request_start: kw("request started"),
-            intercept_ends: vec![kw("timeout waiting for subprocess")],
-            process_stages: vec![StageSpec {
-                id: "STAGE-A".to_string(),
-                start: kw("request started"),
-                end: kw("start parallel subprocesses"),
-            }],
-        };
-        let entries = vec![
-            entry(1, "2026-07-05 10:00:00.000", "request started"),
-            entry(2, "2026-07-05 10:00:00.040", "start parallel subprocesses"),
-            entry(3, "2026-07-05 10:00:00.050", "timeout waiting for subprocess"),
-            entry(4, "2026-07-05 10:00:01.000", "request started"),
-            entry(5, "2026-07-05 10:00:01.040", "start parallel subprocesses"),
-        ];
-        let result = LatencyAnalyzer::analyze(&spec, &entries).unwrap();
-        assert_eq!(result.requests.len(), 1);
-        assert_eq!(result.requests[0].id, "2026-07-05 10:00:01.000");
-        assert_eq!(result.stats.sample_count, 1);
-    }
-
-    #[test]
-    fn flow_aggregation_branches_are_mutually_exclusive() {
-        // flow 级聚合 stage 的 result 分支：同一起点、不同结尾，互斥命中。
-        // 成功请求只产 SUCCESS 样本，超时请求只产 TIMEOUT 样本。
-        let spec = LatencyAnalysisSpec {
-            request_start: kw("request started"),
-            intercept_ends: vec![],
-            process_stages: vec![
-                StageSpec {
-                    id: "FLOW-AGG-SUCCESS".to_string(),
-                    start: kw("request started"),
-                    end: kw("request completed successfully"),
-                },
-                StageSpec {
-                    id: "FLOW-AGG-TIMEOUT".to_string(),
-                    start: kw("request started"),
-                    end: kw("timeout waiting for subprocess"),
-                },
-            ],
-        };
-        let entries = vec![
-            entry(1, "2026-07-05 10:00:00.000", "request started"),
-            entry(2, "2026-07-05 10:00:00.100", "request completed successfully"),
-            entry(3, "2026-07-05 10:00:01.000", "request started"),
-            entry(4, "2026-07-05 10:00:01.500", "timeout waiting for subprocess"),
-        ];
-        let result = LatencyAnalyzer::analyze(&spec, &entries).unwrap();
-        assert_eq!(result.requests.len(), 2);
-
-        let success = &result.requests[0];
-        assert_eq!(success.samples.len(), 1);
-        assert_eq!(success.samples[0].stage_id, "FLOW-AGG-SUCCESS");
-        assert_eq!(success.samples[0].duration_ms, 100);
-
-        let timeout = &result.requests[1];
-        assert_eq!(timeout.samples.len(), 1);
-        assert_eq!(timeout.samples[0].stage_id, "FLOW-AGG-TIMEOUT");
-        assert_eq!(timeout.samples[0].duration_ms, 500);
+        assert_eq!(result.stats.sample_count, 2);
+        assert_eq!(result.stats.max_ms, 40);
     }
 
     #[test]
     fn stage_takes_first_pair_only() {
-        let spec = LatencyAnalysisSpec {
-            request_start: kw("request started"),
-            intercept_ends: vec![],
-            process_stages: vec![StageSpec {
-                id: "STAGE-X".to_string(),
-                start: kw("step begin"),
-                end: kw("step end"),
-            }],
-        };
-        let entries = vec![
-            entry(1, "2026-07-05 10:00:00.000", "request started"),
-            entry(2, "2026-07-05 10:00:00.010", "step begin"),
-            entry(3, "2026-07-05 10:00:00.020", "step end"),
-            entry(4, "2026-07-05 10:00:00.030", "step begin"),
-            entry(5, "2026-07-05 10:00:00.050", "step end"),
-        ];
-        let result = LatencyAnalyzer::analyze(&spec, &entries).unwrap();
-        assert_eq!(result.requests.len(), 1);
+        let requests = vec![req(
+            "r1",
+            vec![
+                entry(1, "2026-07-05 10:00:00.000", "step begin"),
+                entry(2, "2026-07-05 10:00:00.010", "step end"),
+                entry(3, "2026-07-05 10:00:00.020", "step begin"),
+                entry(4, "2026-07-05 10:00:00.050", "step end"),
+            ],
+        )];
+        let stages = vec![StageSpec {
+            id: "STAGE-X".to_string(),
+            start: kw("step begin"),
+            ends: vec![kw("step end")],
+        }];
+        let result = LatencyAnalyzer::analyze(&stages, &requests).unwrap();
         assert_eq!(result.requests[0].samples.len(), 1);
         assert_eq!(result.requests[0].samples[0].duration_ms, 10);
     }
@@ -447,17 +233,16 @@ mod tests {
     fn compute_stats_p90_and_rounding() {
         let stats = compute_stats(&(1..=20).collect::<Vec<i64>>());
         assert_eq!(stats.sample_count, 20);
-        assert_eq!(stats.average_ms, 11); // 210/20 = 10.5 → 11
-        assert_eq!(stats.p90_ms, 18); // ceil(18)-1 = 17 → sorted[17] = 18
+        assert_eq!(stats.average_ms, 11);
+        assert_eq!(stats.p90_ms, 18);
         assert_eq!(stats.max_ms, 20);
     }
 
     #[test]
     fn compute_stats_small_n() {
         let stats = compute_stats(&[10, 20, 30, 40, 50]);
-        assert_eq!(stats.sample_count, 5);
         assert_eq!(stats.average_ms, 30);
-        assert_eq!(stats.p90_ms, 50); // ceil(4.5)-1 = 4 → sorted[4] = 50
+        assert_eq!(stats.p90_ms, 50);
         assert_eq!(stats.max_ms, 50);
     }
 

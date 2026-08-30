@@ -25,6 +25,17 @@
 
 浏览器访问 http://localhost:1420 ，前端经 HTTP 调用 127.0.0.1:8080 的后端。
 
+## 本地诊断日志
+
+后端会把安全的诊断事件写入 `app-data/logs/`，文件为 JSONL（一行一个 JSON 事件）。可用 PowerShell 查看或筛选错误：
+
+```powershell
+Get-Content .\app-data\logs\*.jsonl
+Get-Content .\app-data\logs\*.jsonl | Select-String '"level":"ERROR"'
+```
+
+日志按日轮转；服务启动时会清理修改时间超过七天的日志文件。为避免收集敏感或业务内容，事件会明确排除原始导入日志、查询文本、完整路径、规则文档、凭据和令牌。
+
 ## 手动启动
 
 ```powershell

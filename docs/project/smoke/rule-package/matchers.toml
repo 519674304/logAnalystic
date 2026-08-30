@@ -56,6 +56,19 @@ application_id = "APP-B"
 type = "keyword"
 pattern = "subprocess completed"
 
+# 多 end 演示：与 LOG-SUBPROCESS-COMPLETED 是同一结束事件的冗余同义词。
+# 端侧日志可能丢失，STAGE-B 同时引用这两个 matcher，命中其一即判定子进程处理结束。
+[[log_matchers]]
+id = "LOG-SUBPROCESS-FINISHED"
+name = "子进程结束（冗余）"
+business_meaning = "子进程处理结束的冗余日志，与「子进程完成」二选一命中即可。"
+enabled = true
+export_enabled = true
+applicable_scenario_ids = ["SCENARIO-SMOKE"]
+application_id = "APP-B"
+type = "keyword"
+pattern = "subprocess finished"
+
 [[log_matchers]]
 id = "LOG-ALL-COMPLETED"
 name = "全部子进程完成"

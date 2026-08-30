@@ -1,4 +1,4 @@
-import { parse } from 'toml'
+import { parse, stringify } from 'smol-toml'
 import type {
   RulePackageFieldValue,
   RulePackageImportDto,
@@ -76,7 +76,7 @@ function findEndOfCentralDirectory(bytes: Uint8Array) {
   throw new Error('无法定位 ZIP 中央目录')
 }
 
-async function inflateRaw(data: Uint8Array) {
+async function inflateRaw(data: Uint8Array<ArrayBuffer>) {
   const streamFactory = (globalThis as typeof globalThis & {
     DecompressionStream?: new (format: string) => {
       writable: WritableStream<Uint8Array>
@@ -409,4 +409,31 @@ export function updateLocalRulePackageNodeTree(
   }
 
   return nextVersions
+}
+
+/** 把一层的结构化节点序列化成 TOML 文本（导入时注释未保留，生成为无注释的 [[table]] 数组）。 */
+export function serializeLayerToToml(layer: RulePackageLayerDto): string {
+  const grouped: Record<string, Array<Record<string, RulePackageFieldValue>>> = {}
+  for (const node of layer.nodes) {
+    if (!grouped[node.tablePath]) {
+      grouped[node.tablePath] = []
+    }
+    grouped[node.tablePath].push(node.fields)
+  }
+  return stringify(grouped)
+}
+
+/** 解析单层编辑后的 TOML：校验 id 全局唯一（含其它层已有 id）与引用完整，返回该层节点。 */
+export function parseLayerToml(
+  text: string,
+  layerId: string,
+  otherLayerIds: string[],
+): RulePackageNodeDto[] {
+  const parsed = parse(text)
+  const ids = new Set(otherLayerIds)
+  collectIds(parsed, layerId, ids)
+  validateReferences(parsed, layerId, ids)
+  const nodes: RulePackageNodeDto[] = []
+  collectNodes(parsed, '', nodes)
+  return nodes
 }

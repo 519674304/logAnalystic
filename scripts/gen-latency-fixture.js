@@ -46,11 +46,16 @@ requests.forEach((profile, index) => {
   const joinEnd = subEnd + profile.join
   const finEnd = joinEnd + profile.fin
 
+  // 多 end 演示：第 4 个请求（index=3）用冗余结束日志「subprocess finished」替代
+  // 「subprocess completed」，模拟端侧「completed」日志丢失。STAGE-B 的 end_matcher_ids
+  // 命中 LOG-SUBPROCESS-FINISHED 即可闭合，验证普通 stage 多 end 能力。
+  const subprocessEndMsg = index === 3 ? 'subprocess finished' : 'subprocess completed'
+
   line(0, PIDS.order, APPS.order, 'request started')
   line(profile.prep, PIDS.order, APPS.order, 'start parallel subprocesses')
   line(recv, PIDS.workerB, APPS.workerB, 'subprocess received, sequence=0')
   line(prepDone, PIDS.workerB, APPS.workerB, 'preparation completed')
-  line(subEnd, PIDS.workerB, APPS.workerB, 'subprocess completed')
+  line(subEnd, PIDS.workerB, APPS.workerB, subprocessEndMsg)
   line(joinEnd, PIDS.order, APPS.order, 'all subprocesses completed')
   line(finEnd, PIDS.workerD, APPS.workerD, 'request completed successfully')
 })

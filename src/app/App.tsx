@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type * as React from 'react'
 import AppShell, { type WorkbenchTab } from '../components/layout/AppShell'
 import LogSearchPanel from '../features/log-search/LogSearchPanel'
-import RuleCatalogPanel, { type RuleNodeSelection } from '../features/rule-config/RuleCatalogPanel'
+import RuleCatalogPanel, { type RuleLayerTomlSelection, type RuleLayerTomlTarget, type RuleNodeSelection } from '../features/rule-config/RuleCatalogPanel'
 import LatencyAnalysisPanel from '../features/latency-analysis/LatencyAnalysisPanel'
 import { issueRules, latencyResult } from './app-state'
 import {
@@ -13,9 +13,11 @@ import {
   listSavedQueries,
   loadActiveRuleVersion,
   saveActiveRuleVersion,
+  updateRulePackageLayerToml,
   updateRulePackageNode,
   upsertSavedQuery,
 } from '../api/tauri-client'
+import { serializeLayerToToml } from '../api/local-rule-package'
 import { searchLogs } from '../api/http-client'
 import { analyzeLatencyStream, type LatencyAnalysis, type LatencyStageSpec, type LogMarker } from '../api/latency-analysis-client'
 import type {
@@ -309,6 +311,8 @@ export default function App() {
   const [activeRuleNodeKey, setActiveRuleNodeKey] = useState('')
   const [ruleDetailOpen, setRuleDetailOpen] = useState(false)
   const [ruleDetailDraft, setRuleDetailDraft] = useState<RuleNodeSelection | null>(null)
+  const [ruleTomlOpen, setRuleTomlOpen] = useState(false)
+  const [ruleTomlDraft, setRuleTomlDraft] = useState<RuleLayerTomlSelection | null>(null)
   const [rulePackageStatus, setRulePackageStatus] = useState('等待导入')
   const [result, setResult] = useState<LogSearchViewModel | null>(null)
   const [isSearching, setIsSearching] = useState(false)
@@ -656,6 +660,49 @@ export default function App() {
     }
   }
 
+  const openLayerToml = (target: RuleLayerTomlTarget) => {
+    const { layer } = target
+    setRuleTomlDraft({
+      ruleSetId: target.ruleSetId,
+      version: target.version,
+      layerId: layer.id,
+      layerLabel: layer.label,
+      fileName: layer.fileName,
+      tomlText: serializeLayerToToml(layer),
+    })
+    setRuleTomlOpen(true)
+  }
+
+  const closeToml = () => {
+    setRuleTomlOpen(false)
+    setRuleTomlDraft(null)
+  }
+
+  const changeTomlDraft = (next: RuleLayerTomlSelection) => {
+    setRuleTomlDraft(next)
+  }
+
+  const saveLayerToml = async () => {
+    if (!ruleTomlDraft) return
+    try {
+      const updated = await updateRulePackageLayerToml({
+        ruleSetId: ruleTomlDraft.ruleSetId,
+        version: ruleTomlDraft.version,
+        layerId: ruleTomlDraft.layerId,
+        tomlText: ruleTomlDraft.tomlText,
+      })
+      setRulePackages(updated)
+      setRulePackageStatus(`已保存 ${ruleTomlDraft.fileName}`)
+      setErrorMessage(null)
+      setRuleTomlOpen(false)
+      setRuleTomlDraft(null)
+    } catch (error) {
+      const message = rulePackageErrorMessage(error, '保存 TOML 失败')
+      setErrorMessage(message)
+      setRulePackageStatus(`保存失败：${message}`)
+    }
+  }
+
   const removeRulePackage = async (ruleSetId: string, version: string) => {
     try {
       const updated = await deleteRulePackage(ruleSetId, version)
@@ -747,16 +794,29 @@ export default function App() {
     }
 
     // process 级 + flow 级 stage：产真实时延样本，每个 stage 只取第一对 start/end。
-    // flow 级聚合 stage（result 分支）天然互斥：同一请求只会命中其中一个结尾，另一个无 end 不产样本。
+    // 一个 stage 可配多个 end matcher（端侧日志可能丢失），命中任一即结束；
+    // flow 级聚合 stage（result 分支）仍按不同 stage 表达，天然互斥。
+    const endMatcherIdsOf = (stage: RuleRecordDto): string[] => {
+      const ids: string[] = []
+      if (stage.endMatcherId) ids.push(stage.endMatcherId)
+      for (const id of stage.endMatcherIds ?? []) {
+        if (id && !ids.includes(id)) ids.push(id)
+      }
+      return ids
+    }
+
     const stageSpecs: LatencyStageSpec[] = []
     for (const stage of enabledStages) {
       if (stage.kind === 'intercept') continue
       if (!stage.processId && !stage.flowId) continue
-      if (!stage.startMatcherId || !stage.endMatcherId) continue
+      if (!stage.startMatcherId) continue
       const start = toMarker(stage.startMatcherId)
-      const end = toMarker(stage.endMatcherId)
-      if (!start || !end) continue
-      stageSpecs.push({ id: stage.id, startPattern: start.pattern, endPattern: end.pattern, startMode: start.mode, endMode: end.mode })
+      if (!start) continue
+      const endMarkers = endMatcherIdsOf(stage)
+        .map(toMarker)
+        .filter((marker): marker is LogMarker => marker !== undefined)
+      if (endMarkers.length === 0) continue
+      stageSpecs.push({ id: stage.id, startPattern: start.pattern, startMode: start.mode, endMarkers })
     }
 
     if (!requestStart || stageSpecs.length === 0) {
@@ -879,6 +939,12 @@ export default function App() {
           onDeleteVersion={removeRulePackage}
           onDetailDraftChange={setRuleDetailDraft}
           onSaveNode={saveRuleDetail}
+          tomlOpen={ruleTomlOpen}
+          tomlDraft={ruleTomlDraft}
+          onOpenLayerToml={openLayerToml}
+          onCloseToml={closeToml}
+          onTomlDraftChange={changeTomlDraft}
+          onSaveToml={saveLayerToml}
         />
       ) : null}
 

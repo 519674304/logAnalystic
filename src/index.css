@@ -1680,6 +1680,45 @@ details:not([open]) > summary .tree-disclosure {
   width: min(820px, 100%);
 }
 
+.rule-toml-modal {
+  width: min(920px, 100%);
+}
+
+.rule-toml-textarea {
+  display: block;
+  width: 100%;
+  min-height: 60vh;
+  margin-top: 12px;
+  padding: 12px;
+  box-sizing: border-box;
+  border: 1px solid #d8dee8;
+  border-radius: 6px;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.55;
+  resize: vertical;
+  white-space: pre;
+  overflow: auto;
+}
+
+.layer-toml-edit-button {
+  margin-left: auto;
+  padding: 2px 8px;
+  border: 1px solid #d8dee8;
+  border-radius: 4px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.layer-toml-edit-button:hover {
+  background: #eef2f7;
+  border-color: #cbd5e1;
+}
+
 .rule-node-fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

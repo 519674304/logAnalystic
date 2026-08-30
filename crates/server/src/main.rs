@@ -3,11 +3,14 @@
 //! 安全边界（见 `docs/project/architecture/04-technical-architecture.md`）：
 //! 仅监听 127.0.0.1；开发期仅对 Vite dev（http://localhost:1420）开放 CORS。
 
-use std::sync::Arc;
+pub mod diagnostics;
+
+use std::{path::Path, sync::Arc, time::Instant};
 
 use axum::{
-    extract::State,
-    http::{HeaderValue, StatusCode},
+    extract::{Extension, Request, State},
+    http::{HeaderValue, Method, StatusCode},
+    middleware::{self, Next},
     response::{IntoResponse, Response},
     routing::{get, post},
     Json, Router,
@@ -15,7 +18,9 @@ use axum::{
 use log_core::application::log_workspace_service::LogWorkspaceService;
 use log_core::application::rule_set_service::RuleSetService;
 use log_core::domain::latency_analysis::result::LatencyAnalysis;
-use log_core::domain::latency_analysis::spec::{LatencyAnalysisSpec, Marker, MarkerMode, StageSpec};
+use log_core::domain::latency_analysis::spec::{
+    LatencyAnalysisSpec, Marker, MarkerMode, StageSpec,
+};
 use log_core::domain::log_workspace::port::{
     LogContextData, SearchCondition, SearchMode, SearchResult, TimeRange,
 };
@@ -23,6 +28,7 @@ use log_core::domain::log_workspace::workspace::Workspace;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tower_http::cors::{Any, CorsLayer};
+use uuid::Uuid;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const DEV_ORIGIN: &str = "http://localhost:1420";
@@ -44,6 +50,9 @@ struct AppState {
     service: Arc<LogWorkspaceService>,
     rule_service: Arc<RuleSetService>,
 }
+
+#[derive(Clone)]
+struct RequestId(String);
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -81,17 +90,15 @@ fn default_context_lines() -> usize {
     1
 }
 
-/// 前端扁平 stage 形状：`{ id, startPattern, endPattern, startMode?, endMode? }`。
+/// 前端扁平 stage 形状：`{ id, startPattern, startMode?, endMarkers }`。
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct StageSpecDto {
     id: String,
     start_pattern: String,
-    end_pattern: String,
     #[serde(default)]
     start_mode: Option<String>,
-    #[serde(default)]
-    end_mode: Option<String>,
+    end_markers: Vec<MarkerDto>,
 }
 
 /// 前端 marker 形状：`{ pattern, mode }`。
@@ -117,24 +124,44 @@ struct AnalyzeRequest {
     process_stages: Vec<StageSpecDto>,
 }
 
-fn parse_mode(mode: &str) -> MarkerMode {
+fn parse_mode_with_fallback(mode: &str) -> (MarkerMode, bool) {
     match mode {
-        "regex" => MarkerMode::Regex,
-        _ => MarkerMode::Keyword,
+        "regex" => (MarkerMode::Regex, false),
+        "keyword" => (MarkerMode::Keyword, false),
+        _ => (MarkerMode::Keyword, true),
     }
 }
 
-fn to_marker(dto: &MarkerDto) -> Marker {
+fn log_mode_fallback(request_id: &str, operation: &str, mode: &str) {
+    tracing::warn!(
+        requestId = request_id,
+        operation,
+        suppliedModeLength = mode.len(),
+        recovery = "keyword",
+        "request.mode_fallback"
+    );
+}
+
+fn to_marker(dto: &MarkerDto, request_id: &str, operation: &str) -> Marker {
+    let (mode, fell_back) = parse_mode_with_fallback(&dto.mode);
+    if fell_back {
+        log_mode_fallback(request_id, operation, &dto.mode);
+    }
     Marker {
         pattern: dto.pattern.clone(),
-        mode: parse_mode(&dto.mode),
+        mode,
     }
 }
 
-fn to_spec(req: &AnalyzeRequest) -> LatencyAnalysisSpec {
+fn to_spec(req: &AnalyzeRequest, request_id: &str) -> LatencyAnalysisSpec {
+    const OPERATION: &str = "latency.analyze";
     LatencyAnalysisSpec {
-        request_start: to_marker(&req.request_start),
-        intercept_ends: req.intercept_ends.iter().map(to_marker).collect(),
+        request_start: to_marker(&req.request_start, request_id, OPERATION),
+        intercept_ends: req
+            .intercept_ends
+            .iter()
+            .map(|marker| to_marker(marker, request_id, OPERATION))
+            .collect(),
         process_stages: req
             .process_stages
             .iter()
@@ -142,18 +169,92 @@ fn to_spec(req: &AnalyzeRequest) -> LatencyAnalysisSpec {
                 id: s.id.clone(),
                 start: Marker {
                     pattern: s.start_pattern.clone(),
-                    mode: parse_mode(s.start_mode.as_deref().unwrap_or("keyword")),
+                    mode: marker_mode(
+                        s.start_mode.as_deref().unwrap_or("keyword"),
+                        request_id,
+                        OPERATION,
+                    ),
                 },
-                end: Marker {
-                    pattern: s.end_pattern.clone(),
-                    mode: parse_mode(s.end_mode.as_deref().unwrap_or("keyword")),
-                },
+                ends: s
+                    .end_markers
+                    .iter()
+                    .map(|marker| to_marker(marker, request_id, OPERATION))
+                    .collect(),
             })
             .collect(),
     }
 }
 
-async fn health() -> Json<Health> {
+fn marker_mode(mode: &str, request_id: &str, operation: &str) -> MarkerMode {
+    let (marker_mode, fell_back) = parse_mode_with_fallback(mode);
+    if fell_back {
+        log_mode_fallback(request_id, operation, mode);
+    }
+    marker_mode
+}
+
+fn failure_category(_error: &str) -> &'static str {
+    "service_error"
+}
+
+fn log_started(request_id: &str, operation: &str) {
+    tracing::info!(requestId = request_id, operation, "{operation}.started");
+}
+
+fn log_completed(request_id: &str, operation: &str, started_at: Instant) {
+    tracing::info!(
+        requestId = request_id,
+        operation,
+        durationMs = started_at.elapsed().as_millis() as u64,
+        "{operation}.completed"
+    );
+}
+
+fn log_failed_response(request_id: &str, operation: &str) {
+    tracing::error!(
+        requestId = request_id,
+        operation,
+        retryable = true,
+        failureCategory = failure_category(""),
+        "{operation}.failed"
+    );
+}
+
+fn operation_for(method: &Method, path: &str) -> &'static str {
+    match (method, path) {
+        (&Method::GET, "/health") => "health",
+        (&Method::POST, "/api/open") => "workspace.open",
+        (&Method::POST, "/api/search") => "workspace.search",
+        (&Method::POST, "/api/context") => "workspace.context",
+        (&Method::POST, "/api/latency/analyze") => "latency.analyze",
+        (&Method::GET, "/api/rule-config") => "rule.list",
+        (&Method::PUT, "/api/rule-config") => "rule.save",
+        _ => "http.request",
+    }
+}
+
+async fn request_diagnostics(mut request: Request, next: Next) -> Response {
+    let request_id = RequestId(Uuid::new_v4().to_string());
+    let operation = operation_for(request.method(), request.uri().path());
+    let started_at = Instant::now();
+    request.extensions_mut().insert(request_id.clone());
+    log_started(&request_id.0, operation);
+
+    let response = next.run(request).await;
+    if response.status().is_client_error() || response.status().is_server_error() {
+        log_failed_response(&request_id.0, operation);
+    } else {
+        log_completed(&request_id.0, operation, started_at);
+    }
+    response
+}
+
+async fn health(Extension(request_id): Extension<RequestId>) -> Json<Health> {
+    tracing::info!(
+        requestId = request_id.0,
+        operation = "health",
+        "health.response"
+    );
     Json(Health {
         status: "ok",
         version: VERSION,
@@ -162,18 +263,37 @@ async fn health() -> Json<Health> {
 
 async fn open(
     State(state): State<AppState>,
+    Extension(request_id): Extension<RequestId>,
     Json(req): Json<OpenRequest>,
 ) -> Result<Json<Workspace>, ApiError> {
-    state.service.open(&req.path).map(Json).map_err(ApiError)
+    let operation = "workspace.open";
+    match state.service.open(&req.path) {
+        Ok(workspace) => {
+            tracing::info!(
+                requestId = request_id.0,
+                operation,
+                workspaceFileCount = workspace.summary.file_count,
+                "{operation}.response"
+            );
+            Ok(Json(workspace))
+        }
+        Err(error) => Err(ApiError(error)),
+    }
 }
 
 async fn search(
     State(state): State<AppState>,
+    Extension(request_id): Extension<RequestId>,
     Json(req): Json<SearchRequest>,
 ) -> Result<Json<SearchResult>, ApiError> {
-    let mode = match req.mode.as_str() {
-        "regex" => SearchMode::Regex,
-        _ => SearchMode::Keyword,
+    let operation = "workspace.search";
+    let (marker_mode, fell_back) = parse_mode_with_fallback(&req.mode);
+    if fell_back {
+        log_mode_fallback(&request_id.0, operation, &req.mode);
+    }
+    let mode = match marker_mode {
+        MarkerMode::Regex => SearchMode::Regex,
+        MarkerMode::Keyword => SearchMode::Keyword,
     };
     let cond = SearchCondition {
         query: req.query,
@@ -184,89 +304,194 @@ async fn search(
         start: req.start_time,
         end: req.end_time,
     };
-    state
+    match state
         .service
         .search(&req.path, &cond, &range, req.context_lines)
-        .map(Json)
-        .map_err(ApiError)
+    {
+        Ok(result) => {
+            tracing::info!(
+                requestId = request_id.0,
+                operation,
+                searchMode = ?mode,
+                queryLength = cond.query.len(),
+                contextLineCount = req.context_lines,
+                resultCount = result.total_matches,
+                "{operation}.response"
+            );
+            Ok(Json(result))
+        }
+        Err(error) => Err(ApiError(error)),
+    }
 }
 
 async fn context(
     State(state): State<AppState>,
+    Extension(request_id): Extension<RequestId>,
     Json(req): Json<ContextRequest>,
 ) -> Result<Json<LogContextData>, ApiError> {
-    state
+    let operation = "workspace.context";
+    match state
         .service
         .read_context(&req.file_path, req.line_number, req.context_lines)
-        .map(Json)
-        .map_err(ApiError)
+    {
+        Ok(context) => {
+            tracing::info!(
+                requestId = request_id.0,
+                operation,
+                contextLineCount = req.context_lines,
+                "{operation}.response"
+            );
+            Ok(Json(context))
+        }
+        Err(error) => Err(ApiError(error)),
+    }
 }
 
 async fn latency_analyze(
     State(state): State<AppState>,
+    Extension(request_id): Extension<RequestId>,
     Json(req): Json<AnalyzeRequest>,
 ) -> Result<Json<LatencyAnalysis>, ApiError> {
-    let spec = to_spec(&req);
+    let operation = "latency.analyze";
+    let spec = to_spec(&req, &request_id.0);
     let range = TimeRange {
         start: req.start_time,
         end: req.end_time,
     };
-    state
-        .service
-        .analyze(&req.path, &range, &spec)
-        .map(Json)
-        .map_err(ApiError)
+    match state.service.analyze(&req.path, &range, &spec) {
+        Ok(analysis) => {
+            tracing::info!(
+                requestId = request_id.0,
+                operation,
+                latencyRequestCount = analysis.requests.len(),
+                "{operation}.response"
+            );
+            Ok(Json(analysis))
+        }
+        Err(error) => Err(ApiError(error)),
+    }
 }
 
-async fn get_rule_config(State(state): State<AppState>) -> Result<Json<Value>, ApiError> {
-    state.rule_service.list().map(Json).map_err(ApiError)
+async fn get_rule_config(
+    State(state): State<AppState>,
+    Extension(request_id): Extension<RequestId>,
+) -> Result<Json<Value>, ApiError> {
+    let operation = "rule.list";
+    match state.rule_service.list() {
+        Ok(rules) => {
+            tracing::info!(
+                requestId = request_id.0,
+                operation,
+                ruleCount = value_count(&rules),
+                "{operation}.response"
+            );
+            Ok(Json(rules))
+        }
+        Err(error) => Err(ApiError(error)),
+    }
 }
 
 async fn put_rule_config(
     State(state): State<AppState>,
+    Extension(request_id): Extension<RequestId>,
     Json(body): Json<Value>,
 ) -> Result<Json<Value>, ApiError> {
-    state.rule_service.save(&body).map(|_| Json(body)).map_err(ApiError)
-}
-
-struct ApiError(String);
-
-impl IntoResponse for ApiError {
-    fn into_response(self) -> Response {
-        (
-            StatusCode::BAD_REQUEST,
-            Json(ErrorBody { error: self.0 }),
-        )
-            .into_response()
+    let operation = "rule.save";
+    match state.rule_service.save(&body) {
+        Ok(()) => {
+            tracing::info!(requestId = request_id.0, operation, "{operation}.response");
+            Ok(Json(body))
+        }
+        Err(error) => Err(ApiError(error)),
     }
 }
 
-#[tokio::main]
-async fn main() {
+fn value_count(value: &Value) -> usize {
+    match value {
+        Value::Array(items) => items.len(),
+        Value::Object(items) => items.len(),
+        _ => 0,
+    }
+}
+
+fn app_with_state(state: AppState) -> Router {
     let dev_origin: HeaderValue = DEV_ORIGIN.parse().expect("valid dev origin");
     let cors = CorsLayer::new()
         .allow_origin(dev_origin)
         .allow_methods(Any)
         .allow_headers(Any);
 
-    let state = AppState {
-        service: Arc::new(LogWorkspaceService::new()),
-        rule_service: Arc::new(RuleSetService::new()),
-    };
-
-    let app = Router::new()
+    Router::new()
         .route("/health", get(health))
         .route("/api/open", post(open))
         .route("/api/search", post(search))
         .route("/api/context", post(context))
         .route("/api/latency/analyze", post(latency_analyze))
-        .route("/api/rule-config", get(get_rule_config).put(put_rule_config))
+        .route(
+            "/api/rule-config",
+            get(get_rule_config).put(put_rule_config),
+        )
         .layer(cors)
-        .with_state(state);
+        .layer(middleware::from_fn(request_diagnostics))
+        .with_state(state)
+}
+
+pub fn app() -> Router {
+    app_with_state(AppState {
+        service: Arc::new(LogWorkspaceService::new()),
+        rule_service: Arc::new(RuleSetService::new()),
+    })
+}
+
+struct ApiError(String);
+
+impl IntoResponse for ApiError {
+    fn into_response(self) -> Response {
+        (StatusCode::BAD_REQUEST, Json(ErrorBody { error: self.0 })).into_response()
+    }
+}
+
+#[tokio::main]
+async fn main() {
+    let log_dir = Path::new("app-data/logs");
+    let _diagnostics_guard = diagnostics::init(log_dir).expect("initialize diagnostics");
+    tracing::info!(listenAddress = LISTEN_ADDR, "server.started");
+
+    let app = app();
 
     let listener = tokio::net::TcpListener::bind(LISTEN_ADDR)
         .await
         .expect("bind 127.0.0.1:8080");
     println!("server listening on http://{LISTEN_ADDR}");
     axum::serve(listener, app).await.expect("server run");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{failure_category, parse_mode_with_fallback};
+    use log_core::domain::latency_analysis::spec::MarkerMode;
+
+    #[test]
+    fn request_event_regex_mode_does_not_fallback() {
+        assert_eq!(
+            parse_mode_with_fallback("regex"),
+            (MarkerMode::Regex, false)
+        );
+    }
+
+    #[test]
+    fn request_event_unknown_mode_falls_back_to_keyword() {
+        assert_eq!(
+            parse_mode_with_fallback("unexpected-mode"),
+            (MarkerMode::Keyword, true)
+        );
+    }
+
+    #[test]
+    fn request_event_failure_category_omits_sensitive_error_text() {
+        assert_eq!(
+            failure_category("token=DO_NOT_LOG path=C:\\secret query=needle"),
+            "service_error"
+        );
+    }
 }

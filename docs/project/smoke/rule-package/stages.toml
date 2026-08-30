@@ -111,17 +111,20 @@ end_matcher_id = "LOG-ALL-COMPLETED"
 
 # ============ PROCESS-B-WORKER（owner = process，APP-B）============
 
+# 普通 stage 多 end 演示：end_matcher_ids 配两个冗余结束 matcher，命中任一即闭合。
+# 第 4 个请求（fixture 里）只输出「subprocess finished」，缺失「subprocess completed」，
+# 验证端侧日志丢失时该 stage 仍能正确闭合（命中 LOG-SUBPROCESS-FINISHED）。
 [[stages]]
 id = "STAGE-B"
 name = "B 子进程处理"
-business_meaning = "子进程收到请求到处理完成的耗时。"
+business_meaning = "子进程收到请求到处理完成的耗时；结束事件有两个冗余 matcher，命中其一即闭合。"
 enabled = true
 export_enabled = true
 applicable_scenario_ids = ["SCENARIO-SMOKE"]
 process_id = "PROCESS-B-WORKER"
 order = 1
 start_matcher_id = "LOG-SUBPROCESS-RECEIVED"
-end_matcher_id = "LOG-SUBPROCESS-COMPLETED"
+end_matcher_ids = ["LOG-SUBPROCESS-COMPLETED", "LOG-SUBPROCESS-FINISHED"]
 
 # ============ PROCESS-D-WORKER（owner = process，APP-D）============
 
