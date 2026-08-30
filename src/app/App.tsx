@@ -832,6 +832,8 @@ export default function App() {
     writePersistedMatcherIds([])
     setLatencyAnalysis(null)
     setLatencyAnalysisMessage(next ? `已切换生效版本：${next.ruleSetId} ${next.version}` : '已取消生效版本')
+    setHealthReport(null)
+    setHealthMessage('等待体检')
   }
 
   const changeScenario = (nextId: string) => {
@@ -839,6 +841,8 @@ export default function App() {
     window.localStorage.setItem(activeScenarioStorageKey, nextId)
     setLatencyAnalysis(null)
     setLatencyAnalysisMessage(`已切换场景：${nextId}`)
+    setHealthReport(null)
+    setHealthMessage('等待体检')
   }
 
   const runLatencyAnalysis = async () => {
@@ -890,18 +894,19 @@ export default function App() {
     }
     rememberFolder(logFolderPath)
 
+    const errorFilters: LogMarker[] = scenarioRules
+      .filter((rule) => rule.enabled && rule.recordType === 'matcher' && rule.matcherRole === 'error' && !!rule.pattern)
+      .map((rule) => ({ pattern: rule.pattern, mode: rule.matchType === 'regex' ? 'regex' : 'keyword' }))
+    const stageThresholds = scenarioRules
+      .filter((rule) => rule.enabled && rule.recordType === 'stage' && rule.thresholdMs != null)
+      .map((rule) => ({ stageId: rule.id, thresholdMs: rule.thresholdMs as number }))
+
     const { requestStarts, interceptEnds, stageSpecs } = buildLatencySpecProjection(scenarioRules)
-    if (requestStarts.length === 0 || stageSpecs.length === 0) {
+    // 仅当配置了慢阈值时才要求时延投影可用；仅错误过滤器（或两者皆无）仍可体检。
+    if (stageThresholds.length > 0 && (requestStarts.length === 0 || stageSpecs.length === 0)) {
       setHealthMessage('未找到 flow 级请求拆分点或 stage 规则')
       return
     }
-
-    const errorFilters: LogMarker[] = scenarioRules
-      .filter((rule) => rule.recordType === 'matcher' && rule.matcherRole === 'error' && !!rule.pattern)
-      .map((rule) => ({ pattern: rule.pattern, mode: rule.matchType === 'regex' ? 'regex' : 'keyword' }))
-    const stageThresholds = scenarioRules
-      .filter((rule) => rule.recordType === 'stage' && rule.thresholdMs != null)
-      .map((rule) => ({ stageId: rule.id, thresholdMs: rule.thresholdMs as number }))
 
     const { startTime, endTime } = parseTimeRange(queryDraft.timeRange)
     setHealthMessage('正在体检…')
