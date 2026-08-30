@@ -4,7 +4,8 @@ import AppShell, { type WorkbenchTab } from '../components/layout/AppShell'
 import LogSearchPanel from '../features/log-search/LogSearchPanel'
 import RuleCatalogPanel, { type RuleLayerTomlSelection, type RuleLayerTomlTarget, type RuleNodeSelection } from '../features/rule-config/RuleCatalogPanel'
 import LatencyAnalysisPanel from '../features/latency-analysis/LatencyAnalysisPanel'
-import { issueRules, latencyResult } from './app-state'
+import HealthCheckPanel from '../features/health-check/HealthCheckPanel'
+import { latencyResult } from './app-state'
 import {
   deleteRulePackage,
   deleteSavedQuery,
@@ -20,6 +21,7 @@ import {
 import { serializeLayerToToml } from '../api/local-rule-package'
 import { searchLogs } from '../api/http-client'
 import { analyzeLatencyStream, type LatencyAnalysis, type LatencyStageSpec, type LogMarker } from '../api/latency-analysis-client'
+import { analyzeHealthCheck, type HealthReport } from '../api/health-check-client'
 import type {
   ActiveRuleVersionDto,
   LogSearchRequestDto,
@@ -236,6 +238,81 @@ function filterRulesByScenario(rules: RuleRecordDto[], scenarioId: string | null
   return rules.filter((rule) => rule.scenarios.length === 0 || rule.scenarios.includes(scenarioId))
 }
 
+type LatencySpecProjection = {
+  requestStarts: LogMarker[]
+  interceptEnds: LogMarker[]
+  stageSpecs: LatencyStageSpec[]
+}
+
+function buildLatencySpecProjection(rules: RuleRecordDto[]): LatencySpecProjection {
+  const matchers = new Map(
+    rules.filter((rule) => rule.recordType === 'matcher').map((rule) => [rule.id, rule] as const),
+  )
+  const enabledStages = rules.filter((rule) => rule.enabled && rule.recordType === 'stage')
+  const toMarker = (id: string): LogMarker | undefined => {
+    const matcher = matchers.get(id)
+    return matcher?.pattern
+      ? { pattern: matcher.pattern, mode: matcher.matchType === 'regex' ? 'regex' : 'keyword' }
+      : undefined
+  }
+
+  // start/end 均支持多个 matcher：把单个 id（简写）与数组 id 合并去重。
+  const startMatcherIdsOf = (stage: RuleRecordDto): string[] => {
+    const ids: string[] = []
+    if (stage.startMatcherId) ids.push(stage.startMatcherId)
+    for (const id of stage.startMatcherIds ?? []) {
+      if (id && !ids.includes(id)) ids.push(id)
+    }
+    return ids
+  }
+  const endMatcherIdsOf = (stage: RuleRecordDto): string[] => {
+    const ids: string[] = []
+    if (stage.endMatcherId) ids.push(stage.endMatcherId)
+    for (const id of stage.endMatcherIds ?? []) {
+      if (id && !ids.includes(id)) ids.push(id)
+    }
+    return ids
+  }
+
+  // 拆分点：flow 级 order=1 聚合分支（非拦截）的起点 matcher。
+  const requestStartStage = enabledStages.find(
+    (stage) => stage.flowId && stage.order === 1 && stage.kind !== 'intercept' && startMatcherIdsOf(stage).length > 0,
+  )
+  const requestStarts = requestStartStage
+    ? startMatcherIdsOf(requestStartStage)
+        .map(toMarker)
+        .filter((marker): marker is LogMarker => marker !== undefined)
+    : []
+
+  // 拦截 ends：kind=intercept 的 end_matcher_ids 逐条展开。
+  const interceptEnds: LogMarker[] = []
+  for (const stage of enabledStages) {
+    if (stage.kind !== 'intercept' || !stage.endMatcherIds) continue
+    for (const id of stage.endMatcherIds) {
+      const marker = toMarker(id)
+      if (marker) interceptEnds.push(marker)
+    }
+  }
+
+  // process 级 + flow 级 stage：产真实时延样本，每个 stage 只取第一对 start/end。
+  const stageSpecs: LatencyStageSpec[] = []
+  for (const stage of enabledStages) {
+    if (stage.kind === 'intercept') continue
+    if (!stage.processId && !stage.flowId) continue
+    const startMarkers = startMatcherIdsOf(stage)
+      .map(toMarker)
+      .filter((marker): marker is LogMarker => marker !== undefined)
+    if (startMarkers.length === 0) continue
+    const endMarkers = endMatcherIdsOf(stage)
+      .map(toMarker)
+      .filter((marker): marker is LogMarker => marker !== undefined)
+    if (endMarkers.length === 0) continue
+    stageSpecs.push({ id: stage.id, startMarkers, endMarkers })
+  }
+
+  return { requestStarts, interceptEnds, stageSpecs }
+}
+
 function csvCell(value: string | number | undefined) {
   const text = String(value ?? '')
   return `"${text.replace(/"/g, '""')}"`
@@ -325,6 +402,8 @@ export default function App() {
   const [latencyAnalysisRunId, setLatencyAnalysisRunId] = useState(0)
   const [latencyAnalysisMessage, setLatencyAnalysisMessage] = useState('等待分析')
   const [latencyAnalysis, setLatencyAnalysis] = useState<LatencyAnalysis | null>(null)
+  const [healthReport, setHealthReport] = useState<HealthReport | null>(null)
+  const [healthMessage, setHealthMessage] = useState('等待体检')
   const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(() => readActiveScenario())
   const rules = useMemo(() => projectRuleRecords(rulePackages, activeRuleVersion), [rulePackages, activeRuleVersion])
   const matcherRecords = useMemo(() => rules.filter((rule) => rule.recordType === 'matcher'), [rules])
@@ -342,6 +421,15 @@ export default function App() {
     return scenarios.some((scenario) => scenario.id === selectedScenarioId) ? selectedScenarioId : scenarios[0].id
   }, [scenarios, selectedScenarioId])
   const scenarioRules = useMemo(() => filterRulesByScenario(rules, effectiveScenarioId), [rules, effectiveScenarioId])
+  const stageNameById = useMemo(
+    () =>
+      new Map(
+        scenarioRules
+          .filter((rule) => rule.recordType === 'stage')
+          .map((rule) => [rule.id, rule.description || rule.name] as const),
+      ),
+    [scenarioRules],
+  )
   const latencyViewModel = useMemo(
     () =>
       latencyAnalysis
@@ -769,75 +857,7 @@ export default function App() {
     }
     rememberFolder(logFolderPath)
 
-    const matchers = new Map(
-      scenarioRules
-        .filter((rule) => rule.recordType === 'matcher')
-        .map((rule) => [rule.id, rule] as const),
-    )
-    const enabledStages = scenarioRules.filter((rule) => rule.enabled && rule.recordType === 'stage')
-    const toMarker = (id: string): LogMarker | undefined => {
-      const matcher = matchers.get(id)
-      return matcher?.pattern
-        ? { pattern: matcher.pattern, mode: matcher.matchType === 'regex' ? 'regex' : 'keyword' }
-        : undefined
-    }
-
-    // start/end 均支持多个 matcher：把单个 id（简写）与数组 id 合并去重，
-    // 保持「单个在前、数组在后」的书写顺序，作为数组顺序优先的判据。
-    const startMatcherIdsOf = (stage: RuleRecordDto): string[] => {
-      const ids: string[] = []
-      if (stage.startMatcherId) ids.push(stage.startMatcherId)
-      for (const id of stage.startMatcherIds ?? []) {
-        if (id && !ids.includes(id)) ids.push(id)
-      }
-      return ids
-    }
-    const endMatcherIdsOf = (stage: RuleRecordDto): string[] => {
-      const ids: string[] = []
-      if (stage.endMatcherId) ids.push(stage.endMatcherId)
-      for (const id of stage.endMatcherIds ?? []) {
-        if (id && !ids.includes(id)) ids.push(id)
-      }
-      return ids
-    }
-
-    // 拆分点：flow 级 order=1 聚合分支（非拦截）的起点 matcher。
-    // start 支持多个 matcher，任一命中即压栈开新请求。
-    const requestStartStage = enabledStages.find(
-      (stage) => stage.flowId && stage.order === 1 && stage.kind !== 'intercept' && startMatcherIdsOf(stage).length > 0,
-    )
-    const requestStarts = requestStartStage
-      ? startMatcherIdsOf(requestStartStage)
-          .map(toMarker)
-          .filter((marker): marker is LogMarker => marker !== undefined)
-      : []
-
-    // 拦截 ends：kind=intercept 的 end_matcher_ids 逐条展开。
-    const interceptEnds: LogMarker[] = []
-    for (const stage of enabledStages) {
-      if (stage.kind !== 'intercept' || !stage.endMatcherIds) continue
-      for (const id of stage.endMatcherIds) {
-        const marker = toMarker(id)
-        if (marker) interceptEnds.push(marker)
-      }
-    }
-
-    // process 级 + flow 级 stage：产真实时延样本，每个 stage 只取第一对 start/end。
-    // start 与 end 均支持多个 matcher（端侧日志可能丢失），按数组顺序优先（首个命中的决定起止）。
-    const stageSpecs: LatencyStageSpec[] = []
-    for (const stage of enabledStages) {
-      if (stage.kind === 'intercept') continue
-      if (!stage.processId && !stage.flowId) continue
-      const startMarkers = startMatcherIdsOf(stage)
-        .map(toMarker)
-        .filter((marker): marker is LogMarker => marker !== undefined)
-      if (startMarkers.length === 0) continue
-      const endMarkers = endMatcherIdsOf(stage)
-        .map(toMarker)
-        .filter((marker): marker is LogMarker => marker !== undefined)
-      if (endMarkers.length === 0) continue
-      stageSpecs.push({ id: stage.id, startMarkers, endMarkers })
-    }
+    const { requestStarts, interceptEnds, stageSpecs } = buildLatencySpecProjection(scenarioRules)
 
     if (requestStarts.length === 0 || stageSpecs.length === 0) {
       setLatencyAnalysisMessage('未找到 flow 级请求拆分点或 stage 规则')
@@ -852,6 +872,49 @@ export default function App() {
       setLatencyAnalysisMessage(`已分析 ${result.requests.length} 个请求 · ${result.stats.sampleCount} 个阶段样本`)
     } catch (error) {
       setLatencyAnalysisMessage(`分析失败：${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+
+  const runHealthCheck = async () => {
+    const activeExists =
+      activeRuleVersion !== null &&
+      rulePackages.some((item) => item.ruleSetId === activeRuleVersion.ruleSetId && item.version === activeRuleVersion.version)
+
+    if (!activeExists) {
+      setHealthMessage('请先在规则配置页设置生效版本')
+      return
+    }
+    if (!logFolderPath.trim()) {
+      setHealthMessage('请先选择日志文件夹')
+      return
+    }
+    rememberFolder(logFolderPath)
+
+    const { requestStarts, interceptEnds, stageSpecs } = buildLatencySpecProjection(scenarioRules)
+    if (requestStarts.length === 0 || stageSpecs.length === 0) {
+      setHealthMessage('未找到 flow 级请求拆分点或 stage 规则')
+      return
+    }
+
+    const errorFilters: LogMarker[] = scenarioRules
+      .filter((rule) => rule.recordType === 'matcher' && rule.matcherRole === 'error' && !!rule.pattern)
+      .map((rule) => ({ pattern: rule.pattern, mode: rule.matchType === 'regex' ? 'regex' : 'keyword' }))
+    const stageThresholds = scenarioRules
+      .filter((rule) => rule.recordType === 'stage' && rule.thresholdMs != null)
+      .map((rule) => ({ stageId: rule.id, thresholdMs: rule.thresholdMs as number }))
+
+    const { startTime, endTime } = parseTimeRange(queryDraft.timeRange)
+    setHealthMessage('正在体检…')
+    try {
+      const report = await analyzeHealthCheck(
+        logFolderPath,
+        { errorFilters, requestStarts, interceptEnds, processStages: stageSpecs, stageThresholds },
+        { startTime, endTime },
+      )
+      setHealthReport(report)
+      setHealthMessage(`体检完成：${report.summary.errorCount} 条异常 · ${report.summary.slowRequestCount} 个慢请求`)
+    } catch (error) {
+      setHealthMessage(`体检失败：${error instanceof Error ? error.message : String(error)}`)
     }
   }
 
@@ -969,23 +1032,12 @@ export default function App() {
       ) : null}
 
       {activeTabId === 'issue-tips' ? (
-        <section className="panel">
-          <div className="panel-title-row">
-            <h2>问题提示</h2>
-            <span>按提示 / 警告 / 异常分类</span>
-          </div>
-          <div className="rule-list">
-            {issueRules.map((rule) => (
-              <div key={rule.id} className="rule-item">
-                <div className="rule-head">
-                  <strong>{rule.pattern}</strong>
-                  <span className={`severity ${rule.severity.toLowerCase()}`}>{rule.severity}</span>
-                </div>
-                <p>{rule.explanation}</p>
-              </div>
-            ))}
-          </div>
-        </section>
+        <HealthCheckPanel
+          report={healthReport}
+          message={healthMessage}
+          stageNameById={stageNameById}
+          onCheck={() => void runHealthCheck()}
+        />
       ) : null}
     </AppShell>
   )
