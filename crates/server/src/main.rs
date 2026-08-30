@@ -140,6 +140,7 @@ struct HealthCheckRequest {
     request_starts: Vec<MarkerDto>,
     #[serde(default)]
     intercept_ends: Vec<MarkerDto>,
+    #[serde(default)]
     process_stages: Vec<StageSpecDto>,
     #[serde(default)]
     stage_thresholds: Vec<StageThresholdDto>,
