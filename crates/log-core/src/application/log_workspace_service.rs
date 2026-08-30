@@ -1,3 +1,6 @@
+use crate::domain::health_check::analyzer::HealthCheckAnalyzer;
+use crate::domain::health_check::result::HealthReport;
+use crate::domain::health_check::spec::HealthCheckSpec;
 use crate::domain::latency_analysis::analyzer::LatencyAnalyzer;
 use crate::domain::latency_analysis::result::LatencyAnalysis;
 use crate::domain::latency_analysis::spec::LatencyAnalysisSpec;
@@ -64,6 +67,17 @@ impl LogWorkspaceService {
         )?;
         let requests = splitter.split(&entries);
         LatencyAnalyzer::analyze(&spec.process_stages, &requests)
+    }
+
+    /// 健康体检：读一次条目，复用拆分与时延分析，产出错误清单 + 慢请求清单。
+    pub fn health_check(
+        &self,
+        dir: &str,
+        range: &TimeRange,
+        spec: &HealthCheckSpec,
+    ) -> Result<HealthReport, String> {
+        let entries = self.source.entries(dir, range)?;
+        HealthCheckAnalyzer::check(spec, &entries)
     }
 }
 

@@ -17,6 +17,8 @@ use axum::{
 };
 use log_core::application::log_workspace_service::LogWorkspaceService;
 use log_core::application::rule_set_service::RuleSetService;
+use log_core::domain::health_check::result::HealthReport;
+use log_core::domain::health_check::spec::{HealthCheckSpec, StageThreshold};
 use log_core::domain::latency_analysis::result::LatencyAnalysis;
 use log_core::domain::latency_analysis::spec::{
     LatencyAnalysisSpec, Marker, MarkerMode, StageSpec,
@@ -123,6 +125,34 @@ struct AnalyzeRequest {
     process_stages: Vec<StageSpecDto>,
 }
 
+/// 前端 `HealthCheckSpec` 形状。
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct HealthCheckRequest {
+    path: String,
+    #[serde(default)]
+    start_time: Option<String>,
+    #[serde(default)]
+    end_time: Option<String>,
+    #[serde(default)]
+    error_filters: Vec<MarkerDto>,
+    #[serde(default)]
+    request_starts: Vec<MarkerDto>,
+    #[serde(default)]
+    intercept_ends: Vec<MarkerDto>,
+    process_stages: Vec<StageSpecDto>,
+    #[serde(default)]
+    stage_thresholds: Vec<StageThresholdDto>,
+}
+
+/// 前端 `StageThreshold` 形状。
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct StageThresholdDto {
+    stage_id: String,
+    threshold_ms: i64,
+}
+
 fn parse_mode_with_fallback(mode: &str) -> (MarkerMode, bool) {
     match mode {
         "regex" => (MarkerMode::Regex, false),
@@ -185,6 +215,54 @@ fn to_spec(req: &AnalyzeRequest, request_id: &str) -> LatencyAnalysisSpec {
     }
 }
 
+fn to_health_spec(req: &HealthCheckRequest, request_id: &str) -> HealthCheckSpec {
+    const OPERATION: &str = "health.check";
+    HealthCheckSpec {
+        error_filters: req
+            .error_filters
+            .iter()
+            .map(|marker| to_marker(marker, request_id, OPERATION))
+            .collect(),
+        latency: LatencyAnalysisSpec {
+            request_starts: req
+                .request_starts
+                .iter()
+                .map(|marker| to_marker(marker, request_id, OPERATION))
+                .collect(),
+            intercept_ends: req
+                .intercept_ends
+                .iter()
+                .map(|marker| to_marker(marker, request_id, OPERATION))
+                .collect(),
+            process_stages: req
+                .process_stages
+                .iter()
+                .map(|s| StageSpec {
+                    id: s.id.clone(),
+                    starts: s
+                        .start_markers
+                        .iter()
+                        .map(|marker| to_marker(marker, request_id, OPERATION))
+                        .collect(),
+                    ends: s
+                        .end_markers
+                        .iter()
+                        .map(|marker| to_marker(marker, request_id, OPERATION))
+                        .collect(),
+                })
+                .collect(),
+        },
+        stage_thresholds: req
+            .stage_thresholds
+            .iter()
+            .map(|t| StageThreshold {
+                stage_id: t.stage_id.clone(),
+                threshold_ms: t.threshold_ms,
+            })
+            .collect(),
+    }
+}
+
 fn failure_category(_error: &str) -> &'static str {
     "service_error"
 }
@@ -219,6 +297,7 @@ fn operation_for(method: &Method, path: &str) -> &'static str {
         (&Method::POST, "/api/search") => "workspace.search",
         (&Method::POST, "/api/context") => "workspace.context",
         (&Method::POST, "/api/latency/analyze") => "latency.analyze",
+        (&Method::POST, "/api/health/check") => "health.check",
         (&Method::GET, "/api/rule-config") => "rule.list",
         (&Method::PUT, "/api/rule-config") => "rule.save",
         _ => "http.request",
@@ -364,6 +443,34 @@ async fn latency_analyze(
     }
 }
 
+async fn health_check(
+    State(state): State<AppState>,
+    Extension(request_id): Extension<RequestId>,
+    Json(req): Json<HealthCheckRequest>,
+) -> Result<Json<HealthReport>, ApiError> {
+    let operation = "health.check";
+    let spec = to_health_spec(&req, &request_id.0);
+    let range = TimeRange {
+        start: req.start_time,
+        end: req.end_time,
+    };
+    match state.service.health_check(&req.path, &range, &spec) {
+        Ok(report) => {
+            tracing::info!(
+                requestId = request_id.0,
+                operation,
+                errorFilterCount = spec.error_filters.len(),
+                stageThresholdCount = spec.stage_thresholds.len(),
+                errorCount = report.summary.error_count,
+                slowRequestCount = report.summary.slow_request_count,
+                "{operation}.response"
+            );
+            Ok(Json(report))
+        }
+        Err(error) => Err(ApiError(error)),
+    }
+}
+
 async fn get_rule_config(
     State(state): State<AppState>,
     Extension(request_id): Extension<RequestId>,
@@ -419,6 +526,7 @@ fn app_with_state(state: AppState) -> Router {
         .route("/api/search", post(search))
         .route("/api/context", post(context))
         .route("/api/latency/analyze", post(latency_analyze))
+        .route("/api/health/check", post(health_check))
         .route(
             "/api/rule-config",
             get(get_rule_config).put(put_rule_config),
