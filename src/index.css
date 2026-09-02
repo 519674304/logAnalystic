@@ -104,6 +104,56 @@ button {
   font-size: 11px;
 }
 
+.subtab {
+  display: inline-flex;
+  gap: 4px;
+  background: #f1f5f9;
+  border-radius: 6px;
+  padding: 3px;
+}
+
+.subtab button {
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #4b5563;
+  padding: 5px 14px;
+  font-size: 13px;
+}
+
+.subtab button.active {
+  background: #ffffff;
+  color: #0f172a;
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.health-check-page {
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.health-check-scroll {
+  min-height: 0;
+  overflow: auto;
+}
+
+.specialist-workbench {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+  gap: 10px;
+  overflow: hidden;
+}
+
+.specialist-workbench > .detail-card {
+  min-height: 0;
+  overflow: auto;
+}
+
 .workbench-scope-bar {
   display: grid;
   grid-template-columns: minmax(260px, 450px) minmax(260px, 500px);
@@ -2207,6 +2257,22 @@ details:not([open]) > summary .tree-disclosure {
   gap: 8px;
 }
 
+.latency-table-page-size {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.latency-table-page-size select {
+  height: 26px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #334155;
+  font-size: 12px;
+  padding: 0 6px;
+}
+
 .latency-table-scroll {
   min-height: 0;
   overflow: auto;
@@ -2338,6 +2404,44 @@ details:not([open]) > summary .tree-disclosure {
 .latency-table-head.latency-table-total {
   z-index: 4;
   background: #f1f5f9;
+}
+
+/* 表头排序：可点击列 + 排序指示符 + 阈值展示。 */
+.latency-table-head.latency-table-sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.latency-table-head.latency-table-sortable:hover {
+  filter: brightness(0.96);
+}
+
+.latency-table-head-name {
+  display: block;
+}
+
+.latency-table-threshold {
+  display: block;
+  font-size: 10px;
+  font-weight: 500;
+  color: #64748b;
+  margin-top: 1px;
+}
+
+.latency-table-sort-indicator {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  font-size: 10px;
+  color: #2563eb;
+}
+
+/* 超时单元格标红：阈值命中时覆盖组色带/斑马纹。 */
+.latency-table-cell.is-timeout {
+  color: #b91c1c !important;
+  background-color: #fee2e2 !important;
+  font-weight: 600;
 }
 
 /* 日志搜索：手动/规则 来源开关 + matcher 树形多选框 */

@@ -71,6 +71,8 @@ export interface LatencyTableColumnViewModel {
   id: string
   group: string
   name: string
+  /** 超时阈值（毫秒），未配置时为 undefined，不参与标红。 */
+  thresholdMs?: number
 }
 
 export interface LatencyTableRowViewModel {
@@ -431,6 +433,7 @@ function buildLatencyTableViewModel(rules: RuleRecordDto[], analysis: LatencyAna
     id: stage.id,
     group: stage.flowId ? context.flowNameById.get(stage.flowId) ?? '流程' : '流程',
     name: stage.name,
+    thresholdMs: stage.thresholdMs,
   }))
 
   for (const processId of processGroupOrder) {
@@ -442,7 +445,7 @@ function buildLatencyTableViewModel(rules: RuleRecordDto[], analysis: LatencyAna
     const applicationName = applicationId ? context.applicationNameById.get(applicationId) : undefined
     const processGroupName = applicationName ? `${applicationName} · ${processName}` : processName
     for (const stage of processStages) {
-      columns.push({ id: stage.id, group: processGroupName, name: stage.name })
+      columns.push({ id: stage.id, group: processGroupName, name: stage.name, thresholdMs: stage.thresholdMs })
     }
   }
 

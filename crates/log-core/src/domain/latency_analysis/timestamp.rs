@@ -61,6 +61,33 @@ fn days_from_civil(y: i64, m: i64, d: i64) -> i64 {
     era * 146_097 + doe - 719_468
 }
 
+/// 把「距 Unix 纪元的毫秒数」还原为 `YYYY-MM-DD HH:MM:SS.mmm` 字符串（`timestamp_to_ms` 的逆）。
+/// 供「有界回溯」把 `t0 − W` 换算回时间戳串，与日志时间戳做同格式字符串比较。
+pub fn ms_to_timestamp(ms: i64) -> String {
+    let days = ms.div_euclid(86_400_000);
+    let rem = ms.rem_euclid(86_400_000);
+    let (y, m, d) = civil_from_days(days);
+    let hour = rem / 3_600_000;
+    let minute = (rem % 3_600_000) / 60_000;
+    let second = (rem % 60_000) / 1000;
+    let millis = rem % 1000;
+    format!("{y:04}-{m:02}-{d:02} {hour:02}:{minute:02}:{second:02}.{millis:03}")
+}
+
+/// Howard Hinnant 的 `civil_from_days`：`days_from_civil` 的逆，把日序还原为年月日。
+fn civil_from_days(z: i64) -> (i64, i64, i64) {
+    let z = z + 719_468;
+    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
+    let doe = z - era * 146_097; // [0, 146096]
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365; // [0, 399]
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100); // [0, 365]
+    let mp = (5 * doy + 2) / 153; // [0, 11]
+    let d = doy - (153 * mp + 2) / 5 + 1; // [1, 31]
+    let m = if mp < 10 { mp + 3 } else { mp - 9 }; // [1, 12]
+    (y, m, d)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -94,5 +121,19 @@ mod tests {
         assert!(timestamp_to_ms("not a timestamp").is_none());
         assert!(timestamp_to_ms("").is_none());
         assert!(timestamp_to_ms("2026-13-40 99:99:99").is_none());
+    }
+
+    #[test]
+    fn ms_to_timestamp_round_trips() {
+        let original = "2026-07-05 10:00:00.000";
+        let ms = timestamp_to_ms(original).unwrap();
+        assert_eq!(ms_to_timestamp(ms), original);
+    }
+
+    #[test]
+    fn ms_to_timestamp_handles_subtraction_across_boundary() {
+        let ms = timestamp_to_ms("2026-07-05 10:00:00.000").unwrap();
+        // 减去 10 分钟跨过整点。
+        assert_eq!(ms_to_timestamp(ms - 600_000), "2026-07-05 09:50:00.000");
     }
 }

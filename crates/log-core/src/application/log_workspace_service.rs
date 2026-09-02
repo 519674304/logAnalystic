@@ -11,6 +11,9 @@ use crate::domain::log_workspace::port::{
     LogContextData, LogSource, SearchCondition, SearchResult, TimeRange,
 };
 use crate::domain::log_workspace::workspace::Workspace;
+use crate::domain::specialist_diagnosis::analyzer::DiagnosticAnalyzer;
+use crate::domain::specialist_diagnosis::result::DiagnosticReport;
+use crate::domain::specialist_diagnosis::spec::{effective_range, DiagnosticProblem};
 use crate::infrastructure::ripgrep_log_source::RipgrepLogSource;
 
 /// 日志工作区应用服务：编排 open / search / read_context，对外暴露统一入口。
@@ -78,6 +81,25 @@ impl LogWorkspaceService {
     ) -> Result<HealthReport, String> {
         let entries = self.source.entries(dir, range)?;
         HealthCheckAnalyzer::check(spec, &entries)
+    }
+
+    /// 专科诊断：按各判断依据的搜索范围分别读条目，交分析器做搜索、配对与结论折叠。
+    pub fn run_diagnostic(
+        &self,
+        dir: &str,
+        range: &TimeRange,
+        problem: &DiagnosticProblem,
+    ) -> Result<DiagnosticReport, String> {
+        let mut scoped: Vec<Vec<LogEntry>> = Vec::with_capacity(problem.judgments.len());
+        for judgment in &problem.judgments {
+            let effective = effective_range(
+                &judgment.range,
+                range.start.as_deref(),
+                range.end.as_deref(),
+            );
+            scoped.push(self.source.entries(dir, &effective)?);
+        }
+        DiagnosticAnalyzer::run(problem, &scoped)
     }
 }
 

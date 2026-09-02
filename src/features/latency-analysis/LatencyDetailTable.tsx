@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
 import type * as React from 'react'
-import type { LatencyTableColumnViewModel, LatencyTableViewModel } from '../../view-model/latency-view-model'
+import type { LatencyTableColumnViewModel, LatencyTableRowViewModel, LatencyTableViewModel } from '../../view-model/latency-view-model'
 
-const PAGE_SIZE = 10
-const MAX_ROWS = 100
+const PAGE_SIZES = [10, 50, 100]
+const MAX_ROWS = 1000
 const DEFAULT_COL_WIDTH = 140
 const MIN_COL_WIDTH = 60
 
@@ -34,6 +34,8 @@ export default function LatencyDetailTable({ table, hiddenColumns, onToggleColum
   const [idColWidth, setIdColWidth] = useState(168)
   const [totalColWidth, setTotalColWidth] = useState(72)
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
+  const [sort, setSort] = useState<{ columnId: string; direction: 'asc' | 'desc' } | null>(null)
+  const [pageSize, setPageSize] = useState(10)
 
   const visibleColumns = table.columns.filter((column) => !hiddenColumns.has(column.id))
   const headerGroups = useMemo(() => groupColumns(visibleColumns), [visibleColumns])
@@ -62,9 +64,36 @@ export default function LatencyDetailTable({ table, hiddenColumns, onToggleColum
   }, [headerGroups])
 
   const totalRows = Math.min(table.rows.length, MAX_ROWS)
-  const pageCount = Math.max(1, Math.ceil(totalRows / PAGE_SIZE))
+  const pageCount = Math.max(1, Math.ceil(totalRows / pageSize))
   const safePage = Math.min(page, pageCount - 1)
-  const pageRows = table.rows.slice(0, totalRows).slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE)
+
+  // 前端页面排序：点击表头列切换升降序，作用于当前加载的全部行，再分页展示。
+  const sortedRows = useMemo(() => {
+    const rows = table.rows.slice(0, MAX_ROWS)
+    if (!sort) return rows
+    const { columnId, direction } = sort
+    const sign = direction === 'asc' ? 1 : -1
+    const valueOf = (row: LatencyTableRowViewModel): number | undefined => {
+      if (columnId === '__totalMs') return row.totalMs
+      const value = row.cells[columnId]
+      return typeof value === 'number' ? value : undefined
+    }
+
+    return [...rows].sort((left, right) => {
+      if (columnId === '__requestId') {
+        return left.requestId.localeCompare(right.requestId) * sign
+      }
+      const leftValue = valueOf(left)
+      const rightValue = valueOf(right)
+      if (leftValue === undefined && rightValue === undefined) return 0
+      if (leftValue === undefined) return 1
+      if (rightValue === undefined) return -1
+      const diff = leftValue - rightValue
+      return diff === 0 ? 0 : diff * sign
+    })
+  }, [table.rows, sort])
+
+  const pageRows = sortedRows.slice(safePage * pageSize, (safePage + 1) * pageSize)
 
   const getColumnWidth = (id: string) => columnWidths[id] ?? DEFAULT_COL_WIDTH
 
@@ -85,6 +114,32 @@ export default function LatencyDetailTable({ table, hiddenColumns, onToggleColum
     }
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
+  }
+
+  const toggleSort = (columnId: string) => {
+    setSort((prev) => {
+      if (!prev || prev.columnId !== columnId) {
+        return { columnId, direction: 'desc' }
+      }
+      if (prev.direction === 'desc') {
+        return { columnId, direction: 'asc' }
+      }
+      return null
+    })
+  }
+
+  const changePageSize = (nextSize: number) => {
+    setPageSize(nextSize)
+    setPage(0)
+  }
+
+  const stopResizeClick = (event: React.MouseEvent<HTMLSpanElement>) => {
+    event.stopPropagation()
+  }
+
+  const sortIndicator = (columnId: string) => {
+    if (!sort || sort.columnId !== columnId) return null
+    return <span className="latency-table-sort-indicator">{sort.direction === 'asc' ? '▲' : '▼'}</span>
   }
 
   return (
@@ -140,6 +195,14 @@ export default function LatencyDetailTable({ table, hiddenColumns, onToggleColum
           >
             下一页
           </button>
+          <label className="latency-table-page-size">
+            <span className="muted">每页</span>
+            <select value={pageSize} onChange={(event: React.ChangeEvent<HTMLSelectElement>) => changePageSize(Number(event.target.value))}>
+              {PAGE_SIZES.map((size) => (
+                <option key={size} value={size}>{size}</option>
+              ))}
+            </select>
+          </label>
         </div>
       </div>
 
@@ -157,17 +220,31 @@ export default function LatencyDetailTable({ table, hiddenColumns, onToggleColum
             </colgroup>
             <thead>
               <tr>
-                <th className="latency-table-head latency-table-id" rowSpan={2} style={{ left: 0 }}>
+                <th
+                  className={`latency-table-head latency-table-id latency-table-sortable ${sort?.columnId === '__requestId' ? 'latency-table-sorted' : ''}`}
+                  rowSpan={2}
+                  style={{ left: 0 }}
+                  onClick={() => toggleSort('__requestId')}
+                >
                   请求标识
+                  {sortIndicator('__requestId')}
                   <span
                     className="col-resize-handle"
+                    onClick={stopResizeClick}
                     onMouseDown={(event: React.MouseEvent<HTMLSpanElement>) => beginResize(idColWidth, setIdColWidth, event)}
                   />
                 </th>
-                <th className="latency-table-head latency-table-total" rowSpan={2} style={{ left: idColWidth }}>
+                <th
+                  className={`latency-table-head latency-table-total latency-table-sortable ${sort?.columnId === '__totalMs' ? 'latency-table-sorted' : ''}`}
+                  rowSpan={2}
+                  style={{ left: idColWidth }}
+                  onClick={() => toggleSort('__totalMs')}
+                >
                   总耗时
+                  {sortIndicator('__totalMs')}
                   <span
                     className="col-resize-handle"
+                    onClick={stopResizeClick}
                     onMouseDown={(event: React.MouseEvent<HTMLSpanElement>) => beginResize(totalColWidth, setTotalColWidth, event)}
                   />
                 </th>
@@ -182,11 +259,17 @@ export default function LatencyDetailTable({ table, hiddenColumns, onToggleColum
                   group.columns.map((column) => (
                     <th
                       key={column.id}
-                      className={`latency-table-head ${groupStarts.has(column.id) ? 'latency-table-group-start' : ''} latency-table-band-${(columnGroupIndex.get(column.id) ?? 0) % 2}`}
+                      className={`latency-table-head latency-table-sortable ${groupStarts.has(column.id) ? 'latency-table-group-start' : ''} latency-table-band-${(columnGroupIndex.get(column.id) ?? 0) % 2} ${sort?.columnId === column.id ? 'latency-table-sorted' : ''}`}
+                      onClick={() => toggleSort(column.id)}
                     >
-                      {column.name}
+                      <span className="latency-table-head-name">{column.name}</span>
+                      {column.thresholdMs != null ? (
+                        <span className="latency-table-threshold">阈值 {column.thresholdMs}ms</span>
+                      ) : null}
+                      {sortIndicator(column.id)}
                       <span
                         className="col-resize-handle"
+                        onClick={stopResizeClick}
                         onMouseDown={(event: React.MouseEvent<HTMLSpanElement>) =>
                           beginResize(
                             getColumnWidth(column.id),
@@ -211,10 +294,11 @@ export default function LatencyDetailTable({ table, hiddenColumns, onToggleColum
                   </td>
                   {visibleColumns.map((column) => {
                     const value = row.cells[column.id]
+                    const timedOut = value !== undefined && column.thresholdMs != null && value > column.thresholdMs
                     return (
                       <td
                         key={column.id}
-                        className={`latency-table-cell ${groupStarts.has(column.id) ? 'latency-table-group-start' : ''} latency-table-band-${(columnGroupIndex.get(column.id) ?? 0) % 2}`}
+                        className={`latency-table-cell ${groupStarts.has(column.id) ? 'latency-table-group-start' : ''} latency-table-band-${(columnGroupIndex.get(column.id) ?? 0) % 2} ${timedOut ? 'is-timeout' : ''}`}
                       >
                         {value === undefined ? '-' : `${value}ms`}
                       </td>

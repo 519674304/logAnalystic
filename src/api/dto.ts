@@ -186,3 +186,36 @@ export interface EffectiveRuleCatalog {
   rule_set_id: string
   rules: LogMatcherDto[]
 }
+
+// —— 专科诊断：诊断问题配置（持久化形状，引用 matcherId / stageId）——
+
+export type DiagnosticJudgmentType = 'matcher' | 'stage'
+export type DiagnosticRange = 'window' | 'boundedBacktrack' | 'unbounded'
+export type DiagnosticReturnMode = 'first' | 'all'
+export type DiagnosticConnector = 'and' | 'or'
+
+export interface DiagnosticJudgmentConfigDto {
+  id: string
+  type: DiagnosticJudgmentType
+  /** type=matcher 时引用的 matcher id。 */
+  matcherId?: string
+  /** type=stage 时引用的 stage id。 */
+  stageId?: string
+  range: DiagnosticRange
+  /** range=boundedBacktrack 时相对 t0 的回溯窗口（分钟）。 */
+  windowMinutes?: number
+  /** 命中条件：matcher 为 hit/miss，stage 为 closed/unclosed/missing。 */
+  when: string
+  returnMode: DiagnosticReturnMode
+  /** 短结论（命中时拼接进最终结论）。 */
+  conclusion: string
+  connector: DiagnosticConnector
+}
+
+export interface DiagnosticProblemConfigDto {
+  id: string
+  name: string
+  hitLabel: string
+  missLabel: string
+  judgments: DiagnosticJudgmentConfigDto[]
+}

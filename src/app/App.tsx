@@ -22,8 +22,16 @@ import { serializeLayerToToml } from '../api/local-rule-package'
 import { searchLogs } from '../api/http-client'
 import { analyzeLatencyStream, type LatencyAnalysis, type LatencyStageSpec, type LogMarker } from '../api/latency-analysis-client'
 import { analyzeHealthCheck, type HealthReport } from '../api/health-check-client'
+import {
+  listDiagnosticProblems,
+  resolveDiagnosticProblem,
+  runDiagnostic as runDiagnosticRequest,
+  saveDiagnosticProblems,
+  type DiagnosticReport,
+} from '../api/specialist-diagnosis-client'
 import type {
   ActiveRuleVersionDto,
+  DiagnosticProblemConfigDto,
   LogSearchRequestDto,
   RulePackageVersionDto,
   RuleRecordDto,
@@ -330,9 +338,9 @@ function csvRow(values: Array<string | number | undefined>) {
   return values.map(csvCell).join(',')
 }
 
-// 导出明细表的 CSV 快照：跟随列选择器（隐藏列不导出），导出全部请求行（上限与明细表一致 100 行）。
+// 导出明细表的 CSV 快照：跟随列选择器（隐藏列不导出），导出全部请求行（上限与明细表一致 1000 行）。
 // 所有耗时单位统一为毫秒，单位标注在表头。
-const MAX_TABLE_ROWS = 100
+const MAX_TABLE_ROWS = 1000
 
 function buildLatencyExportCsv(viewModel: RequestViewModel, hiddenColumns: Set<string>) {
   const table = viewModel.table
@@ -404,6 +412,10 @@ export default function App() {
   const [latencyAnalysis, setLatencyAnalysis] = useState<LatencyAnalysis | null>(null)
   const [healthReport, setHealthReport] = useState<HealthReport | null>(null)
   const [healthMessage, setHealthMessage] = useState('等待体检')
+  const [diagnosticProblems, setDiagnosticProblems] = useState<DiagnosticProblemConfigDto[]>([])
+  const [selectedDiagnosticId, setSelectedDiagnosticId] = useState<string | null>(null)
+  const [diagnosticReport, setDiagnosticReport] = useState<DiagnosticReport | null>(null)
+  const [diagnosticMessage, setDiagnosticMessage] = useState('选择问题后运行')
   const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(() => readActiveScenario())
   const rules = useMemo(() => projectRuleRecords(rulePackages, activeRuleVersion), [rulePackages, activeRuleVersion])
   const matcherRecords = useMemo(() => rules.filter((rule) => rule.recordType === 'matcher'), [rules])
@@ -566,10 +578,11 @@ export default function App() {
 
     async function loadWorkspaceLists() {
       try {
-        const [loadedQueries, loadedRulePackages, loadedActiveRuleVersion] = await Promise.all([
+        const [loadedQueries, loadedRulePackages, loadedActiveRuleVersion, loadedDiagnosticProblems] = await Promise.all([
           listSavedQueries(),
           listRulePackages(),
           loadActiveRuleVersion(),
+          listDiagnosticProblems(),
         ])
 
         if (cancelled) {
@@ -591,6 +604,8 @@ export default function App() {
         setRulePackages(loadedRulePackages)
         setActiveRuleVersion(loadedActiveRuleVersion)
         setRulePackageStatus(loadedRulePackages.length > 0 ? '已加载规则包' : '等待导入')
+        setDiagnosticProblems(loadedDiagnosticProblems)
+        setSelectedDiagnosticId(loadedDiagnosticProblems[0]?.id ?? null)
 
         // matcher 勾选独立持久化：读回并过滤掉当前规则集中已不存在的 id；非空则恢复到 matcher 模式。
         const loadedRules = projectRuleRecords(loadedRulePackages, loadedActiveRuleVersion)
@@ -923,6 +938,56 @@ export default function App() {
     }
   }
 
+  const runDiagnostic = async (problem: DiagnosticProblemConfigDto) => {
+    if (!logFolderPath.trim()) {
+      setDiagnosticMessage('请先选择日志文件夹')
+      return
+    }
+    rememberFolder(logFolderPath)
+    const resolved = resolveDiagnosticProblem(problem, rules)
+    if (!resolved) {
+      setDiagnosticMessage('问题引用的 matcher/stage 已失效，请编辑问题重新选择')
+      return
+    }
+    const { startTime, endTime } = parseTimeRange(queryDraft.timeRange)
+    setDiagnosticMessage('正在诊断…')
+    try {
+      const report = await runDiagnosticRequest(logFolderPath, resolved, { startTime, endTime })
+      setDiagnosticReport(report)
+      setDiagnosticMessage(report.hit ? `命中：${report.conclusion}` : `未命中：${report.conclusion}`)
+    } catch (error) {
+      setDiagnosticMessage(`诊断失败：${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+
+  const saveDiagnosticProblem = async (problem: DiagnosticProblemConfigDto) => {
+    const exists = diagnosticProblems.some((item) => item.id === problem.id)
+    const next = exists
+      ? diagnosticProblems.map((item) => (item.id === problem.id ? problem : item))
+      : [...diagnosticProblems, problem]
+    setDiagnosticProblems(next)
+    setSelectedDiagnosticId(problem.id)
+    try {
+      await saveDiagnosticProblems(next)
+    } catch (error) {
+      setDiagnosticMessage(`保存失败：${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+
+  const deleteDiagnosticProblem = async (id: string) => {
+    const next = diagnosticProblems.filter((item) => item.id !== id)
+    setDiagnosticProblems(next)
+    if (selectedDiagnosticId === id) {
+      setSelectedDiagnosticId(null)
+      setDiagnosticReport(null)
+    }
+    try {
+      await saveDiagnosticProblems(next)
+    } catch (error) {
+      setDiagnosticMessage(`删除失败：${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+
   const exportLatencyCsv = (hiddenColumns: Set<string>) => {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
     downloadCsv(`latency-analysis-${timestamp}.csv`, buildLatencyExportCsv(latencyViewModel, hiddenColumns))
@@ -1042,6 +1107,15 @@ export default function App() {
           message={healthMessage}
           stageNameById={stageNameById}
           onCheck={() => void runHealthCheck()}
+          problems={diagnosticProblems}
+          selectedProblemId={selectedDiagnosticId}
+          diagnosticReport={diagnosticReport}
+          diagnosticMessage={diagnosticMessage}
+          rules={rules}
+          onSelectProblem={setSelectedDiagnosticId}
+          onRunDiagnostic={(problem) => void runDiagnostic(problem)}
+          onSaveProblem={(problem) => void saveDiagnosticProblem(problem)}
+          onDeleteProblem={(id) => void deleteDiagnosticProblem(id)}
         />
       ) : null}
     </AppShell>

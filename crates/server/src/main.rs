@@ -15,6 +15,7 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+use log_core::application::diagnostic_problem_service::DiagnosticProblemService;
 use log_core::application::log_workspace_service::LogWorkspaceService;
 use log_core::application::rule_set_service::RuleSetService;
 use log_core::domain::health_check::result::HealthReport;
@@ -22,6 +23,10 @@ use log_core::domain::health_check::spec::{HealthCheckSpec, StageThreshold};
 use log_core::domain::latency_analysis::result::LatencyAnalysis;
 use log_core::domain::latency_analysis::spec::{
     LatencyAnalysisSpec, Marker, MarkerMode, StageSpec,
+};
+use log_core::domain::specialist_diagnosis::result::DiagnosticReport;
+use log_core::domain::specialist_diagnosis::spec::{
+    Connector, DiagnosticJudgment, DiagnosticProblem, JudgmentType, ReturnMode, SearchRange,
 };
 use log_core::domain::log_workspace::port::{
     LogContextData, SearchCondition, SearchMode, SearchResult, TimeRange,
@@ -51,6 +56,7 @@ struct ErrorBody {
 struct AppState {
     service: Arc<LogWorkspaceService>,
     rule_service: Arc<RuleSetService>,
+    diagnostic_service: Arc<DiagnosticProblemService>,
 }
 
 #[derive(Clone)]
@@ -152,6 +158,50 @@ struct HealthCheckRequest {
 struct StageThresholdDto {
     stage_id: String,
     threshold_ms: i64,
+}
+
+/// 前端诊断运行请求形状：`problem` 已由前端把 matcherId/stageId 投影成 pattern。
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DiagnosticRunRequest {
+    path: String,
+    #[serde(default)]
+    start_time: Option<String>,
+    #[serde(default)]
+    end_time: Option<String>,
+    problem: DiagnosticProblemDto,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DiagnosticProblemDto {
+    name: String,
+    hit_label: String,
+    miss_label: String,
+    #[serde(default)]
+    judgments: Vec<DiagnosticJudgmentDto>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DiagnosticJudgmentDto {
+    /// 前端用 `type` 字段（matcher / stage）。
+    #[serde(rename = "type")]
+    judgment_type: String,
+    #[serde(default)]
+    marker: Option<MarkerDto>,
+    #[serde(default)]
+    stage: Option<StageSpecDto>,
+    range: String,
+    #[serde(default)]
+    window_ms: Option<i64>,
+    when: String,
+    #[serde(default)]
+    return_mode: String,
+    #[serde(default)]
+    conclusion: String,
+    #[serde(default)]
+    connector: String,
 }
 
 fn parse_mode_with_fallback(mode: &str) -> (MarkerMode, bool) {
@@ -264,6 +314,89 @@ fn to_health_spec(req: &HealthCheckRequest, request_id: &str) -> HealthCheckSpec
     }
 }
 
+fn to_stage_spec(dto: &StageSpecDto, request_id: &str, operation: &str) -> StageSpec {
+    StageSpec {
+        id: dto.id.clone(),
+        starts: dto
+            .start_markers
+            .iter()
+            .map(|marker| to_marker(marker, request_id, operation))
+            .collect(),
+        ends: dto
+            .end_markers
+            .iter()
+            .map(|marker| to_marker(marker, request_id, operation))
+            .collect(),
+    }
+}
+
+fn to_search_range(dto: &DiagnosticJudgmentDto) -> Result<SearchRange, String> {
+    match dto.range.as_str() {
+        "window" => Ok(SearchRange::Window),
+        "boundedBacktrack" => Ok(SearchRange::BoundedBacktrack {
+            window_ms: dto.window_ms.unwrap_or(0),
+        }),
+        "unbounded" => Ok(SearchRange::Unbounded),
+        other => Err(format!("未知搜索范围: {other}")),
+    }
+}
+
+fn to_return_mode(value: &str) -> ReturnMode {
+    match value {
+        "first" => ReturnMode::First,
+        _ => ReturnMode::All,
+    }
+}
+
+fn to_connector(value: &str) -> Connector {
+    match value {
+        "or" => Connector::Or,
+        _ => Connector::And,
+    }
+}
+
+fn to_problem(dto: &DiagnosticProblemDto, request_id: &str) -> Result<DiagnosticProblem, String> {
+    const OPERATION: &str = "diagnostic.run";
+    let mut judgments = Vec::with_capacity(dto.judgments.len());
+    for judgment in &dto.judgments {
+        let judgment_type = match judgment.judgment_type.as_str() {
+            "matcher" => {
+                let marker = judgment
+                    .marker
+                    .as_ref()
+                    .ok_or_else(|| "matcher 判断缺 marker".to_string())?;
+                JudgmentType::Matcher {
+                    marker: to_marker(marker, request_id, OPERATION),
+                }
+            }
+            "stage" => {
+                let stage = judgment
+                    .stage
+                    .as_ref()
+                    .ok_or_else(|| "stage 判断缺 stage".to_string())?;
+                JudgmentType::Stage {
+                    stage: to_stage_spec(stage, request_id, OPERATION),
+                }
+            }
+            other => return Err(format!("未知判断类型: {other}")),
+        };
+        judgments.push(DiagnosticJudgment {
+            judgment_type,
+            range: to_search_range(judgment)?,
+            when: judgment.when.clone(),
+            return_mode: to_return_mode(&judgment.return_mode),
+            conclusion: judgment.conclusion.clone(),
+            connector: to_connector(&judgment.connector),
+        });
+    }
+    Ok(DiagnosticProblem {
+        name: dto.name.clone(),
+        hit_label: dto.hit_label.clone(),
+        miss_label: dto.miss_label.clone(),
+        judgments,
+    })
+}
+
 fn failure_category(_error: &str) -> &'static str {
     "service_error"
 }
@@ -299,6 +432,9 @@ fn operation_for(method: &Method, path: &str) -> &'static str {
         (&Method::POST, "/api/context") => "workspace.context",
         (&Method::POST, "/api/latency/analyze") => "latency.analyze",
         (&Method::POST, "/api/health/check") => "health.check",
+        (&Method::POST, "/api/diagnostic/run") => "diagnostic.run",
+        (&Method::GET, "/api/diagnostic-problems") => "diagnostic.list",
+        (&Method::PUT, "/api/diagnostic-problems") => "diagnostic.save",
         (&Method::GET, "/api/rule-config") => "rule.list",
         (&Method::PUT, "/api/rule-config") => "rule.save",
         _ => "http.request",
@@ -472,6 +608,66 @@ async fn health_check(
     }
 }
 
+async fn get_diagnostic_problems(
+    State(state): State<AppState>,
+    Extension(request_id): Extension<RequestId>,
+) -> Result<Json<Value>, ApiError> {
+    let operation = "diagnostic.list";
+    match state.diagnostic_service.list() {
+        Ok(problems) => {
+            tracing::info!(
+                requestId = request_id.0,
+                operation,
+                problemCount = value_count(&problems["problems"]),
+                "{operation}.response"
+            );
+            Ok(Json(problems))
+        }
+        Err(error) => Err(ApiError(error)),
+    }
+}
+
+async fn put_diagnostic_problems(
+    State(state): State<AppState>,
+    Extension(request_id): Extension<RequestId>,
+    Json(body): Json<Value>,
+) -> Result<Json<Value>, ApiError> {
+    let operation = "diagnostic.save";
+    match state.diagnostic_service.save(&body) {
+        Ok(()) => {
+            tracing::info!(requestId = request_id.0, operation, "{operation}.response");
+            Ok(Json(body))
+        }
+        Err(error) => Err(ApiError(error)),
+    }
+}
+
+async fn run_diagnostic(
+    State(state): State<AppState>,
+    Extension(request_id): Extension<RequestId>,
+    Json(req): Json<DiagnosticRunRequest>,
+) -> Result<Json<DiagnosticReport>, ApiError> {
+    let operation = "diagnostic.run";
+    let problem = to_problem(&req.problem, &request_id.0).map_err(ApiError)?;
+    let range = TimeRange {
+        start: req.start_time,
+        end: req.end_time,
+    };
+    match state.service.run_diagnostic(&req.path, &range, &problem) {
+        Ok(report) => {
+            tracing::info!(
+                requestId = request_id.0,
+                operation,
+                judgmentCount = problem.judgments.len(),
+                hit = report.hit,
+                "{operation}.response"
+            );
+            Ok(Json(report))
+        }
+        Err(error) => Err(ApiError(error)),
+    }
+}
+
 async fn get_rule_config(
     State(state): State<AppState>,
     Extension(request_id): Extension<RequestId>,
@@ -528,6 +724,11 @@ fn app_with_state(state: AppState) -> Router {
         .route("/api/context", post(context))
         .route("/api/latency/analyze", post(latency_analyze))
         .route("/api/health/check", post(health_check))
+        .route("/api/diagnostic/run", post(run_diagnostic))
+        .route(
+            "/api/diagnostic-problems",
+            get(get_diagnostic_problems).put(put_diagnostic_problems),
+        )
         .route(
             "/api/rule-config",
             get(get_rule_config).put(put_rule_config),
@@ -541,6 +742,7 @@ pub fn app() -> Router {
     app_with_state(AppState {
         service: Arc::new(LogWorkspaceService::new()),
         rule_service: Arc::new(RuleSetService::new()),
+        diagnostic_service: Arc::new(DiagnosticProblemService::new()),
     })
 }
 

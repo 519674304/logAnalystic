@@ -2,4 +2,5 @@
 //!
 //! 参见 ADR-003：本地文件存储，不引入数据库。
 
+pub mod diagnostic_problem_store;
 pub mod rule_config_store;
