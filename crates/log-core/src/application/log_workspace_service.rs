@@ -14,17 +14,16 @@ use crate::domain::log_workspace::workspace::Workspace;
 use crate::domain::specialist_diagnosis::analyzer::DiagnosticAnalyzer;
 use crate::domain::specialist_diagnosis::result::DiagnosticReport;
 use crate::domain::specialist_diagnosis::spec::{effective_range, DiagnosticProblem};
-use crate::infrastructure::ripgrep_log_source::RipgrepLogSource;
 
 /// 日志工作区应用服务：编排 open / search / read_context，对外暴露统一入口。
 pub struct LogWorkspaceService {
-    source: RipgrepLogSource,
+    source: Arc<dyn LogSource + Send + Sync>,
 }
 
 impl LogWorkspaceService {
-    pub fn new() -> Self {
+    pub fn new(source: impl LogSource + Send + Sync + 'static) -> Self {
         Self {
-            source: RipgrepLogSource,
+            source: Arc::new(source),
         }
     }
 
@@ -103,8 +102,49 @@ impl LogWorkspaceService {
     }
 }
 
-impl Default for LogWorkspaceService {
-    fn default() -> Self {
-        Self::new()
+#[cfg(test)]
+mod tests {
+    use super::LogWorkspaceService;
+    use crate::domain::log_workspace::port::{
+        LogContextData, LogSource, SearchCondition, SearchResult, TimeRange,
+    };
+    use crate::domain::log_workspace::workspace::Workspace;
+    use crate::domain::log_workspace::log_entry::LogEntry;
+
+    struct FailingLogSource;
+
+    impl LogSource for FailingLogSource {
+        fn open(&self, _: &str) -> Result<Workspace, String> {
+            Err("fake source".to_string())
+        }
+
+        fn search(
+            &self,
+            _: &str,
+            _: &SearchCondition,
+            _: &TimeRange,
+            _: usize,
+        ) -> Result<SearchResult, String> {
+            Err("fake source".to_string())
+        }
+
+        fn read_context(&self, _: &str, _: u64, _: usize) -> Result<LogContextData, String> {
+            Err("fake source".to_string())
+        }
+
+        fn entries(&self, _: &str, _: &TimeRange) -> Result<Vec<LogEntry>, String> {
+            Err("fake source".to_string())
+        }
+    }
+
+    #[test]
+    fn service_uses_the_injected_log_source() {
+        let service = LogWorkspaceService::new(FailingLogSource);
+
+        assert_eq!(
+            service.entries("ignored", &TimeRange::default()).unwrap_err(),
+            "fake source"
+        );
     }
 }
+use std::sync::Arc;

@@ -19,16 +19,40 @@ struct StageRule {
     ends: Vec<MarkerMatcher>,
 }
 
-/// 数组顺序优先：依次检查 matchers，返回第一个有命中的 matcher 的首次命中位置（时间戳 + 原始时间串）。
+/// 数组顺序优先：依次检查 matchers，返回第一个有命中的 matcher 的首次命中位置。
+/// 返回值包含请求内条目位置，以便结束边界只能选择开始边界之后的日志。
 fn find_priority_match(
     matchers: &[MarkerMatcher],
     entries: &[LogEntry],
-) -> Option<(i64, String)> {
+) -> Option<(usize, i64, String)> {
     for matcher in matchers {
-        for entry in entries {
+        for (index, entry) in entries.iter().enumerate() {
             let line = clean_line(&entry.raw);
             if let Some(ts_ms) = timestamp_to_ms(&entry.timestamp) {
                 if matcher.matches(line) {
+                    return Some((index, ts_ms, entry.timestamp.clone()));
+                }
+            }
+        }
+    }
+    None
+}
+
+/// 与 `find_priority_match` 相同的 matcher 优先级，但只接受开始边界之后、时间不早于开始的结束日志。
+fn find_priority_match_after(
+    matchers: &[MarkerMatcher],
+    entries: &[LogEntry],
+    start_index: usize,
+    start_ts_ms: i64,
+) -> Option<(i64, String)> {
+    for matcher in matchers {
+        for (index, entry) in entries.iter().enumerate() {
+            if index <= start_index {
+                continue;
+            }
+            let line = clean_line(&entry.raw);
+            if let Some(ts_ms) = timestamp_to_ms(&entry.timestamp) {
+                if ts_ms >= start_ts_ms && matcher.matches(line) {
                     return Some((ts_ms, entry.timestamp.clone()));
                 }
             }
@@ -43,17 +67,19 @@ fn analyze_request(rules: &[StageRule], req: &Request) -> RequestAnalysis {
 
     for rule in rules {
         let start_ts = find_priority_match(&rule.starts, &req.entries);
-        let end_ts = find_priority_match(&rule.ends, &req.entries);
-        if let (Some(start), Some(end)) = (start_ts, end_ts) {
-            let duration_ms = (end.0 - start.0).max(0);
-            samples.push(StageSample {
-                stage_id: rule.stage_id.clone(),
-                start_timestamp: start.1,
-                end_timestamp: end.1,
-                duration_ms,
-            });
-            timestamps.push(start.0);
-            timestamps.push(end.0);
+        if let Some(start) = start_ts {
+            let end_ts = find_priority_match_after(&rule.ends, &req.entries, start.0, start.1);
+            if let Some(end) = end_ts {
+                let duration_ms = end.0 - start.1;
+                samples.push(StageSample {
+                    stage_id: rule.stage_id.clone(),
+                    start_timestamp: start.2,
+                    end_timestamp: end.1,
+                    duration_ms,
+                });
+                timestamps.push(start.1);
+                timestamps.push(end.0);
+            }
         }
     }
 
@@ -96,10 +122,7 @@ fn compute_stats(durations: &[i64]) -> LatencyStatistics {
 pub struct LatencyAnalyzer;
 
 impl LatencyAnalyzer {
-    pub fn analyze(
-        stages: &[StageSpec],
-        requests: &[Request],
-    ) -> Result<LatencyAnalysis, String> {
+    pub fn analyze(stages: &[StageSpec], requests: &[Request]) -> Result<LatencyAnalysis, String> {
         let rules: Vec<StageRule> = stages
             .iter()
             .map(|s| {
@@ -197,7 +220,11 @@ mod tests {
                 entry(1, "2026-07-05 10:00:00.000", "request started"),
                 entry(2, "2026-07-05 10:00:00.040", "start parallel subprocesses"),
                 entry(3, "2026-07-05 10:00:00.085", "all subprocesses completed"),
-                entry(4, "2026-07-05 10:00:00.095", "request completed successfully"),
+                entry(
+                    4,
+                    "2026-07-05 10:00:00.095",
+                    "request completed successfully",
+                ),
             ],
         )];
         let result = LatencyAnalyzer::analyze(&spec(), &requests).unwrap();
@@ -317,6 +344,49 @@ mod tests {
         let result = LatencyAnalyzer::analyze(&stages, &requests).unwrap();
         assert_eq!(result.requests[0].samples.len(), 1);
         assert_eq!(result.requests[0].samples[0].duration_ms, 50);
+    }
+
+    #[test]
+    fn stage_uses_first_end_after_its_start() {
+        let requests = vec![req(
+            "r1",
+            vec![
+                entry(1, "2026-07-05 10:00:00.000", "step end"),
+                entry(2, "2026-07-05 10:00:00.010", "step begin"),
+                entry(3, "2026-07-05 10:00:00.040", "step end"),
+            ],
+        )];
+        let stages = vec![StageSpec {
+            id: "STAGE-X".to_string(),
+            starts: vec![kw("step begin")],
+            ends: vec![kw("step end")],
+        }];
+
+        let result = LatencyAnalyzer::analyze(&stages, &requests).unwrap();
+
+        assert_eq!(result.requests[0].samples.len(), 1);
+        assert_eq!(result.requests[0].samples[0].duration_ms, 30);
+    }
+
+    #[test]
+    fn stage_without_an_end_after_its_start_does_not_create_a_sample() {
+        let requests = vec![req(
+            "r1",
+            vec![
+                entry(1, "2026-07-05 10:00:00.000", "step end"),
+                entry(2, "2026-07-05 10:00:00.010", "step begin"),
+            ],
+        )];
+        let stages = vec![StageSpec {
+            id: "STAGE-X".to_string(),
+            starts: vec![kw("step begin")],
+            ends: vec![kw("step end")],
+        }];
+
+        let result = LatencyAnalyzer::analyze(&stages, &requests).unwrap();
+
+        assert!(result.requests[0].samples.is_empty());
+        assert_eq!(result.stats.sample_count, 0);
     }
 
     #[test]

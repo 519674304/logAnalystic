@@ -7,6 +7,8 @@ use std::path::PathBuf;
 
 use serde_json::{json, Value};
 
+use crate::application::diagnostic_problem_service::DiagnosticProblemStorePort;
+
 const DEFAULT_DIR: &str = "app-data";
 const FILE_NAME: &str = "diagnostic-problems.json";
 
@@ -66,6 +68,11 @@ impl Default for DiagnosticProblemStore {
     fn default() -> Self {
         Self::new()
     }
+}
+
+impl DiagnosticProblemStorePort for DiagnosticProblemStore {
+    fn load(&self) -> Result<Value, String> { DiagnosticProblemStore::load(self) }
+    fn save(&self, value: &Value) -> Result<(), String> { DiagnosticProblemStore::save(self, value) }
 }
 
 #[cfg(test)]

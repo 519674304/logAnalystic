@@ -298,7 +298,9 @@ export default function LatencyAnalysisPanel({
             </div>
 
             <div className="swimlane-board">
-              {viewModel.lanes.map((lane) => (
+              {viewModel.requests.length === 0 ? (
+                <p className="muted">暂无可展示的请求。请检查时间范围、请求起点和 stage 规则后重新分析。</p>
+              ) : viewModel.lanes.map((lane) => (
                 <div className="swimlane-row" key={lane}>
                   <div className="swimlane-label">{lane}</div>
                   <div className="swimlane-track">
@@ -390,7 +392,7 @@ export default function LatencyAnalysisPanel({
             <div className="interval-stats">
               <div>
                 <span>当前请求耗时</span>
-                <strong>42ms</strong>
+                <strong>{activeRequest?.duration ?? '-'}</strong>
               </div>
               <div>
                 <span>样本数</span>
@@ -410,7 +412,7 @@ export default function LatencyAnalysisPanel({
               </div>
               <div>
                 <span>异常样本</span>
-                <strong>1</strong>
+                <strong>{viewModel.requests.filter((request) => request.group === 'abnormal').length}</strong>
               </div>
             </div>
           </div>

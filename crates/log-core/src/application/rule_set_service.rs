@@ -1,16 +1,21 @@
+use std::sync::Arc;
+
 use serde_json::Value;
 
-use crate::infrastructure::file_storage::rule_config_store::RuleConfigStore;
+pub trait RuleConfigStorePort: Send + Sync {
+    fn load(&self) -> Result<Value, String>;
+    fn save(&self, value: &Value) -> Result<(), String>;
+}
 
 /// 规则集应用服务：暴露规则配置文档的读/写入口，委托给本地文件存储。
 pub struct RuleSetService {
-    store: RuleConfigStore,
+    store: Arc<dyn RuleConfigStorePort>,
 }
 
 impl RuleSetService {
-    pub fn new() -> Self {
+    pub fn new(store: impl RuleConfigStorePort + 'static) -> Self {
         Self {
-            store: RuleConfigStore::new(),
+            store: Arc::new(store),
         }
     }
 
@@ -20,11 +25,5 @@ impl RuleSetService {
 
     pub fn save(&self, value: &Value) -> Result<(), String> {
         self.store.save(value)
-    }
-}
-
-impl Default for RuleSetService {
-    fn default() -> Self {
-        Self::new()
     }
 }

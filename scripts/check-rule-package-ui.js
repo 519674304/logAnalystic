@@ -9,10 +9,13 @@ const assert = (condition, message) => {
 
 const panel = read('src/features/rule-config/RuleCatalogPanel.tsx')
 const app = read('src/app/App.tsx')
+const container = read('src/features/rule-config/RuleConfigContainer.tsx')
 const client = read('src/api/tauri-client.ts')
 const localRule = read('src/api/local-rule-package.ts')
 const css = read('src/index.css')
 const serverMain = read('crates/server/src/main.rs')
+const serverHandlers = read('crates/server/src/handlers.rs')
+const serverRouter = read('crates/server/src/router.rs')
 
 assert(fs.existsSync(path.join(root, 'public/templates/rule-package-template.zip')),
   'Downloadable rule package template ZIP must exist.')
@@ -38,10 +41,10 @@ assert(panel.includes('onDeleteVersion'), 'Rule package page must expose whole-v
 assert(panel.includes('version-delete-button'), 'Version nodes must expose a delete control.')
 
 assert(app.includes('listRulePackages'), 'App must load the package version tree.')
-assert(app.includes('importRulePackage'), 'App must import complete ZIP packages.')
-assert(app.includes("endsWith('.zip')"), 'App must report non-ZIP imports through page state.')
-assert(app.includes("typeof error === 'string'"), 'Rule import must preserve string errors returned by the backend.')
-assert(app.includes('updateRulePackageNode'), 'App must save node edits through the backend.')
+assert(container.includes('importRulePackage'), 'Rule config container must import complete ZIP packages.')
+assert(container.includes("endsWith('.zip')"), 'Rule config container must report non-ZIP imports through page state.')
+assert(container.includes("typeof error === 'string'"), 'Rule config container must preserve string errors returned by the backend.')
+assert(container.includes('updateRulePackageNode'), 'Rule config container must save node edits through the backend.')
 assert(!panel.includes("throw new Error('请选择 .zip"), 'File selection must not create an unhandled promise rejection.')
 
 // 规则配置已迁移到后端 HTTP（/api/rule-config），ZIP 解析与合并仍在客户端完成。
@@ -57,9 +60,9 @@ assert(localRule.includes('findEndOfCentralDirectory'), 'Rule package parsing mu
 assert(localRule.includes('collectNodes'), 'Rule package parsing must flatten TOML tables into nodes.')
 assert(localRule.includes('validateReferences'), 'Rule package parsing must validate *_id / *_ids references.')
 
-assert(serverMain.includes('async fn get_rule_config'), 'Backend must expose a rule-config read handler.')
-assert(serverMain.includes('async fn put_rule_config'), 'Backend must expose a rule-config write handler.')
-assert(serverMain.includes('/api/rule-config'), 'Backend must mount the /api/rule-config route.')
+assert(serverHandlers.includes('async fn get_rule_config'), 'Backend must expose a rule-config read handler.')
+assert(serverHandlers.includes('async fn put_rule_config'), 'Backend must expose a rule-config write handler.')
+assert(serverRouter.includes('/api/rule-config'), 'Backend must mount the /api/rule-config route.')
 assert(serverMain.includes('RuleSetService'), 'Backend must back rule config with the RuleSetService.')
 
 const topologyVm = read('src/view-model/rule-topology-view-model.ts')

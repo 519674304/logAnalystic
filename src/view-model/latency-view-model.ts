@@ -93,6 +93,25 @@ const requestGroups: RequestGroupViewModel[] = [
   { id: 'unfinished', title: '未结束请求' },
 ]
 
+export function buildEmptyLatencyViewModel(): RequestViewModel {
+  return {
+    requestId: '',
+    requests: [],
+    requestGroups,
+    lanes: [],
+    laneBlocks: [],
+    stepTree: [],
+    intervalStepOptions: [],
+    stats: {
+      sampleCount: 0,
+      averageMs: 0,
+      p90Ms: 0,
+      maxMs: 0,
+    },
+    table: { columns: [], rows: [] },
+  }
+}
+
 const sampleLanes = ['A应用主流程', 'A应用子进程1', 'A应用子进程2', 'B应用处理', 'C应用回调']
 
 const sampleLaneBlocks: LaneBlockViewModel[] = [
@@ -324,13 +343,13 @@ function getStageLane(stage: RuleRecordDto, context: DefinitionContext) {
   return '未指定应用'
 }
 
-export function buildLatencyViewModelFromRules(rules: RuleRecordDto[], fallback: RequestViewModel): RequestViewModel {
+export function buildLatencyViewModelFromRules(rules: RuleRecordDto[]): RequestViewModel {
   const stages = rules
     .filter((rule) => rule.enabled && rule.recordType === 'stage' && (rule.applicationId || rule.processId))
     .sort((left, right) => (left.order ?? Number.MAX_SAFE_INTEGER) - (right.order ?? Number.MAX_SAFE_INTEGER))
 
   if (stages.length === 0) {
-    return fallback
+    return buildEmptyLatencyViewModel()
   }
 
   const context = buildDefinitionContext(rules)
@@ -468,14 +487,13 @@ function buildLatencyTableViewModel(rules: RuleRecordDto[], analysis: LatencyAna
 export function buildLatencyViewModelFromAnalysis(
   rules: RuleRecordDto[],
   analysis: LatencyAnalysis,
-  fallback: RequestViewModel,
 ): RequestViewModel {
   const stages = rules
     .filter((rule) => rule.enabled && rule.recordType === 'stage' && (rule.applicationId || rule.processId))
     .sort((left, right) => (left.order ?? Number.MAX_SAFE_INTEGER) - (right.order ?? Number.MAX_SAFE_INTEGER))
 
   if (stages.length === 0 || analysis.requests.length === 0) {
-    return fallback
+    return buildEmptyLatencyViewModel()
   }
 
   const stageNameById = new Map(stages.map((stage) => [stage.id, stage.description || stage.name]))

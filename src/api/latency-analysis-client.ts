@@ -63,9 +63,12 @@ interface AnalyzeRequestBody {
 export async function analyzeLatencyStream(
   path: string,
   spec: LatencyAnalysisSpec,
+  timeRange?: { startTime?: string; endTime?: string },
 ): Promise<LatencyAnalysis> {
   const body: AnalyzeRequestBody = {
     path,
+    startTime: timeRange?.startTime,
+    endTime: timeRange?.endTime,
     requestStarts: spec.requestStarts,
     interceptEnds: spec.interceptEnds,
     processStages: spec.processStages,

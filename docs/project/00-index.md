@@ -89,6 +89,7 @@ Web 后端与流式日志处理重构：Tauri → 本机 Web 服务（axum）、
 | plans/05-application-services-and-storage-plan.md | 应用服务与本地存储计划 | Needs revision |
 | plans/06-frontend-ui-plan.md | 前端主流程 UI 计划 | Needs revision |
 | plans/08-rule-package-fast-path-checklist.md | 规则包导入与规则页最小实施清单 | Draft |
+| plans/09-current-implementation-remediation.md | 当前时延分析差距、架构债、范围边界与分阶段整改计划 | Draft |
 | plans/07-testing-performance-packaging-plan.md | 测试、性能与打包计划 | Approved |
 | plans/99-final-audit.md | 最终安全网审计与追踪矩阵 | Approved |
 | code-review-findings.md | 代码架构评审：职责不清与架构债（App.tsx 超级组件 / application 构造具体类型 / main.rs 职责过重） | Draft |

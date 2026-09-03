@@ -7,6 +7,8 @@ use std::path::PathBuf;
 
 use serde_json::{json, Value};
 
+use crate::application::rule_set_service::RuleConfigStorePort;
+
 const DEFAULT_DIR: &str = "app-data";
 const FILE_NAME: &str = "rule-config.json";
 
@@ -72,6 +74,11 @@ impl Default for RuleConfigStore {
     fn default() -> Self {
         Self::new()
     }
+}
+
+impl RuleConfigStorePort for RuleConfigStore {
+    fn load(&self) -> Result<Value, String> { RuleConfigStore::load(self) }
+    fn save(&self, value: &Value) -> Result<(), String> { RuleConfigStore::save(self, value) }
 }
 
 #[cfg(test)]

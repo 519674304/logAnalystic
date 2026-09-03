@@ -1,16 +1,21 @@
+use std::sync::Arc;
+
 use serde_json::Value;
 
-use crate::infrastructure::file_storage::diagnostic_problem_store::DiagnosticProblemStore;
+pub trait DiagnosticProblemStorePort: Send + Sync {
+    fn load(&self) -> Result<Value, String>;
+    fn save(&self, value: &Value) -> Result<(), String>;
+}
 
 /// 诊断问题应用服务：暴露诊断问题列表的读/写入口，委托给本地文件存储。
 pub struct DiagnosticProblemService {
-    store: DiagnosticProblemStore,
+    store: Arc<dyn DiagnosticProblemStorePort>,
 }
 
 impl DiagnosticProblemService {
-    pub fn new() -> Self {
+    pub fn new(store: impl DiagnosticProblemStorePort + 'static) -> Self {
         Self {
-            store: DiagnosticProblemStore::new(),
+            store: Arc::new(store),
         }
     }
 
@@ -20,11 +25,5 @@ impl DiagnosticProblemService {
 
     pub fn save(&self, value: &Value) -> Result<(), String> {
         self.store.save(value)
-    }
-}
-
-impl Default for DiagnosticProblemService {
-    fn default() -> Self {
-        Self::new()
     }
 }
