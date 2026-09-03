@@ -102,6 +102,12 @@ assert(css.includes('.rule-topology-scenario'), 'Topology scenario selector must
 assert(css.includes('.rule-topology-edge-rpc-hit'), 'Topology RPC edges must expose a widened hit area for editing.')
 assert(css.includes('.scenario-activate-button'), 'Scenario activate control must have dedicated styling.')
 assert(css.includes('.scenario-muted'), 'Inactive scenario dimming must have dedicated styling.')
+assert(/\.rule-package-page\s*\{[^}]*height:\s*100%[^}]*grid-template-rows:\s*auto minmax\(0, 1fr\)/s.test(css),
+  'Rule package page must reserve its remaining height for the workspace.')
+assert(/\.rule-package-workspace\s*\{[^}]*height:\s*100%[^}]*min-height:\s*0/s.test(css),
+  'Rule package workspace must be height-bounded so the tree scrolls independently.')
+assert(/\.tab-page\s*\{[^}]*height:\s*100%[^}]*min-height:\s*0/s.test(css),
+  'Tab pages must provide a resolved height to their feature pages.')
 assert(/@media \(max-width: 860px\)[\s\S]*?\.workbench-header/.test(css), 'Narrow screens must stack the workbench header without horizontal clipping.')
 
 console.log('Rule package UI contract passed')

@@ -201,7 +201,7 @@ export default function App() {
       }
     >
       {workspaceLoaded ? <>
-      <div hidden={activeTabId !== 'log-search'}>
+      <div className="tab-page" hidden={activeTabId !== 'log-search'}>
         <LogSearchContainer
           logFolderPath={logFolderPath}
           timeRange={timeRange}
@@ -213,7 +213,7 @@ export default function App() {
         />
       </div>
 
-      <div hidden={activeTabId !== 'latency-analysis'}>
+      <div className="tab-page" hidden={activeTabId !== 'latency-analysis'}>
         <LatencyAnalysisContainer
           rulePackages={rulePackages}
           activeRuleVersion={activeRuleVersion}
@@ -229,7 +229,7 @@ export default function App() {
         />
       </div>
 
-      <div hidden={activeTabId !== 'rule-config'}>
+      <div className="tab-page" hidden={activeTabId !== 'rule-config'}>
         <RuleConfigContainer
           versions={rulePackages}
           activeRuleVersion={activeRuleVersion}
@@ -241,7 +241,7 @@ export default function App() {
         />
       </div>
 
-      <div hidden={activeTabId !== 'issue-tips'}>
+      <div className="tab-page" hidden={activeTabId !== 'issue-tips'}>
         <HealthCheckContainer
           rulePackages={rulePackages}
           activeRuleVersion={activeRuleVersion}
